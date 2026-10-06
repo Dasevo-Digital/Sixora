@@ -41,8 +41,15 @@ class SixoraApi {
   static Uri normalizeBaseUrl(Uri url) {
     var u = url;
     if (!u.hasScheme) u = Uri.parse('https://$url');
-    if (!u.path.endsWith('/')) u = u.replace(path: '${u.path}/');
-    return u.replace(query: '', fragment: '').removeFragment();
+    final path = u.path.endsWith('/') ? u.path : '${u.path}/';
+    // Rebuilt without query and fragment ("replace(query: '')" would keep
+    // a dangling "?").
+    return Uri(
+      scheme: u.scheme,
+      host: u.host,
+      port: u.hasPort ? u.port : null,
+      path: path,
+    );
   }
 
   /// True for loopback and private network addresses, where plain HTTP is
@@ -85,7 +92,19 @@ class SixoraApi {
       ).timeout(_timeout);
     } on TimeoutException {
       throw const ApiException(0, 'offline', 'Server antwortet nicht');
-    } on SocketException {
+    } on SocketException catch (e) {
+      // A failed name lookup is a DNS problem, not a server problem: say so,
+      // otherwise a wrong or stale DNS record looks like a server outage.
+      if (e.message.contains('host lookup') ||
+          e.osError?.message.contains('nodename nor servname') == true ||
+          e.osError?.message.contains('No address associated') == true) {
+        throw ApiException(
+          0,
+          'dns',
+          'Adresse „${uri.host}“ nicht gefunden (DNS). Stimmt die Adresse? '
+              'Nach einer Änderung kann es bis zu einer Stunde dauern.',
+        );
+      }
       throw const ApiException(0, 'offline', 'Server nicht erreichbar');
     } on HandshakeException {
       throw const ApiException(
