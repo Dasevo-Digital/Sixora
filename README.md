@@ -109,6 +109,24 @@ docker exec sixora /opt/sixora/bin/server admin <name>
 docker exec sixora /opt/sixora/bin/server disable <name>
 ```
 
+### Ohne Docker: Proxmox-LXC oder Debian
+
+`deploy/lxc/build_bundle.sh` baut das Server-Paket
+`build/sixora-server-<version>-linux-x64.tar.gz` (braucht Docker auf dem
+Rechner, der baut). Im Container (Debian 13) als root:
+
+```bash
+sh install.sh sixora-server-<version>-linux-x64.tar.gz
+```
+
+Daneben müssen `install.sh`, `sixora.service` und `sixora.env` aus
+`deploy/lxc/` liegen. Der Server läuft dann als systemd-Dienst `sixora` mit
+Daten in `/var/lib/sixora` und Einstellungen in `/etc/sixora/sixora.env`.
+Befehle wie `invite` laufen über `sixora-admin invite 7 "für Alex"`. Für
+ein Update ruft man dasselbe Skript mit dem neuen Paket auf. Daten und
+Einstellungen bleiben erhalten, die vorige Version liegt in
+`/opt/sixora.old`.
+
 **Sicherung:** Das Verzeichnis `./data` (SQLite-Datenbank `sixora.db`) reicht
 für eine Sicherung. Sie enthält nur verschlüsselte Einträge, aber auch die
 Kontodaten. Der Container sollte dafür kurz gestoppt sein, oder man nimmt
@@ -137,8 +155,9 @@ App berühren:
   Schlüsselbund-Eintrag an. `SIXORA_ENV=test` nutzt gar keinen
   Schlüsselbund.
 - Android: `flutter run --flavor dev` (App-ID `de.status403.sixora.dev`).
-- macOS: `FLUTTER_XCODE_SIXORA_APP_NAME="Sixora Dev"
-  FLUTTER_XCODE_SIXORA_BUNDLE_ID=de.status403.sixora.dev flutter build macos
-  --dart-define=SIXORA_ENV=dev`
+- macOS: `app/tool/mac_install.sh dev` baut „Sixora Dev“ und installiert die
+  App, `app/tool/mac_install.sh` dasselbe für die echte App. Beide werden mit
+  `app/tool/sign_macos.sh` signiert, damit der Schlüsselbund „Immer
+  erlauben“ über Updates hinweg behält.
 - Linux braucht zum Bauen `libsecret-1-dev` (Schlüsselbund) und für die
   Laufzeit einen Secret-Service, z. B. GNOME Keyring oder KWallet.

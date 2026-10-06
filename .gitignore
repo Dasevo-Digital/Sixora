@@ -1,5 +1,8 @@
 .dart_tool/
 build/
+# app/build is a link to build.noindex (Spotlight skips it), see app/tool/mac_install.sh
+build.noindex/
+app/build
 /data/
 .DS_Store
 *.db

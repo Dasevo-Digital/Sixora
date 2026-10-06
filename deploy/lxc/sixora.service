@@ -1,0 +1,39 @@
+[Unit]
+Description=Sixora TOTP server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sixora
+Group=sixora
+EnvironmentFile=/etc/sixora/sixora.env
+ExecStart=/opt/sixora/bin/server
+Restart=on-failure
+RestartSec=5
+
+# Hardening: the server only needs its data directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/sixora
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+PrivateDevices=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
