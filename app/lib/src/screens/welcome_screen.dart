@@ -211,10 +211,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       keyboardType: TextInputType.url,
       autocorrect: false,
       autofillHints: const [AutofillHints.url],
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: 'Server-Adresse',
         hintText: 'sixora.example.org',
-        prefixIcon: Icon(Icons.dns_outlined),
+        prefixIcon: const Icon(Icons.dns_outlined),
+        suffixIcon: PasteButton(controller: _server),
       ),
       onSubmitted: (_) => _connect(),
     ),
@@ -297,9 +298,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           autocorrect: false,
           maxLines: 2,
           minLines: 1,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Wiederherstellungsschlüssel',
-            prefixIcon: Icon(Icons.health_and_safety_outlined),
+            prefixIcon: const Icon(Icons.health_and_safety_outlined),
+            suffixIcon: PasteButton(controller: _recovery),
           ),
         ),
         const SizedBox(height: 12),
@@ -342,9 +344,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           controller: _invite,
           autocorrect: false,
           textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Einladungscode',
-            prefixIcon: Icon(Icons.confirmation_number_outlined),
+            prefixIcon: const Icon(Icons.confirmation_number_outlined),
+            suffixIcon: PasteButton(controller: _invite),
           ),
         ),
       ],

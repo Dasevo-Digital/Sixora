@@ -190,17 +190,24 @@ class _EntryEditorState extends State<EntryEditor> {
             autocorrect: false,
             enableSuggestions: false,
             textCapitalization: TextCapitalization.characters,
+            contextMenuBuilder: _showSecret ? null : secretContextMenu,
             decoration: InputDecoration(
               labelText: 'Geheimer Schlüssel',
               helperText: 'Base32, Leerzeichen sind egal',
-              suffixIcon: IconButton(
-                tooltip: _showSecret ? 'Verbergen' : 'Anzeigen',
-                icon: Icon(
-                  _showSecret
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                ),
-                onPressed: () => setState(() => _showSecret = !_showSecret),
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PasteButton(controller: _secret),
+                  IconButton(
+                    tooltip: _showSecret ? 'Verbergen' : 'Anzeigen',
+                    icon: Icon(
+                      _showSecret
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
+                    onPressed: () => setState(() => _showSecret = !_showSecret),
+                  ),
+                ],
               ),
             ),
           ),

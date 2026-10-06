@@ -112,6 +112,7 @@ Future<String?> askText(
             controller: controller,
             autofocus: true,
             obscureText: password,
+            contextMenuBuilder: password ? secretContextMenu : null,
             decoration: InputDecoration(labelText: label),
             onSubmitted: (v) => Navigator.pop(context, v),
           ),
@@ -178,6 +179,59 @@ Future<T?> runBusy<T>(
   }
 }
 
+/// Context menu for hidden fields (passwords, secrets). Flutter offers no
+/// "Einfügen" there on its own, so pasting from a password manager would
+/// only work with the keyboard. Copy and cut stay unavailable.
+///
+///     TextField(obscureText: true, contextMenuBuilder: secretContextMenu)
+Widget secretContextMenu(BuildContext context, EditableTextState field) {
+  final value = field.textEditingValue;
+  return AdaptiveTextSelectionToolbar.buttonItems(
+    anchors: field.contextMenuAnchors,
+    buttonItems: [
+      ContextMenuButtonItem(
+        type: ContextMenuButtonType.paste,
+        label: 'Einfügen',
+        onPressed: () => field.pasteText(SelectionChangedCause.toolbar),
+      ),
+      if (value.text.isNotEmpty &&
+          value.selection.end - value.selection.start < value.text.length)
+        ContextMenuButtonItem(
+          type: ContextMenuButtonType.selectAll,
+          label: 'Alles auswählen',
+          onPressed: () => field.selectAll(SelectionChangedCause.toolbar),
+        ),
+    ],
+  );
+}
+
+/// Button that replaces the field's text with the clipboard (trimmed).
+class PasteButton extends StatelessWidget {
+  const PasteButton({super.key, required this.controller});
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: 'Einfügen',
+    icon: const Icon(Icons.content_paste),
+    onPressed: () async {
+      final text = (await Clipboard.getData(
+        Clipboard.kTextPlain,
+      ))?.text?.trim();
+      if (text == null || text.isEmpty) {
+        if (context.mounted) {
+          showMessage(context, 'Die Zwischenablage ist leer');
+        }
+        return;
+      }
+      controller.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    },
+  );
+}
+
 class PasswordField extends StatefulWidget {
   const PasswordField({
     super.key,
@@ -211,17 +265,26 @@ class _PasswordFieldState extends State<PasswordField> {
     enableSuggestions: false,
     autofillHints: widget.autofillHints,
     onSubmitted: widget.onSubmitted,
+    contextMenuBuilder: secretContextMenu,
     decoration: InputDecoration(
       labelText: widget.label,
       helperText: widget.helper,
       helperMaxLines: 3,
       prefixIcon: const Icon(Icons.key_outlined),
-      suffixIcon: IconButton(
-        tooltip: _visible ? 'Verbergen' : 'Anzeigen',
-        icon: Icon(
-          _visible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-        ),
-        onPressed: () => setState(() => _visible = !_visible),
+      suffixIcon: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PasteButton(controller: widget.controller),
+          IconButton(
+            tooltip: _visible ? 'Verbergen' : 'Anzeigen',
+            icon: Icon(
+              _visible
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+            ),
+            onPressed: () => setState(() => _visible = !_visible),
+          ),
+        ],
       ),
     ),
   );
