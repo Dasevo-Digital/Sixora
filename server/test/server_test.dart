@@ -14,10 +14,14 @@ class _Harness {
   late SixoraServerApp app;
   late Uri url;
 
-  Future<void> start({Registration registration = Registration.invite}) async {
+  Future<void> start({
+    Registration registration = Registration.invite,
+    bool trustProxy = false,
+  }) async {
     app = SixoraServerApp(
       db: openSixoraDatabase(':memory:'),
       registration: registration,
+      trustProxy: trustProxy,
     );
     server = await io.serve(app.handler, InternetAddress.loopbackIPv4, 0);
     url = Uri.parse('http://127.0.0.1:${server.port}/');
@@ -185,6 +189,40 @@ void main() {
       throwsA(isA<ApiException>().having((e) => e.status, 'status', 429)),
     );
   });
+
+  test(
+    'behind a proxy, forged X-Forwarded-For does not dodge the limits',
+    () async {
+      await h.stop();
+      h = _Harness();
+      await h.start(trustProxy: true);
+      await _User.register(h, 'alice');
+      final wrong = base64.encode(List.filled(32, 1));
+      final client = HttpClient();
+      Future<int> attempt(int i, {bool realIp = false}) async {
+        final request = await client.postUrl(
+          h.url.resolve('api/v1/auth/login'),
+        );
+        request.headers.contentType = ContentType.json;
+        // What NPM sends: the client's own header plus the real address.
+        request.headers.set('X-Forwarded-For', '10.0.0.$i, 203.0.113.7');
+        if (realIp) request.headers.set('X-Real-IP', '203.0.113.7');
+        request.write(jsonEncode({'username': 'nobody$i', 'authKey': wrong}));
+        final response = await request.close();
+        await response.drain<void>();
+        return response.statusCode;
+      }
+
+      // 30 failures per address in 15 minutes, then 429 – despite a new
+      // forged first entry on every request.
+      for (var i = 0; i < 30; i++) {
+        expect(await attempt(i, realIp: i.isEven), 401);
+      }
+      expect(await attempt(99), 429);
+      expect(await attempt(98, realIp: true), 429);
+      client.close();
+    },
+  );
 
   test('entries sync with revisions, conflicts and tombstones', () async {
     final alice = await _User.register(h, 'alice');

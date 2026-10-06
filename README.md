@@ -127,6 +127,22 @@ ein Update ruft man dasselbe Skript mit dem neuen Paket auf. Daten und
 Einstellungen bleiben erhalten, die vorige Version liegt in
 `/opt/sixora.old`.
 
+### Hinter Nginx Proxy Manager
+
+Ein Proxy-Host in NPM:
+
+- *Details:* Domain, z. B. `sixora.example.org`, Scheme `http`, Ziel
+  `<IP des Servers>` Port `8080`, „Block Common Exploits“ an. Websockets
+  und eine Access List braucht Sixora nicht.
+- *SSL:* neues Let's-Encrypt-Zertifikat, „Force SSL“, „HTTP/2“ und
+  „HSTS“ an.
+
+Auf dem Server `SIXORA_TRUST_PROXY=true` setzen und Port 8080 nur für den
+Proxy öffnen (`deploy/lxc/nftables.conf`). Sonst könnte jemand im Netz den
+Proxy umgehen und eine falsche Absenderadresse vortäuschen. Sixora wertet
+`X-Real-IP` bzw. den letzten Eintrag in `X-Forwarded-For` aus, also die
+Adresse, die der Proxy selbst gesehen hat.
+
 **Sicherung:** Das Verzeichnis `./data` (SQLite-Datenbank `sixora.db`) reicht
 für eine Sicherung. Sie enthält nur verschlüsselte Einträge, aber auch die
 Kontodaten. Der Container sollte dafür kurz gestoppt sein, oder man nimmt

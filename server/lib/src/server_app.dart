@@ -10,7 +10,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'config.dart';
 import 'security.dart';
 
-const serverVersion = '0.1.0';
+const serverVersion = '0.1.1';
 const apiVersion = 1;
 
 /// Error answered as `{"error": code, "message": text}`.
@@ -197,11 +197,17 @@ class SixoraServerApp {
 
   static Response _ok() => _json({'ok': true});
 
+  /// Client address for rate limits and the audit log. Behind a trusted
+  /// proxy it is the address the proxy itself saw: X-Real-IP, or the last
+  /// X-Forwarded-For entry. Earlier entries come from the client and can be
+  /// forged to dodge the login limits.
   String _ip(Request request) {
     if (trustProxy) {
+      final real = request.headers['x-real-ip']?.trim();
+      if (real != null && real.isNotEmpty) return real;
       final fwd = request.headers['x-forwarded-for'];
       if (fwd != null && fwd.trim().isNotEmpty) {
-        return fwd.split(',').first.trim();
+        return fwd.split(',').last.trim();
       }
     }
     final info = request.context['shelf.io.connection_info'];
