@@ -1,0 +1,35 @@
+# Sixora server (NAS, Raspberry Pi, any Docker host): docker compose up -d
+# Then make it reachable via HTTPS, e.g. behind a reverse proxy (see README).
+services:
+  sixora:
+    build: .
+    container_name: sixora
+    restart: unless-stopped
+    # Hardening: read-only image, no Linux capabilities, no privilege gain.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      # Only reachable from this host; the reverse proxy provides HTTPS.
+      # For a quick test in the home network use "8080:8080".
+      - "127.0.0.1:8080:8080"
+    volumes:
+      # Encrypted vaults, accounts and sessions. Owned by uid 65532.
+      - ./data:/data
+    environment:
+      # open = anyone may register, invite = only with an invite code from an
+      # administrator, closed = nobody. The very first account (the
+      # administrator) can always be created.
+      SIXORA_REGISTRATION: invite
+      # Behind a reverse proxy: take the client address for rate limits and
+      # the audit log from X-Forwarded-For.
+      SIXORA_TRUST_PROXY: "true"
+      # Shown in the apps.
+      # SIXORA_SERVER_NAME: Sixora
+      # Own TLS instead of a reverse proxy (mount the files read-only):
+      # SIXORA_TLS_CERT: /certs/fullchain.pem
+      # SIXORA_TLS_KEY: /certs/privkey.pem

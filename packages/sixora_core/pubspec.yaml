@@ -1,0 +1,17 @@
+name: sixora_core
+description: Sixora core - OTP generation, otpauth parsing, end-to-end vault crypto and API client.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  crypto: ^3.0.7
+  cryptography: ^2.9.0
+  hashlib: ^2.4.2
+  http: ^1.6.0
+
+dev_dependencies:
+  lints: ^6.1.0
+  test: ^1.32.0

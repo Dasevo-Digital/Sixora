@@ -1,0 +1,21 @@
+name: sixora_server
+description: Sixora sync server - stores end-to-end encrypted OTP vaults.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  args: ^2.7.0
+  crypto: ^3.0.7
+  path: ^1.9.1
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
+  sqlite3: ^3.5.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  sixora_core:
+    path: ../packages/sixora_core
+  test: ^1.25.6

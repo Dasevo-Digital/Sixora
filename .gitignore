@@ -1,0 +1,23 @@
+.dart_tool/
+build/
+/data/
+.DS_Store
+*.db
+*.db-shm
+*.db-wal
+
+# Never in the repository: user data, keys, local signing and secrets.
+*.key
+*.pem
+*.jks
+*.keystore
+key.properties
+local.properties
+.env
+secrets.json
+
+__pycache__/
+*.pyc
+
+# Local instructions, not published
+/AGENTS.md
