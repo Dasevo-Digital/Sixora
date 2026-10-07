@@ -33,6 +33,31 @@ abstract final class GoogleMigration {
     return entries;
   }
 
+  /// Position of a transfer code in its series: Google Authenticator
+  /// splits many accounts into several codes ("1 von 8"). Null for
+  /// anything that is not a transfer code.
+  static ({int index, int size, int id})? batch(String text) {
+    try {
+      final data = Uri.parse(text.trim()).queryParameters['data'];
+      if (!looksLike(text) || data == null) return null;
+      var index = 0, size = 1, id = 0;
+      final bytes = base64.decode(base64.normalize(data.replaceAll(' ', '+')));
+      for (final f in _Reader(bytes).fields()) {
+        switch (f.number) {
+          case 3:
+            size = f.value ?? 1;
+          case 4:
+            index = f.value ?? 0;
+          case 5:
+            id = f.value ?? 0;
+        }
+      }
+      return (index: index, size: size < 1 ? 1 : size, id: id);
+    } on FormatException {
+      return null;
+    }
+  }
+
   static OtpEntry? _parseParameters(Uint8List bytes) {
     List<int> secret = const [];
     var name = '';

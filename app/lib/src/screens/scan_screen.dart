@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:sixora_core/sixora_core.dart';
 
-/// Camera scanner; returns the text of the first QR code found.
+/// Camera scanner; returns the text of the first QR code found. Google
+/// Authenticator transfers with several codes ("1 von 8") are collected
+/// until all are there; then all of them are returned, one per line.
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
 
@@ -15,21 +19,46 @@ class _ScanScreenState extends State<ScanScreen> {
   );
   bool _done = false;
 
+  /// Transfer series being collected: index → code.
+  final _series = <int, String>{};
+  int? _seriesId;
+  int _seriesSize = 0;
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
 
+  void _finish(String text) {
+    if (_done) return;
+    _done = true;
+    Navigator.pop(context, text);
+  }
+
+  String get _collected =>
+      [for (final i in _series.keys.toList()..sort()) _series[i]!].join('\n');
+
   void _detected(BarcodeCapture capture) {
     if (_done) return;
     for (final code in capture.barcodes) {
       final text = code.rawValue;
-      if (text != null && text.isNotEmpty) {
-        _done = true;
-        Navigator.pop(context, text);
-        return;
+      if (text == null || text.isEmpty) continue;
+      final batch = GoogleMigration.batch(text);
+      if (batch == null || batch.size <= 1) {
+        // A single code; inside a series, other codes are ignored.
+        if (_series.isEmpty) _finish(text);
+        continue;
       }
+      if (_seriesId != null && batch.id != _seriesId) continue;
+      if (_series.containsKey(batch.index)) continue;
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _seriesId = batch.id;
+        _seriesSize = batch.size;
+        _series[batch.index] = text;
+      });
+      if (_series.length == _seriesSize) _finish(_collected);
     }
   }
 
@@ -77,6 +106,39 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           ),
         ),
+        if (_series.isNotEmpty)
+          Positioned(
+            left: 24,
+            right: 24,
+            top: 24,
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${_series.length} von $_seriesSize Codes erfasst',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: _series.length / _seriesSize,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'In Google Authenticator zum nächsten Code blättern.',
+                      textAlign: TextAlign.center,
+                    ),
+                    TextButton(
+                      onPressed: () => _finish(_collected),
+                      child: const Text('Mit den erfassten weiter'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         const Positioned(
           left: 24,
           right: 24,

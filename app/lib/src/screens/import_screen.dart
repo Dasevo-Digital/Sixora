@@ -31,7 +31,7 @@ class _ImportScreenState extends State<ImportScreen> {
     super.initState();
     if (widget.initialText != null) {
       WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _read(widget.initialText!),
+        (_) => _add(widget.initialText!.split('\n')),
       );
     }
   }
@@ -42,38 +42,87 @@ class _ImportScreenState extends State<ImportScreen> {
     super.dispose();
   }
 
-  Future<void> _pickFile() async {
-    final file = await FilePicker.pickFile(
-      dialogTitle: 'Export-Datei auswählen',
+  static const _imageTypes = {
+    'png',
+    'jpg',
+    'jpeg',
+    'heic',
+    'heif',
+    'webp',
+    'gif',
+    'bmp',
+    'tif',
+    'tiff',
+  };
+
+  /// Everything read so far (QR codes, file contents). More can be added,
+  /// e.g. the remaining codes of a Google Authenticator transfer.
+  final _texts = <String>[];
+
+  Future<void> _pickFiles() async {
+    final files = await FilePicker.pickFiles(
+      dialogTitle: 'Export-Dateien oder Bilder auswählen',
     );
-    if (file == null || !mounted) return;
-    final bytes = await file.readAsBytes();
+    if (files.isEmpty || !mounted) return;
+    final images = [
+      for (final f in files)
+        if (_imageTypes.contains(f.extension?.toLowerCase())) f,
+    ];
+    final texts = <String>[];
+    for (final f in files) {
+      if (images.contains(f)) continue;
+      texts.add(utf8.decode(await f.readAsBytes(), allowMalformed: true));
+    }
     if (!mounted) return;
-    final ext = file.extension?.toLowerCase();
-    if (const {'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'}.contains(ext)) {
-      final text = await runBusy(
+    if (images.isNotEmpty) {
+      final codes = await runBusy(
         context,
-        () => decodeQrImage(bytes),
-        message: 'QR-Code wird gesucht …',
+        () => readQrCodes(images),
+        message: images.length == 1
+            ? 'QR-Code wird gesucht …'
+            : 'QR-Codes in ${images.length} Bildern werden gesucht …',
       );
-      if (!mounted) return;
-      if (text == null) {
-        showMessage(context, 'Kein QR-Code im Bild gefunden');
+      if (codes == null || !mounted) return;
+      if (codes.isEmpty && texts.isEmpty) {
+        showMessage(
+          context,
+          images.length == 1
+              ? 'Kein QR-Code im Bild gefunden'
+              : 'In den Bildern wurde kein QR-Code gefunden',
+        );
         return;
       }
-      await _read(text);
-    } else {
-      await _read(utf8.decode(bytes, allowMalformed: true));
+      texts.addAll(codes);
+    }
+    await _add(texts);
+  }
+
+  Future<void> _add(List<String> texts) async {
+    final fresh = [
+      for (final t in texts.map((t) => t.trim()))
+        if (t.isNotEmpty && !_texts.contains(t)) t,
+    ];
+    if (fresh.isEmpty) {
+      if (_result != null) showMessage(context, 'Nichts Neues gefunden');
+      return;
+    }
+    final before = _texts.length;
+    _texts.addAll(fresh);
+    if (!await _read(_texts.length == 1 ? _texts.single : _texts.join('\n'))) {
+      _texts.removeRange(before, _texts.length);
     }
   }
 
-  Future<void> _read(String text) async {
+  String? get _missing => missingTransferCodes(_texts);
+
+  /// Parses [text]; false if nothing usable came out.
+  Future<bool> _read(String text) async {
     String? password;
     while (true) {
       setState(() => _loading = true);
       try {
         final result = await Importers.read(text, password: password);
-        if (!mounted) return;
+        if (!mounted) return false;
         final c = AppScope.read(context);
         setState(() {
           _result = result;
@@ -85,18 +134,18 @@ class _ImportScreenState extends State<ImportScreen> {
             ]);
           _vaultId ??= c.writableVaults.firstOrNull?.id;
         });
-        return;
+        return true;
       } on NeedsPasswordException {
         // ask below
       } on CryptoException catch (e) {
         if (mounted) showError(context, e);
       } catch (e) {
         if (mounted) showError(context, e);
-        return;
+        return false;
       } finally {
         if (mounted) setState(() => _loading = false);
       }
-      if (!mounted) return;
+      if (!mounted) return false;
       password = await askText(
         context,
         title: 'Passwort der Sicherung',
@@ -104,7 +153,7 @@ class _ImportScreenState extends State<ImportScreen> {
         password: true,
         action: 'Entschlüsseln',
       );
-      if (password == null) return;
+      if (password == null) return false;
     }
   }
 
@@ -157,7 +206,8 @@ class _ImportScreenState extends State<ImportScreen> {
                 Text('Unterstützt werden:', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 const Text(
-                  '• Google Authenticator: „Konten übertragen“ → QR-Code scannen oder Screenshot wählen\n'
+                  '• Google Authenticator: „Konten übertragen“ → QR-Codes scannen oder '
+                  'Screenshots wählen (alle auf einmal, bei mehreren Codes)\n'
                   '• Aegis: Export als unverschlüsseltes JSON\n'
                   '• 2FAuth: Export als JSON\n'
                   '• Sixora: verschlüsselte Sicherung\n'
@@ -175,9 +225,9 @@ class _ImportScreenState extends State<ImportScreen> {
                   const SizedBox(height: 16),
                 ],
                 FilledButton.icon(
-                  onPressed: _loading ? null : _pickFile,
+                  onPressed: _loading ? null : _pickFiles,
                   icon: const Icon(Icons.folder_open),
-                  label: const Text('Datei oder Bild auswählen'),
+                  label: const Text('Dateien oder Bilder auswählen'),
                 ),
               ],
             )
@@ -191,6 +241,25 @@ class _ImportScreenState extends State<ImportScreen> {
                     'Bereits vorhandene sind abgewählt.',
                   ),
                 ),
+                if (_missing case final missing?)
+                  Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    color: theme.colorScheme.tertiaryContainer,
+                    child: ListTile(
+                      leading: const Icon(Icons.qr_code_2),
+                      title: Text('Es fehlen noch Code $missing.'),
+                      subtitle: const Text(
+                        'Google Authenticator verteilt die Konten auf mehrere '
+                        'QR-Codes. Die fehlenden bitte ebenfalls hinzufügen.',
+                      ),
+                    ),
+                  ),
+                if (!_running)
+                  TextButton.icon(
+                    onPressed: _loading ? null : _pickFiles,
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    label: const Text('Weitere Bilder oder Dateien hinzufügen'),
+                  ),
                 Expanded(
                   child: ListView(
                     children: [

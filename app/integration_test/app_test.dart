@@ -6,14 +6,20 @@
 //
 // SIXORA_ENV=test keeps the app's data and keystore entry apart from the
 // real app.
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:sixora/src/app.dart';
 import 'package:sixora/src/data/app_controller.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sixora/src/environment.dart';
+import 'package:sixora/src/platform/qr_image.dart';
 import 'package:sixora/src/widgets/otp_tile.dart';
 import 'package:sixora_core/sixora_core.dart';
+
+import '../test/qr_image_test.dart' as qr;
 
 const _server = String.fromEnvironment(
   'SIXORA_TEST_SERVER',
@@ -141,5 +147,21 @@ void main() {
     // Clean up: log out removes the local copy.
     await controller.logout();
     await _pumpUntil(tester, _field('Server-Adresse'));
+  });
+
+  testWidgets('the system reads a dense transfer code from a screenshot', (
+    tester,
+  ) async {
+    final uri = GoogleMigration.build(qr.accounts(10), batchSize: 10).single;
+    final dir = await getTemporaryDirectory();
+    dir.createSync(recursive: true);
+    final file = File('${dir.path}/transfer.png')
+      ..writeAsBytesSync(qr.screenshot(uri));
+    addTearDown(() => file.deleteSync());
+    // macOS: Apple Vision via mobile_scanner, as for picked images.
+    expect(await readQrNative(file.path), [uri]);
+    expect(await readQrImages([(path: file.path, bytes: file.readAsBytes)]), [
+      uri,
+    ]);
   });
 }

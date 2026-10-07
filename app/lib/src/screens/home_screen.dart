@@ -152,28 +152,36 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fromImage() async {
-    final file = await FilePicker.pickFile(
-      dialogTitle: 'Bild mit QR-Code auswählen',
+    final files = await FilePicker.pickFiles(
+      dialogTitle: 'Bilder mit QR-Codes auswählen',
       type: FileType.image,
     );
-    if (file == null || !mounted) return;
-    final text = await runBusy(
+    if (files.isEmpty || !mounted) return;
+    final codes = await runBusy(
       context,
-      () async => decodeQrImage(await file.readAsBytes()),
-      message: 'QR-Code wird gesucht …',
+      () => readQrCodes(files),
+      message: files.length == 1
+          ? 'QR-Code wird gesucht …'
+          : 'QR-Codes in ${files.length} Bildern werden gesucht …',
     );
-    if (!mounted) return;
-    if (text == null) {
-      showMessage(context, 'Kein QR-Code im Bild gefunden');
+    if (codes == null || !mounted) return;
+    if (codes.isEmpty) {
+      showMessage(
+        context,
+        files.length == 1
+            ? 'Kein QR-Code im Bild gefunden'
+            : 'In den Bildern wurde kein QR-Code gefunden',
+      );
       return;
     }
-    await _handleCode(text);
+    await _handleCode(codes.join('\n'));
   }
 
   /// Text from a QR code or the clipboard.
   Future<void> _handleCode(String text) async {
     final t = text.trim();
-    if (GoogleMigration.looksLike(t)) {
+    // Several codes (transfer series, several screenshots) go to the import.
+    if (GoogleMigration.looksLike(t) || t.contains('\n')) {
       await Navigator.push<void>(
         context,
         MaterialPageRoute(builder: (_) => ImportScreen(initialText: t)),

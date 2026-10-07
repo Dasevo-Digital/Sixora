@@ -140,6 +140,20 @@ void main() {
       );
     });
 
+    test('knows the position of a code in its series', () {
+      final entries = [
+        for (var i = 0; i < 20; i++)
+          OtpEntry(issuer: 'S$i', account: 'a', secret: 'JBSWY3DPEHPK3PXP'),
+      ];
+      final uris = GoogleMigration.build(entries);
+      expect(uris, hasLength(3));
+      final batches = uris.map(GoogleMigration.batch).toList();
+      expect([for (final b in batches) b!.index], [0, 1, 2]);
+      expect(batches.every((b) => b!.size == 3), isTrue);
+      expect(batches.map((b) => b!.id).toSet(), hasLength(1));
+      expect(GoogleMigration.batch('otpauth://totp/x?secret=A'), isNull);
+    });
+
     test('parses a hand-made transfer payload', () {
       // One TOTP account "Example:alice@example.com", encoded by hand.
       const uri =
