@@ -268,7 +268,7 @@ abstract final class VaultCrypto {
         salt: [...ephPub, ...base64.decode(publicKeyB64)],
         info: 'sixora-seal-v1',
       );
-      return decrypt(
+      return await decrypt(
         key,
         base64.encode([_version, ...data.sublist(33)]),
         aad: 'sixora-seal',
