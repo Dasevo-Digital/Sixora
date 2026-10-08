@@ -290,6 +290,12 @@ class _PasswordFieldState extends State<PasswordField> {
   );
 }
 
+IconData biometricIcon(String label) => switch (label) {
+  'Face ID' => Icons.face_retouching_natural,
+  'Windows Hello' => Icons.lock_person_outlined,
+  _ => Icons.fingerprint,
+};
+
 /// Rough strength estimate for the master password hint.
 ({double score, String label}) passwordStrength(String pw) {
   if (pw.isEmpty) return (score: 0, label: '');

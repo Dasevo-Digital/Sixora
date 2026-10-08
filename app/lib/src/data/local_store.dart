@@ -76,6 +76,9 @@ class AppSettings {
   AutoLock autoLock = AutoLock.fiveMinutes;
   bool hideCodes = false;
   bool quickUnlock = false;
+
+  /// The offer to unlock with biometrics was shown (or answered).
+  bool biometricsOffered = false;
   bool clearClipboard = true;
   bool showNextCode = true;
   bool allowScreenshots = false;
@@ -85,6 +88,7 @@ class AppSettings {
     'autoLock': autoLock.name,
     'hideCodes': hideCodes,
     'quickUnlock': quickUnlock,
+    'biometricsOffered': biometricsOffered,
     'clearClipboard': clearClipboard,
     'showNextCode': showNextCode,
     'allowScreenshots': allowScreenshots,
@@ -95,6 +99,7 @@ class AppSettings {
     ..autoLock = AutoLock.parse(j['autoLock'])
     ..hideCodes = j['hideCodes'] as bool? ?? false
     ..quickUnlock = j['quickUnlock'] as bool? ?? false
+    ..biometricsOffered = j['biometricsOffered'] as bool? ?? false
     ..clearClipboard = j['clearClipboard'] as bool? ?? true
     ..showNextCode = j['showNextCode'] as bool? ?? true
     ..allowScreenshots = j['allowScreenshots'] as bool? ?? false

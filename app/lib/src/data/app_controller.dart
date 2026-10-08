@@ -1,15 +1,15 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:local_auth/local_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../environment.dart';
+import 'biometric_vault.dart';
 import 'local_store.dart';
 import 'secret_store.dart';
 
@@ -75,7 +75,11 @@ class AppController extends ChangeNotifier {
 
   /// Shown once on the welcome screen, e.g. after a remote logout.
   String? notice;
-  bool biometricsAvailable = false;
+  late final BiometricVault biometrics;
+
+  /// Set after an unlock with the password when Face ID & co. could be
+  /// offered; the home screen asks once.
+  bool offerBiometrics = false;
   Timer? _syncTimer;
 
   static Future<AppController> create() async {
@@ -92,8 +96,16 @@ class AppController extends ChangeNotifier {
     );
     c.phase = c.cached == null ? Phase.setup : Phase.locked;
     if (c.cached != null) c._api = c._newApi(c.cached!.server);
-    c.biometricsAvailable = await c._checkBiometrics();
-    if (!c.biometricsAvailable && c.settings.quickUnlock) {
+    c.biometrics = await BiometricVault.open(secrets);
+    // Up to 0.1.3 the key sat in the normal keystore entry also on iOS and
+    // Android; there it now has to be bound to biometrics, so set it up anew.
+    if (BiometricVault.hardwareBound && secrets['quickKey'] != null) {
+      await secrets.set('quickKey', null);
+      c.settings.quickUnlock = false;
+      c.settings.biometricsOffered = false;
+      await store.saveSettings(c.settings);
+    }
+    if (!c.biometrics.available && c.settings.quickUnlock) {
       c.settings.quickUnlock = false;
     }
     return c;
@@ -101,22 +113,24 @@ class AppController extends ChangeNotifier {
 
   SixoraApi _newApi(Uri server) => SixoraApi(server, token: secrets['token']);
 
-  Future<bool> _checkBiometrics() async {
-    if (!secrets.secure || Platform.isLinux) return false;
-    try {
-      return await LocalAuthentication().isDeviceSupported();
-    } on Object {
-      return false;
-    }
-  }
-
   AccountBundle? get account => cached?.account;
   List<VaultView> get vaults => _vaults.values.toList();
   VaultView? vault(String id) => _vaults[id];
   List<VaultView> get writableVaults =>
       _vaults.values.where((v) => v.canWrite).toList();
   bool get isAdmin => account?.isAdmin ?? false;
-  bool get hasQuickUnlockKey => secrets['quickKey'] != null;
+  bool get biometricsAvailable => biometrics.available;
+
+  /// "Face ID", "Touch ID", "Fingerabdruck", "Windows Hello" …
+  String get biometricLabel => biometrics.kind ?? 'Biometrie';
+  bool get quickUnlockReady => settings.quickUnlock && biometrics.available;
+
+  void _offerBiometrics() {
+    offerBiometrics =
+        biometrics.available &&
+        !settings.quickUnlock &&
+        !settings.biometricsOffered;
+  }
 
   List<String> get groups {
     final set = <String>{
@@ -227,6 +241,7 @@ class AppController extends ChangeNotifier {
     );
     await _adopt(api, result, serverName);
     _keys = await UnlockedKeys.unlock(result.account, keys.kek);
+    _offerBiometrics();
     await _afterUnlock();
   }
 
@@ -269,7 +284,7 @@ class AppController extends ChangeNotifier {
       'device': (await deviceInfo()).toJson(),
     });
     await _adopt(api, result, serverName);
-    await secrets.set('quickKey', null);
+    await _forgetBiometrics();
     _keys = await UnlockedKeys.fromUserKey(result.account, userKey);
     // [enter] follows once the user has stored the new recovery key.
     return fresh.recoveryKey;
@@ -294,7 +309,7 @@ class AppController extends ChangeNotifier {
             serverName: serverName,
             account: result.account,
           );
-    if (!sameAccount) await secrets.set('quickKey', null);
+    if (!sameAccount) await _forgetBiometrics();
     await secrets.set('token', result.token);
     _api?.close();
     _api = api;
@@ -344,49 +359,76 @@ class AppController extends ChangeNotifier {
         // Offline: codes work anyway, sync later.
       }
     }
+    _offerBiometrics();
     await _afterUnlock();
   }
 
   Future<void> unlockWithBiometrics() async {
-    final quick = secrets['quickKey'];
-    if (quick == null) {
-      throw const UserError('Schnell-Entsperren ist nicht eingerichtet');
+    final (result, userKey) = await biometrics.unlock();
+    switch (result) {
+      case BiometricResult.cancelled:
+        return;
+      case BiometricResult.invalidated:
+        await _forgetBiometrics();
+        throw UserError(
+          'Entsperren mit $biometricLabel ist nicht mehr gültig, z. B. weil '
+          'ein Finger oder Gesicht neu registriert wurde. Bitte mit dem '
+          'Master-Passwort entsperren und es danach neu einrichten.',
+        );
+      case BiometricResult.unlocked:
+        break;
     }
-    final ok = await LocalAuthentication().authenticate(
-      localizedReason: 'Sixora entsperren',
-      persistAcrossBackgrounding: true,
-    );
-    if (!ok) return;
     try {
-      _keys = await UnlockedKeys.fromUserKey(
-        cached!.account,
-        base64.decode(quick),
-      );
+      _keys = await UnlockedKeys.fromUserKey(cached!.account, userKey!);
     } on CryptoException {
-      await secrets.set('quickKey', null);
-      throw const UserError(
-        'Schnell-Entsperren ist nicht mehr gültig. Bitte mit dem Master-Passwort entsperren.',
+      await _forgetBiometrics();
+      throw UserError(
+        'Entsperren mit $biometricLabel ist nicht mehr gültig. Bitte mit dem '
+        'Master-Passwort entsperren.',
       );
     }
     await _afterUnlock();
   }
 
-  Future<void> setQuickUnlock(bool enabled) async {
+  /// Turns unlocking with biometrics on or off; false if the user did not
+  /// confirm.
+  Future<bool> setQuickUnlock(bool enabled) async {
+    settings.biometricsOffered = true;
     if (enabled) {
-      final ok = await LocalAuthentication().authenticate(
-        localizedReason: 'Schnell-Entsperren für Sixora einrichten',
-      );
-      if (!ok) return;
-      await secrets.set('quickKey', base64.encode(_keys!.userKey));
+      final bool ok;
+      try {
+        ok = await biometrics.enable(_keys!.userKey);
+      } on PlatformException catch (e) {
+        await biometrics.disable();
+        await saveSettings();
+        throw UserError(
+          '$biometricLabel ließ sich nicht einrichten: ${e.message ?? e.code}',
+        );
+      }
+      if (!ok) {
+        await biometrics.disable();
+        await saveSettings();
+        return false;
+      }
     } else {
-      await secrets.set('quickKey', null);
+      await biometrics.disable();
     }
     settings.quickUnlock = enabled;
     await saveSettings();
+    return true;
+  }
+
+  Future<void> _forgetBiometrics() async {
+    await biometrics.disable();
+    settings.quickUnlock = false;
+    await store.saveSettings(settings);
   }
 
   /// Opens the vault after registration or recovery.
-  Future<void> enter() => _afterUnlock();
+  Future<void> enter() {
+    _offerBiometrics();
+    return _afterUnlock();
+  }
 
   Future<void> _afterUnlock() async {
     await _decryptAll();
@@ -436,8 +478,10 @@ class AppController extends ChangeNotifier {
     items = const [];
     cached = null;
     await store.deleteAccount();
+    await biometrics.disable();
     await secrets.clear();
     settings.quickUnlock = false;
+    settings.biometricsOffered = false;
     await store.saveSettings(settings);
     this.notice = notice;
     phase = Phase.setup;

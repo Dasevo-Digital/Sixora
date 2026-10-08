@@ -35,6 +35,56 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _search.addListener(() => setState(() {}));
+    WidgetsBinding.instance.addPostFrameCallback((_) => _offerBiometrics());
+  }
+
+  /// After an unlock with the password: offer Face ID & co. once.
+  Future<void> _offerBiometrics() async {
+    final c = AppScope.read(context);
+    if (!c.offerBiometrics) return;
+    c.offerBiometrics = false;
+    final label = c.biometricLabel;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: Icon(biometricIcon(label), size: 40),
+        title: Text('Mit $label entsperren?'),
+        content: Text(
+          'Dann reicht zum Entsperren $label statt des Master-Passworts. '
+          'Das Passwort brauchst du weiterhin für Kontoänderungen und auf '
+          'neuen Geräten.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Nicht jetzt'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Einrichten'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    try {
+      if (yes == true) {
+        if (await c.setQuickUnlock(true) && mounted) {
+          showMessage(context, 'Sixora lässt sich jetzt mit $label entsperren');
+        }
+      } else {
+        c.settings.biometricsOffered = true;
+        await c.saveSettings();
+        if (mounted) {
+          showMessage(
+            context,
+            'Lässt sich später unter Einstellungen einrichten',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) showError(context, e);
+    }
   }
 
   @override

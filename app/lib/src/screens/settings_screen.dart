@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sixora_core/sixora_core.dart';
 
+import '../data/biometric_vault.dart';
 import '../data/local_store.dart';
 import '../widgets/common.dart';
 import 'account_screens.dart';
@@ -80,13 +81,18 @@ class SettingsScreen extends StatelessWidget {
               ),
               if (c.biometricsAvailable)
                 SwitchListTile(
-                  secondary: const Icon(Icons.fingerprint),
-                  title: const Text('Mit Gerätesicherheit entsperren'),
-                  subtitle: const Text(
-                    'Fingerabdruck, Gesicht oder Geräte-PIN statt Master-Passwort. '
-                    'Der Schlüssel liegt dafür im Schlüsselbund dieses Geräts.',
+                  secondary: Icon(biometricIcon(c.biometricLabel)),
+                  title: Text('Mit ${c.biometricLabel} entsperren'),
+                  subtitle: Text(
+                    BiometricVault.hardwareBound
+                        ? 'Statt des Master-Passworts. Der Schlüssel ist an die '
+                              'Biometrie dieses Geräts gebunden; wird ein neuer Finger '
+                              'oder ein neues Gesicht registriert, braucht es wieder das '
+                              'Passwort.'
+                        : 'Statt des Master-Passworts. Der Schlüssel liegt dafür im '
+                              'Schlüsselbund dieses Geräts.',
                   ),
-                  value: s.quickUnlock && c.hasQuickUnlockKey,
+                  value: c.quickUnlockReady,
                   onChanged: (v) async {
                     try {
                       await c.setQuickUnlock(v);

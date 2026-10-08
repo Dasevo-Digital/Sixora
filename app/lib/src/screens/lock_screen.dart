@@ -20,7 +20,7 @@ class _LockScreenState extends State<LockScreen> {
   void initState() {
     super.initState();
     final c = AppScope.read(context);
-    if (c.settings.quickUnlock && c.hasQuickUnlockKey) {
+    if (c.quickUnlockReady) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _biometric());
     }
   }
@@ -74,7 +74,7 @@ class _LockScreenState extends State<LockScreen> {
     final c = AppScope.of(context);
     final theme = Theme.of(context);
     final account = c.account!;
-    final quick = c.settings.quickUnlock && c.hasQuickUnlockKey;
+    final quick = c.quickUnlockReady;
     return Scaffold(
       body: SafeArea(
         child: FormPage(
@@ -119,8 +119,8 @@ class _LockScreenState extends State<LockScreen> {
             if (quick) ...[
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                icon: const Icon(Icons.fingerprint),
-                label: const Text('Mit Gerätesicherheit entsperren'),
+                icon: Icon(biometricIcon(c.biometricLabel)),
+                label: Text('Mit ${c.biometricLabel} entsperren'),
                 onPressed: _busy ? null : _biometric,
               ),
             ],
