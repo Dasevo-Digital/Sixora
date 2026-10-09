@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../data/app_controller.dart';
@@ -18,7 +20,8 @@ class _LockScreenState extends State<LockScreen> {
   bool _busy = false;
   String? _error;
 
-  /// Face ID & co. start by themselves once, as soon as the app is active.
+  /// Face ID & co. start by themselves once, as soon as the app is active
+  /// (phones only).
   bool _autoPending = false;
   AppLifecycleListener? _lifecycle;
 
@@ -26,7 +29,10 @@ class _LockScreenState extends State<LockScreen> {
   void initState() {
     super.initState();
     final c = AppScope.read(context);
-    if (c.quickUnlockReady) {
+    // Phones ask right away. On the desktop the lock often comes while
+    // nobody is looking (idle timer, closed window): Touch ID or Windows
+    // Hello only start with the button.
+    if (c.quickUnlockReady && (Platform.isIOS || Platform.isAndroid)) {
       _autoPending = true;
       _lifecycle = AppLifecycleListener(onResume: _autoBiometric);
       WidgetsBinding.instance.addPostFrameCallback((_) => _autoBiometric());
