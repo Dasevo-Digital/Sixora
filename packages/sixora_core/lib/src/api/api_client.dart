@@ -311,11 +311,17 @@ class SixoraApi {
     required String vaultId,
     required String data,
     required int baseRevision,
+    int? keyVersion,
   }) async => EntryDto.fromJson(
     await _map(
       'PUT',
       'entries/$id',
-      body: {'vaultId': vaultId, 'data': data, 'baseRevision': baseRevision},
+      body: {
+        'vaultId': vaultId,
+        'data': data,
+        'baseRevision': baseRevision,
+        'keyVersion': ?keyVersion,
+      },
     ),
   );
 
@@ -338,8 +344,23 @@ class SixoraApi {
     body: {'id': id, 'encryptedName': encryptedName, 'sealedKey': sealedKey},
   );
 
-  Future<void> renameVault(String id, String encryptedName) =>
-      _send('PATCH', 'vaults/$id', body: {'encryptedName': encryptedName});
+  Future<void> renameVault(
+    String id,
+    String encryptedName, {
+    int? keyVersion,
+  }) => _send(
+    'PATCH',
+    'vaults/$id',
+    body: {'encryptedName': encryptedName, 'keyVersion': ?keyVersion},
+  );
+
+  /// Replaces the vault key; [body] comes from `rotateVaultKey`.
+  Future<void> rotateVault(String id, Map<String, Object?> body) => _send(
+    'POST',
+    'vaults/$id/rotate',
+    body: body,
+    timeout: const Duration(minutes: 2),
+  );
 
   Future<void> deleteVault(String id) => _send('DELETE', 'vaults/$id');
 

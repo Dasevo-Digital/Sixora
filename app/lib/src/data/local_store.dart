@@ -17,6 +17,7 @@ class CachedAccount {
     Map<String, VaultDto>? vaults,
     Map<String, EntryDto>? entries,
     this.lastSync,
+    this.knownSessions,
   }) : vaults = vaults ?? {},
        entries = entries ?? {};
 
@@ -28,6 +29,13 @@ class CachedAccount {
   final Map<String, EntryDto> entries;
   DateTime? lastSync;
 
+  /// Sign-ins this device has seen or the user confirmed; null until the
+  /// first sync with a server that reports them.
+  Set<String>? knownSessions;
+
+  /// The account's devices as of the last sync (not stored).
+  List<SessionDto> sessions = const [];
+
   Map<String, Object?> toJson() => {
     'version': 1,
     'server': server.toString(),
@@ -37,6 +45,7 @@ class CachedAccount {
     'vaults': [for (final v in vaults.values) v.toJson()],
     'entries': [for (final e in entries.values) e.toJson()],
     'lastSync': lastSync?.toUtc().toIso8601String(),
+    if (knownSessions != null) 'knownSessions': knownSessions!.toList(),
   };
 
   factory CachedAccount.fromJson(Map<String, Object?> j) => CachedAccount(
@@ -53,6 +62,9 @@ class CachedAccount {
         (e as Map)['id'] as String: EntryDto.fromJson(e.cast()),
     },
     lastSync: DateTime.tryParse(j['lastSync'] as String? ?? '')?.toLocal(),
+    knownSessions: j['knownSessions'] is List
+        ? {...(j['knownSessions'] as List).cast<String>()}
+        : null,
   );
 }
 
@@ -90,6 +102,20 @@ class AppSettings {
   bool allowScreenshots = false;
   String themeMode = 'system';
 
+  /// Automatic backup: the folder (see `BackupFolder`) and its name.
+  String? backupFolder;
+  String backupFolderLabel = '';
+
+  /// The backup password's key, encrypted with the account's user key: the
+  /// app writes backups only while unlocked and never asks again.
+  Map<String, Object?>? backupKey;
+  int backupKeep = 14;
+  DateTime? lastBackup;
+
+  /// Sync cursor at the last backup: no new file without changes.
+  int lastBackupCursor = -1;
+  String? backupError;
+
   Map<String, Object?> toJson() => {
     'autoLock': autoLock.name,
     'hideCodes': hideCodes,
@@ -101,6 +127,13 @@ class AppSettings {
     'showNextCode': showNextCode,
     'allowScreenshots': allowScreenshots,
     'themeMode': themeMode,
+    'backupFolder': backupFolder,
+    'backupFolderLabel': backupFolderLabel,
+    'backupKey': backupKey,
+    'backupKeep': backupKeep,
+    'lastBackup': lastBackup?.toUtc().toIso8601String(),
+    'lastBackupCursor': lastBackupCursor,
+    'backupError': backupError,
   };
 
   static AppSettings fromJson(Map<String, Object?> j) => AppSettings()
@@ -113,7 +146,16 @@ class AppSettings {
     ..clearClipboard = j['clearClipboard'] as bool? ?? true
     ..showNextCode = j['showNextCode'] as bool? ?? true
     ..allowScreenshots = j['allowScreenshots'] as bool? ?? false
-    ..themeMode = j['themeMode'] as String? ?? 'system';
+    ..themeMode = j['themeMode'] as String? ?? 'system'
+    ..backupFolder = j['backupFolder'] as String?
+    ..backupFolderLabel = j['backupFolderLabel'] as String? ?? ''
+    ..backupKey = (j['backupKey'] as Map?)?.cast()
+    ..backupKeep = (j['backupKeep'] as num?)?.toInt() ?? 14
+    ..lastBackup = DateTime.tryParse(
+      j['lastBackup'] as String? ?? '',
+    )?.toLocal()
+    ..lastBackupCursor = (j['lastBackupCursor'] as num?)?.toInt() ?? -1
+    ..backupError = j['backupError'] as String?;
 }
 
 /// JSON files in the app's private support folder, written atomically.

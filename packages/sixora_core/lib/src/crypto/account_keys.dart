@@ -111,6 +111,55 @@ class UnlockedKeys {
   ) => VaultCrypto.decryptString(vaultKey, data, aad: _vaultNameAad(vaultId));
 }
 
+/// A vault under a fresh key, ready for `POST vaults/<id>/rotate`.
+///
+/// Entries are re-encrypted as they are, without being parsed, so fields a
+/// newer app version added survive. A member that is no longer in [members]
+/// never learns the new key.
+Future<({Map<String, Object?> body, Uint8List key})> rotateVaultKey({
+  required Uint8List oldKey,
+  required String vaultId,
+  required int keyVersion,
+  required String name,
+  required List<MemberDto> members,
+  required List<EntryDto> entries,
+  required List<EntryDto> trash,
+}) async {
+  final key = VaultCrypto.randomBytes(32);
+  Future<List<Map<String, Object?>>> reencrypt(List<EntryDto> list) async => [
+    for (final e in list)
+      {
+        'id': e.id,
+        'revision': e.revision,
+        'data': await VaultCrypto.encryptString(
+          key,
+          await VaultCrypto.decryptString(
+            oldKey,
+            e.data,
+            aad: UnlockedKeys._entryAad(vaultId, e.id),
+          ),
+          aad: UnlockedKeys._entryAad(vaultId, e.id),
+        ),
+      },
+  ];
+  return (
+    key: key,
+    body: <String, Object?>{
+      'keyVersion': keyVersion,
+      'encryptedName': await UnlockedKeys.encryptVaultName(key, vaultId, name),
+      'members': [
+        for (final m in members)
+          {
+            'userId': m.userId,
+            'sealedKey': await VaultCrypto.seal(key, m.publicKey),
+          },
+      ],
+      'entries': await reencrypt(entries),
+      'trash': await reencrypt(trash),
+    },
+  );
+}
+
 /// Everything the client creates when an account is registered.
 class NewAccount {
   NewAccount._(this.body, this.recoveryKey, this.authKey, this.kek);

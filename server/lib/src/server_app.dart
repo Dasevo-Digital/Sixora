@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
@@ -13,7 +14,7 @@ import 'config.dart';
 import 'landing_page.dart';
 import 'security.dart';
 
-const serverVersion = '0.1.3';
+const serverVersion = '0.1.4';
 const apiVersion = 1;
 
 /// Error answered as `{"error": code, "message": text}`.
@@ -69,6 +70,9 @@ class SixoraServerApp {
   late final String _secret;
 
   static const maxBodyBytes = 256 * 1024;
+
+  /// A key rotation carries every entry of a vault at once.
+  static const maxRotateBytes = 24 * 1024 * 1024;
   static const maxEntryBytes = 16 * 1024;
   static const maxEntriesPerVault = 5000;
   static const maxVaultsPerUser = 100;
@@ -135,6 +139,7 @@ class SixoraServerApp {
     r.get('/api/v1/vaults/<id>/members', _members);
     r.put('/api/v1/vaults/<id>/members/<userId>', _putMember);
     r.delete('/api/v1/vaults/<id>/members/<userId>', _removeMember);
+    r.post('/api/v1/vaults/<id>/rotate', _rotateVault);
     r.get('/api/v1/users/lookup', _lookupUser);
     r.get('/api/v1/admin/users', _adminUsers);
     r.patch('/api/v1/admin/users/<id>', _adminUpdateUser);
@@ -282,20 +287,23 @@ class SixoraServerApp {
     return info is HttpConnectionInfo ? info.remoteAddress.address : '';
   }
 
-  Future<Map<String, Object?>> _body(Request request) async {
+  Future<Map<String, Object?>> _body(
+    Request request, {
+    int maxBytes = maxBodyBytes,
+  }) async {
     final length = request.contentLength;
-    if (length != null && length > maxBodyBytes) {
+    if (length != null && length > maxBytes) {
       throw const ApiError(413, 'too_large', 'Anfrage ist zu groß');
     }
-    final bytes = <int>[];
+    final bytes = BytesBuilder(copy: false);
     await for (final chunk in request.read()) {
-      bytes.addAll(chunk);
-      if (bytes.length > maxBodyBytes) {
+      bytes.add(chunk);
+      if (bytes.length > maxBytes) {
         throw const ApiError(413, 'too_large', 'Anfrage ist zu groß');
       }
     }
     if (bytes.isEmpty) return {};
-    final json = jsonDecode(utf8.decode(bytes));
+    final json = jsonDecode(utf8.decode(bytes.takeBytes()));
     if (json is! Map) throw const FormatException('JSON-Objekt erwartet');
     return json.cast();
   }
@@ -487,6 +495,8 @@ class SixoraServerApp {
       'ORDER BY last_seen_at DESC, created_at DESC LIMIT ?)',
       [userId, userId, maxSessionsPerUser],
     );
+    // Other devices learn about the new sign-in with their waiting sync.
+    _nextSeq();
     return token;
   }
 
@@ -876,6 +886,7 @@ class SixoraServerApp {
   Response _logout(Request request) {
     final s = _auth(request);
     db.execute('DELETE FROM sessions WHERE id = ?', [s.id]);
+    _nextSeq();
     _audit('logout', userId: s.userId, username: s.username, ip: _ip(request));
     return _ok();
   }
@@ -901,6 +912,7 @@ class SixoraServerApp {
         s.userId,
         s.id,
       ]);
+      _nextSeq();
       _audit(
         'password_changed',
         userId: s.userId,
@@ -938,7 +950,9 @@ class SixoraServerApp {
     _verifyCurrent(s, request, _str(body, 'authKey', max: 100));
     _transaction(() {
       _ensureNotLastAdmin(s.userId);
+      _markRotationFor(s.userId);
       db.execute('DELETE FROM users WHERE id = ?', [s.userId]);
+      _nextSeq();
       _audit(
         'account_deleted',
         userId: s.userId,
@@ -998,6 +1012,7 @@ class SixoraServerApp {
       throw const ApiError(404, 'not_found', 'Gerät nicht gefunden');
     }
     db.execute('DELETE FROM sessions WHERE id = ?', [id]);
+    _nextSeq();
     _audit(
       'session_revoked',
       userId: s.userId,
@@ -1079,7 +1094,8 @@ class SixoraServerApp {
     }
     final cursor = _currentSeq();
     final vaults = db.select(
-      'SELECT v.id, v.personal, v.owner_id, v.encrypted_name, o.username AS owner_name, '
+      'SELECT v.id, v.personal, v.owner_id, v.encrypted_name, v.key_version, '
+      'v.rotate_pending, o.username AS owner_name, '
       'm.role, m.sealed_key, m.seq, '
       '(SELECT COUNT(*) FROM vault_members x WHERE x.vault_id = v.id) AS member_count '
       'FROM vault_members m JOIN vaults v ON v.id = m.vault_id '
@@ -1121,9 +1137,27 @@ class SixoraServerApp {
             'encryptedName': v['encrypted_name'],
             'sealedKey': v['sealed_key'],
             'memberCount': v['member_count'],
+            'keyVersion': v['key_version'],
+            if (v['role'] == 'owner')
+              'rotationPending': v['rotate_pending'] == 1,
           },
       ],
       'entries': entries,
+      // Lets every device notice a sign-in it does not know.
+      'sessions': [
+        for (final r in db.select(
+          'SELECT id, device_name, platform, created_at FROM sessions '
+          'WHERE user_id = ? ORDER BY created_at',
+          [s.userId],
+        ))
+          {
+            'id': r['id'],
+            'deviceName': r['device_name'],
+            'platform': r['platform'],
+            'createdAt': r['created_at'],
+            'current': r['id'] == s.id,
+          },
+      ],
     });
   }
 
@@ -1146,8 +1180,21 @@ class SixoraServerApp {
     if (base is! int || base < 0) {
       throw const FormatException('baseRevision fehlt');
     }
+    final keyVersion = body['keyVersion'];
     final row = _transaction(() {
       _requireMember(vaultId, s.userId, write: true);
+      // Written with a key that was replaced meanwhile: nobody could read it.
+      if (keyVersion is int &&
+          db.select('SELECT key_version FROM vaults WHERE id = ?', [
+                vaultId,
+              ]).first['key_version'] !=
+              keyVersion) {
+        throw const ApiError(
+          409,
+          'key_changed',
+          'Der Tresorschlüssel wurde erneuert. Bitte erneut versuchen.',
+        );
+      }
       final existing = db.select('SELECT * FROM entries WHERE id = ?', [id]);
       if (existing.isEmpty) {
         if (base != 0) {
@@ -1331,8 +1378,20 @@ class SixoraServerApp {
     final s = _auth(request);
     final body = await _body(request);
     final name = _b64(body, 'encryptedName', min: 41, max: 2000);
+    final keyVersion = body['keyVersion'];
     _requireMember(id, s.userId, owner: true);
     _transaction(() {
+      if (keyVersion is int &&
+          db.select('SELECT key_version FROM vaults WHERE id = ?', [
+                id,
+              ]).first['key_version'] !=
+              keyVersion) {
+        throw const ApiError(
+          409,
+          'key_changed',
+          'Der Tresorschlüssel wurde erneuert. Bitte erneut versuchen.',
+        );
+      }
       db.execute('UPDATE vaults SET encrypted_name = ? WHERE id = ?', [
         name,
         id,
@@ -1478,12 +1537,137 @@ class SixoraServerApp {
         'DELETE FROM vault_members WHERE vault_id = ? AND user_id = ?',
         [id, userId],
       );
+      // The former member still knows the vault key: the owner's next
+      // device online replaces it.
+      db.execute('UPDATE vaults SET rotate_pending = 1 WHERE id = ?', [id]);
       _nextSeq();
       _audit(
         leaving ? 'vault_left' : 'vault_unshared',
         userId: s.userId,
         username: s.username,
         detail: userId,
+        ip: _ip(request),
+      );
+    });
+    return _ok();
+  }
+
+  /// Vaults shared with [userId] (not owned) need a new key once the user
+  /// is gone.
+  void _markRotationFor(String userId) => db.execute(
+    'UPDATE vaults SET rotate_pending = 1 WHERE id IN '
+    "(SELECT vault_id FROM vault_members WHERE user_id = ? AND role != 'owner')",
+    [userId],
+  );
+
+  /// Replaces the vault key: every entry (also in the recycle bin), the name
+  /// and every member's sealed key arrive re-encrypted at once. The request
+  /// must cover exactly the current members and entries, otherwise
+  /// something changed meanwhile and the client tries again.
+  Future<Response> _rotateVault(Request request, String id) async {
+    final s = _auth(request);
+    final body = await _body(request, maxBytes: maxRotateBytes);
+    final keyVersion = body['keyVersion'];
+    if (keyVersion is! int) throw const FormatException('keyVersion fehlt');
+    final name = _b64(body, 'encryptedName', min: 41, max: 2000);
+    final members = <String, String>{};
+    for (final m in body['members'] as List? ?? const []) {
+      if (m is! Map) throw const FormatException('members ist ungültig');
+      final map = m.cast<String, Object?>();
+      members[_uuid(map['userId'], 'Benutzer-ID')] = _b64(
+        map,
+        'sealedKey',
+        min: 73,
+        max: 300,
+      );
+    }
+    ({Map<String, String> data, Map<String, int> revisions}) parse(String key) {
+      final data = <String, String>{};
+      final revisions = <String, int>{};
+      for (final e in body[key] as List? ?? const []) {
+        if (e is! Map) throw FormatException('$key ist ungültig');
+        final map = e.cast<String, Object?>();
+        final entryId = _uuid(map['id'], 'Eintrags-ID');
+        final rev = map['revision'];
+        if (rev is! int) throw FormatException('$key: revision fehlt');
+        data[entryId] = _b64(map, 'data', min: 41, max: maxEntryBytes);
+        revisions[entryId] = rev;
+      }
+      return (data: data, revisions: revisions);
+    }
+
+    final entries = parse('entries');
+    final trash = parse('trash');
+    _transaction(() {
+      _requireMember(id, s.userId, owner: true);
+      final vault = db.select('SELECT key_version FROM vaults WHERE id = ?', [
+        id,
+      ]).first;
+      if (vault['key_version'] != keyVersion) {
+        throw const ApiError(
+          409,
+          'key_changed',
+          'Der Tresorschlüssel wurde inzwischen erneuert',
+        );
+      }
+      bool same(Map<String, int> sent, ResultSet rows) =>
+          rows.length == sent.length &&
+          rows.every((r) => sent[r['id']] == r['revision']);
+      final current = db.select(
+        'SELECT user_id FROM vault_members WHERE vault_id = ?',
+        [id],
+      );
+      final live = db.select(
+        'SELECT id, revision FROM entries WHERE vault_id = ? AND deleted = 0',
+        [id],
+      );
+      final trashed = db.select(
+        'SELECT id, revision FROM entries WHERE vault_id = ? AND deleted = 1 '
+        "AND trash_data != ''",
+        [id],
+      );
+      if (current.length != members.length ||
+          !current.every((r) => members.containsKey(r['user_id'])) ||
+          !same(entries.revisions, live) ||
+          !same(trash.revisions, trashed)) {
+        throw const ApiError(
+          409,
+          'conflict',
+          'Der Tresor wurde inzwischen geändert',
+        );
+      }
+      final now = _now();
+      db.execute(
+        'UPDATE vaults SET encrypted_name = ?, key_version = key_version + 1, '
+        'rotate_pending = 0 WHERE id = ?',
+        [name, id],
+      );
+      // A new member seq makes every member load the vault anew.
+      for (final m in members.entries) {
+        db.execute(
+          'UPDATE vault_members SET sealed_key = ?, seq = ? '
+          'WHERE vault_id = ? AND user_id = ?',
+          [m.value, _nextSeq(), id, m.key],
+        );
+      }
+      for (final e in entries.data.entries) {
+        db.execute(
+          'UPDATE entries SET data = ?, revision = revision + 1, seq = ?, '
+          'updated_at = ?, updated_by = ? WHERE id = ?',
+          [e.value, _nextSeq(), now, s.userId, e.key],
+        );
+      }
+      for (final e in trash.data.entries) {
+        db.execute('UPDATE entries SET trash_data = ? WHERE id = ?', [
+          e.value,
+          e.key,
+        ]);
+      }
+      _audit(
+        'vault_key_rotated',
+        userId: s.userId,
+        username: s.username,
+        detail: '$id (${entries.data.length} Einträge)',
         ip: _ip(request),
       );
     });
@@ -1585,6 +1769,7 @@ class SixoraServerApp {
       throw const ApiError(404, 'not_found', 'Benutzer nicht gefunden');
     }
     _transaction(() {
+      _markRotationFor(id);
       db.execute('DELETE FROM users WHERE id = ?', [id]);
       _nextSeq();
       _audit(

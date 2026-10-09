@@ -165,4 +165,51 @@ void main() {
       expect(entries.single.secret, 'JBSWY3DPEHPK3PXP');
     });
   });
+
+  group('account check', () {
+    test('finds duplicates, weak and broken secrets and unnamed entries', () {
+      const a = OtpEntry(issuer: 'A', account: '', secret: 'JBSWY3DPEHPK3PXP');
+      final findings = AccountCheck.analyze({
+        '1': a,
+        // Same secret, written differently.
+        '2': const OtpEntry(
+          issuer: 'B',
+          account: '',
+          secret: 'jbsw y3dp ehpk 3pxp',
+        ),
+        // Same secret as HOTP: different codes, no duplicate.
+        '3': const OtpEntry(
+          issuer: 'C',
+          account: '',
+          secret: 'JBSWY3DPEHPK3PXP',
+          type: OtpType.hotp,
+        ),
+        '4': const OtpEntry(issuer: 'D', account: '', secret: 'JBSWY3DP'),
+        '5': const OtpEntry(issuer: '', account: '', secret: '!!!'),
+      });
+      List<List<String>> of(CheckIssue i) => [
+        for (final f in findings)
+          if (f.issue == i) f.ids,
+      ];
+      expect(of(CheckIssue.duplicate), [
+        ['1', '2'],
+      ]);
+      expect(of(CheckIssue.weakSecret), [
+        ['4'],
+      ]);
+      expect(of(CheckIssue.invalidSecret), [
+        ['5'],
+      ]);
+      expect(of(CheckIssue.unnamed), [
+        ['5'],
+      ]);
+      expect(
+        AccountCheck.contains(
+          [a],
+          const OtpEntry(issuer: 'X', account: '', secret: 'jbswy3dpehpk3pxp'),
+        ),
+        isTrue,
+      );
+    });
+  });
 }

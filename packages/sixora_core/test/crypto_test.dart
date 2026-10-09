@@ -281,4 +281,96 @@ void main() {
       expect(r.skipped, 1);
     });
   });
+
+  group('key rotation and automatic backups', () {
+    test('a rotated vault opens only with the new key', () async {
+      const vaultId = 'v1';
+      final old = VaultCrypto.randomBytes(32);
+      final alice = await VaultCrypto.newKeyPair();
+      final bob = await VaultCrypto.newKeyPair();
+      const entry = OtpEntry(
+        issuer: 'A',
+        account: 'x',
+        secret: 'JBSWY3DPEHPK3PXP',
+      );
+      final live = EntryDto(
+        id: 'e1',
+        vaultId: vaultId,
+        revision: 3,
+        deleted: false,
+        data: await UnlockedKeys.encryptEntry(old, vaultId, 'e1', entry),
+      );
+      final binned = EntryDto(
+        id: 'e2',
+        vaultId: vaultId,
+        revision: 5,
+        deleted: true,
+        data: await UnlockedKeys.encryptEntry(old, vaultId, 'e2', entry),
+      );
+      final r = await rotateVaultKey(
+        oldKey: old,
+        vaultId: vaultId,
+        keyVersion: 1,
+        name: 'Familie',
+        members: [
+          MemberDto(
+            userId: 'alice',
+            username: 'alice',
+            role: VaultRole.owner,
+            publicKey: alice.publicKey,
+          ),
+        ],
+        entries: [live],
+        trash: [binned],
+      );
+      expect(r.key, isNot(old));
+      final members = r.body['members']! as List;
+      expect(members, hasLength(1));
+      final sealed = (members.single as Map)['sealedKey'] as String;
+      expect(
+        await VaultCrypto.unseal(sealed, alice.privateKey, alice.publicKey),
+        r.key,
+      );
+      // Bob was not in the list: his key does not open it.
+      await expectLater(
+        VaultCrypto.unseal(sealed, bob.privateKey, bob.publicKey),
+        throwsA(isA<CryptoException>()),
+      );
+      for (final (list, id, rev) in [
+        ('entries', 'e1', 3),
+        ('trash', 'e2', 5),
+      ]) {
+        final e = (r.body[list]! as List).single as Map;
+        expect(e['id'], id);
+        expect(e['revision'], rev);
+        final data = e['data'] as String;
+        expect(
+          (await UnlockedKeys.decryptEntry(r.key, vaultId, id, data)).issuer,
+          'A',
+        );
+        await expectLater(
+          UnlockedKeys.decryptEntry(old, vaultId, id, data),
+          throwsA(isA<CryptoException>()),
+        );
+      }
+      expect(
+        await UnlockedKeys.decryptVaultName(
+          r.key,
+          vaultId,
+          r.body['encryptedName']! as String,
+        ),
+        'Familie',
+      );
+    });
+
+    test('a stored backup key writes files the password opens', () async {
+      final key = await BackupKey.derive('pw', kdf: _fastKdf);
+      const entries = [
+        OtpEntry(issuer: 'A', account: 'x', secret: 'JBSWY3DPEHPK3PXP'),
+      ];
+      final file = await SixoraBackup.encryptWithKey(entries, key);
+      final r = await Importers.read(file, password: 'pw');
+      expect(r.entries.single.issuer, 'A');
+    });
+  });
 }

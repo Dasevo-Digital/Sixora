@@ -7,6 +7,7 @@ export 'src/api/models.dart';
 export 'src/crypto/account_keys.dart';
 export 'src/crypto/vault_crypto.dart';
 export 'src/otp/base32.dart';
+export 'src/otp/check.dart';
 export 'src/otp/entry.dart';
 export 'src/otp/otp.dart';
 export 'src/otp/otpauth.dart';

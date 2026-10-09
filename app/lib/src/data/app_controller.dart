@@ -10,6 +10,7 @@ import 'package:sixora_core/sixora_core.dart';
 
 import '../environment.dart';
 import 'biometric_vault.dart';
+import '../platform/backup_folder.dart';
 import 'local_store.dart';
 import 'secret_store.dart';
 
@@ -90,6 +91,12 @@ class AppController extends ChangeNotifier {
 
   /// Generation of the long-poll loop; a new one stops the old.
   int _watch = 0;
+  bool _rotating = false;
+  Timer? _backupTimer;
+
+  /// Vaults whose rotation failed since the last unlock: not retried with
+  /// every sync.
+  final _rotationFailed = <String>{};
   Future<void> _applying = Future.value();
 
   static Future<AppController> create() async {
@@ -450,6 +457,7 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     unawaited(sync());
     _startWatching();
+    _scheduleBackup();
   }
 
   /// Keeps one request waiting at the server: changes from other devices
@@ -510,6 +518,8 @@ class AppController extends ChangeNotifier {
   void lock() {
     if (phase != Phase.unlocked) return;
     _stopWatching();
+    _rotationFailed.clear();
+    _backupTimer?.cancel();
     _wipeKeys();
     items = const [];
     phase = Phase.locked;
@@ -550,6 +560,9 @@ class AppController extends ChangeNotifier {
     await secrets.clear();
     settings.quickUnlock = false;
     settings.biometricsOffered = false;
+    // The key belongs to this account; the folder may stay.
+    settings.backupKey = null;
+    _backupTimer?.cancel();
     await store.saveSettings(settings);
     this.notice = notice;
     phase = Phase.setup;
@@ -625,8 +638,238 @@ class AppController extends ChangeNotifier {
     }
     c.cursor = r.cursor;
     c.lastSync = DateTime.now();
+    final sessions = r.sessions;
+    if (sessions != null) {
+      c.sessions = sessions;
+      final ids = {for (final s in sessions) s.id};
+      // The first time, everything already there counts as known.
+      c.knownSessions = c.knownSessions == null
+          ? ids
+          : c.knownSessions!.intersection(ids);
+    }
     await store.saveAccount(c);
-    if (phase == Phase.unlocked) await _decryptAll();
+    if (phase == Phase.unlocked) {
+      await _decryptAll();
+      _scheduleBackup();
+      if (r.vaults.any((v) => v.rotationPending && v.role == VaultRole.owner)) {
+        unawaited(Future(_rotatePending));
+      }
+    }
+  }
+
+  // --- Automatic backup -----------------------------------------------------
+
+  static final _backupName = RegExp(
+    r'^Sixora-Sicherung-\d{4}-\d{2}-\d{2}\.json$',
+  );
+
+  bool get autoBackup =>
+      settings.backupFolder != null && settings.backupKey != null;
+
+  String _backupAad(String accountId) => 'sixora-backup-key|$accountId';
+
+  /// Backs up to [folder] from now on, encrypted with [password].
+  Future<void> enableAutoBackup(FolderRef folder, String password) async {
+    final keys = _keys!;
+    final id = account!.id;
+    final key = await BackupKey.derive(password);
+    settings
+      ..backupFolder = folder.ref
+      ..backupFolderLabel = folder.label
+      ..backupKey = {
+        'account': id,
+        'kdf': key.kdf.toJson(),
+        'salt': key.salt,
+        'key': await VaultCrypto.encrypt(
+          keys.userKey,
+          key.key,
+          aad: _backupAad(id),
+        ),
+      }
+      ..lastBackupCursor = -1
+      ..backupError = null;
+    await saveSettings();
+    await backupNow();
+  }
+
+  Future<void> disableAutoBackup() async {
+    _backupTimer?.cancel();
+    settings
+      ..backupFolder = null
+      ..backupFolderLabel = ''
+      ..backupKey = null
+      ..backupError = null;
+    await saveSettings();
+    notifyListeners();
+  }
+
+  /// After changes: one backup a little later, not one per keystroke.
+  void _scheduleBackup() {
+    if (!autoBackup || phase != Phase.unlocked) return;
+    if (settings.lastBackupCursor == cached?.cursor) return;
+    _backupTimer?.cancel();
+    _backupTimer = Timer(const Duration(seconds: 15), () async {
+      try {
+        await backupNow();
+      } on Object catch (e) {
+        debugPrint('Automatische Sicherung fehlgeschlagen: $e');
+      }
+    });
+  }
+
+  /// Writes today's file (replacing an earlier one of the same day) and
+  /// keeps the newest [AppSettings.backupKeep] files.
+  Future<void> backupNow() async {
+    final folder = settings.backupFolder;
+    final stored = settings.backupKey;
+    final keys = _keys;
+    final c = cached;
+    if (folder == null || stored == null || keys == null || c == null) return;
+    try {
+      if (stored['account'] != c.account.id) {
+        throw const UserError(
+          'Die Sicherung wurde für ein anderes Konto eingerichtet. '
+          'Bitte neu einrichten.',
+        );
+      }
+      final key = BackupKey(
+        kdf: KdfParams.fromJson((stored['kdf']! as Map).cast()),
+        salt: stored['salt']! as String,
+        key: await VaultCrypto.decrypt(
+          keys.userKey,
+          stored['key']! as String,
+          aad: _backupAad(c.account.id),
+        ),
+      );
+      final cursor = c.cursor;
+      final text = await SixoraBackup.encryptWithKey([
+        for (final i in items) i.entry,
+      ], key);
+      final now = DateTime.now();
+      String two(int v) => v.toString().padLeft(2, '0');
+      final name =
+          'Sixora-Sicherung-${now.year}-${two(now.month)}-${two(now.day)}.json';
+      await BackupFolder.write(folder, name, text);
+      final names = [
+        for (final n in await BackupFolder.list(folder))
+          if (_backupName.hasMatch(n)) n,
+      ]..sort();
+      for (final old in names.take(
+        (names.length - settings.backupKeep).clamp(0, names.length),
+      )) {
+        await BackupFolder.delete(folder, old);
+      }
+      settings
+        ..lastBackup = now
+        ..lastBackupCursor = cursor
+        ..backupError = null;
+    } on PlatformException catch (e) {
+      settings.backupError = e.message ?? e.code;
+      throw UserError('Sicherung fehlgeschlagen: ${settings.backupError}');
+    } on Object catch (e) {
+      settings.backupError = errorText(e);
+      rethrow;
+    } finally {
+      await saveSettings();
+      notifyListeners();
+    }
+  }
+
+  // --- Sign-ins ------------------------------------------------------------
+
+  /// Sign-ins of other devices this device has not seen before: somebody
+  /// with the master password – or the user on a new device.
+  List<SessionDto> get unknownSessions {
+    final c = cached;
+    final known = c?.knownSessions;
+    if (c == null || known == null) return const [];
+    return [
+      for (final s in c.sessions)
+        if (!s.current && !known.contains(s.id)) s,
+    ];
+  }
+
+  Future<void> acknowledgeSession(String id) async {
+    final c = cached!;
+    (c.knownSessions ??= {}).add(id);
+    await store.saveAccount(c);
+    notifyListeners();
+  }
+
+  /// Signs the unknown device out.
+  Future<void> revokeSession(String id) async {
+    await _online((api) => api.revokeSession(id));
+    await acknowledgeSession(id);
+    await sync();
+  }
+
+  // --- Key rotation ----------------------------------------------------------
+
+  /// A member left one of my vaults: replace its key, so the old one opens
+  /// nothing written from now on.
+  Future<void> _rotatePending() async {
+    if (_rotating) return;
+    _rotating = true;
+    try {
+      final pending = [
+        for (final v in cached?.vaults.values ?? const <VaultDto>[])
+          if (v.rotationPending &&
+              v.role == VaultRole.owner &&
+              !_rotationFailed.contains(v.id))
+            v.id,
+      ];
+      for (final id in pending) {
+        try {
+          await rotateVault(id);
+        } on Object catch (e) {
+          _rotationFailed.add(id);
+          debugPrint('Schlüsselwechsel für $id fehlgeschlagen: $e');
+        }
+      }
+    } finally {
+      _rotating = false;
+    }
+  }
+
+  /// Re-encrypts the vault, its recycle bin and every member's copy of the
+  /// key with a fresh key. Retries when something changed meanwhile.
+  Future<void> rotateVault(String vaultId) async {
+    for (var attempt = 0; ; attempt++) {
+      final vault = _vaults[vaultId];
+      if (vault == null || phase != Phase.unlocked) return;
+      final members = await _online((api) => api.members(vaultId));
+      final trash = await _online((api) => api.trash());
+      final rotation = await rotateVaultKey(
+        oldKey: vault.key,
+        vaultId: vaultId,
+        keyVersion: vault.dto.keyVersion,
+        name: vault.name,
+        members: members,
+        entries: [
+          for (final e in cached!.entries.values)
+            if (e.vaultId == vaultId && !e.deleted) e,
+        ],
+        trash: [
+          for (final e in trash)
+            if (e.vaultId == vaultId) e,
+        ],
+      );
+      try {
+        await _online((api) => api.rotateVault(vaultId, rotation.body));
+        break;
+      } on ApiException catch (e) {
+        if (!e.conflict || attempt >= 2) rethrow;
+        await _syncNow();
+      }
+    }
+    await _syncNow();
+  }
+
+  /// A sync that waits for one already running.
+  Future<void> _syncNow() async {
+    final result = await _online((api) => api.sync(cached!.cursor));
+    await _apply(result);
+    notifyListeners();
   }
 
   Future<void> _decryptAll() async {
@@ -696,12 +939,20 @@ class AppController extends ChangeNotifier {
     await store.saveAccount(c);
     await _decryptAll();
     notifyListeners();
+    _scheduleBackup();
   }
 
   Future<T> _write<T>(Future<T> Function(SixoraApi api) action) async {
     try {
       return await _online(action);
     } on ApiException catch (e) {
+      if (e.code == 'key_changed') {
+        await sync();
+        throw const UserError(
+          'Der Schlüssel des Tresors wurde gerade erneuert. '
+          'Bitte erneut versuchen.',
+        );
+      }
       if (e.conflict) {
         await sync();
         throw const UserError(
@@ -736,6 +987,7 @@ class AppController extends ChangeNotifier {
         vaultId: vaultId,
         data: data,
         baseRevision: item?.revision ?? 0,
+        keyVersion: vault.dto.keyVersion,
       ),
     );
     await _storeEntry(dto);
@@ -854,7 +1106,13 @@ class AppController extends ChangeNotifier {
       vault.id,
       name.trim(),
     );
-    await _online((api) => api.renameVault(vault.id, encrypted));
+    await _write(
+      (api) => api.renameVault(
+        vault.id,
+        encrypted,
+        keyVersion: vault.dto.keyVersion,
+      ),
+    );
     await sync();
   }
 

@@ -45,7 +45,14 @@ Nutzung sind ohne gesonderte schriftliche Genehmigung nicht gestattet.
   an die Biometrie gebunden), verborgene Codes, Bildschirmschutz unter
   Android, Sichtschutz im App-Umschalter, angemeldete Geräte verwalten,
   Aktivitätsprotokoll. Kopierte Codes gelten als vertraulich: kein
-  Zwischenablage-Verlauf, keine Übertragung auf andere Geräte.
+  Zwischenablage-Verlauf, keine Übertragung auf andere Geräte. Meldet sich
+  ein neues Gerät an, zeigen alle anderen das sofort an, mit der
+  Möglichkeit, es abzumelden.
+- **Automatische Sicherung:** täglich eine verschlüsselte Sicherung in einen
+  Ordner nach Wahl (z. B. iCloud Drive, Nextcloud, USB-Stick), unabhängig
+  vom Server; die letzten 14 bleiben.
+- **Kontenprüfung:** findet doppelte Konten, zu kurze oder ungültige
+  Schlüssel, Konten ohne Namen und ohne Logo.
 - **Offline:** Die Codes funktionieren ohne Verbindung. Nur Änderungen
   brauchen den Server.
 - **Sofort abgeglichen:** Änderungen anderer Geräte kommen ohne Verzögerung

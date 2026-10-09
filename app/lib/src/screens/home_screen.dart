@@ -594,6 +594,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     ),
+                  for (final session in c.unknownSessions)
+                    _SignInNotice(session: session),
                   if (c.syncError != null)
                     _Banner(
                       icon: Icons.cloud_off,
@@ -734,6 +736,97 @@ class _SearchField extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Another device signed in to this account: either the user on a new
+/// device or somebody who knows the master password.
+class _SignInNotice extends StatefulWidget {
+  const _SignInNotice({required this.session});
+  final SessionDto session;
+
+  @override
+  State<_SignInNotice> createState() => _SignInNoticeState();
+}
+
+class _SignInNoticeState extends State<_SignInNotice> {
+  bool _busy = false;
+
+  Future<void> _signOut() async {
+    final c = AppScope.read(context);
+    final ok = await confirm(
+      context,
+      title: 'Gerät abmelden?',
+      message:
+          '„${widget.session.deviceName}“ verliert sofort den Zugriff. '
+          'Warst du das nicht, ändere danach auch dein Master-Passwort: '
+          'Wer sich anmelden konnte, kennt es.',
+      action: 'Abmelden',
+      destructive: true,
+    );
+    if (!ok || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await c.revokeSession(widget.session.id);
+      if (mounted) showMessage(context, 'Gerät abgemeldet');
+    } on Object catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final s = widget.session;
+    final platform = s.platform.isEmpty ? '' : ' (${s.platform})';
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      color: scheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.devices_other, color: scheme.onTertiaryContainer),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Neue Anmeldung: ${s.deviceName}$platform, '
+                    '${formatDate(s.createdAt)}',
+                    style: TextStyle(
+                      color: scheme.onTertiaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                spacing: 4,
+                children: [
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => AppScope.read(context).acknowledgeSession(s.id),
+                    child: const Text('Das war ich'),
+                  ),
+                  TextButton(
+                    onPressed: _busy ? null : _signOut,
+                    child: const Text('Abmelden'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _Banner extends StatelessWidget {

@@ -90,6 +90,36 @@ Future<bool> confirm(
 }
 
 /// Asks for a text, e.g. a name or the master password.
+/// Asks twice for a new password of an encrypted backup.
+Future<String?> askNewBackupPassword(BuildContext context) async {
+  final pw = await askText(
+    context,
+    title: 'Passwort für die Sicherung',
+    message:
+        'Mindestens 10 Zeichen. Ohne dieses Passwort lässt sich die Sicherung nicht öffnen.',
+    label: 'Passwort',
+    password: true,
+    action: 'Weiter',
+  );
+  if (pw == null || !context.mounted) return null;
+  if (pw.length < 10) {
+    showMessage(context, 'Das Passwort braucht mindestens 10 Zeichen');
+    return null;
+  }
+  final pw2 = await askText(
+    context,
+    title: 'Passwort wiederholen',
+    label: 'Passwort',
+    password: true,
+  );
+  if (pw2 == null || !context.mounted) return null;
+  if (pw != pw2) {
+    showMessage(context, 'Die Passwörter stimmen nicht überein');
+    return null;
+  }
+  return pw;
+}
+
 Future<String?> askText(
   BuildContext context, {
   required String title,

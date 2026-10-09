@@ -765,8 +765,221 @@ void main() {
           .map((r) => r['name'])
           .toList();
       expect(columns, containsAll(['deleted_at', 'trash_data']));
-      expect(db.select('PRAGMA user_version').first.columnAt(0), 2);
+      expect(
+        db.select('PRAGMA table_info(vaults)').map((r) => r['name']),
+        containsAll(['key_version', 'rotate_pending']),
+      );
+      expect(db.select('PRAGMA user_version').first.columnAt(0), 3);
       db.close();
+    });
+  });
+
+  group('sign-in notice and key rotation', () {
+    test('a new sign-in wakes the other devices and shows in sync', () async {
+      final alice = await _User.register(h, 'alice');
+      final first = await alice.sync();
+      expect(first.sessions, hasLength(1));
+      expect(first.sessions!.single.current, isTrue);
+
+      final pending = alice.api.sync(
+        first.cursor,
+        wait: const Duration(seconds: 20),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      final watch = Stopwatch()..start();
+      final pre = await h.api().prelogin('alice');
+      final keys = VaultCrypto.derivePasswordKeys(
+        alice.password,
+        pre.salt,
+        KdfParams.fromJson(pre.kdf),
+      );
+      final other = h.api();
+      await other.login(
+        username: 'alice',
+        authKey: keys.authKeyB64,
+        device: const DeviceInfo(name: 'Fremder Rechner', platform: 'linux'),
+      );
+      final woke = await pending;
+      expect(watch.elapsed, lessThan(const Duration(seconds: 5)));
+      expect(woke.sessions, hasLength(2));
+      final stranger = woke.sessions!.singleWhere((s) => !s.current);
+      expect(stranger.deviceName, 'Fremder Rechner');
+      expect(stranger.platform, 'linux');
+
+      // Signing it out reaches the others as well.
+      await alice.api.revokeSession(stranger.id);
+      final after = await alice.api.sync(woke.cursor);
+      expect(after.sessions, hasLength(1));
+    });
+
+    test('removing a member asks the owner to rotate the key', () async {
+      final alice = await _User.register(h, 'alice');
+      final invite = await alice.api.adminCreateInvite();
+      final bob = await _User.register(h, 'bob', invite: invite.code);
+      final invite2 = await alice.api.adminCreateInvite();
+      final carol = await _User.register(h, 'carol', invite: invite2.code);
+      await alice.sync();
+
+      final teamId = VaultCrypto.newId();
+      final oldKey = VaultCrypto.randomBytes(32);
+      await alice.api.createVault(
+        id: teamId,
+        encryptedName: await UnlockedKeys.encryptVaultName(
+          oldKey,
+          teamId,
+          'Team',
+        ),
+        sealedKey: await VaultCrypto.seal(oldKey, alice.keys.publicKey),
+      );
+      await alice.sync();
+      final live = await alice.put(teamId, VaultCrypto.newId(), _github);
+      final binnedId = VaultCrypto.newId();
+      final binned = await alice.put(teamId, binnedId, _github);
+      await alice.api.deleteEntry(binnedId, baseRevision: binned.revision);
+      for (final u in [bob, carol]) {
+        await alice.api.addMember(
+          teamId,
+          userId: u.account.id,
+          sealedKey: await VaultCrypto.seal(oldKey, u.account.publicKey),
+          role: VaultRole.write,
+        );
+      }
+      final carolBefore = await carol.sync();
+      final bobBefore = await bob.sync();
+      expect(
+        bobBefore.vaults.singleWhere((v) => v.id == teamId).rotationPending,
+        isFalse,
+      );
+
+      await alice.api.removeMember(teamId, bob.account.id);
+      var state = await alice.sync();
+      var team = state.vaults.singleWhere((v) => v.id == teamId);
+      expect(team.rotationPending, isTrue);
+      expect(team.keyVersion, 1);
+      // Only the owner hears about it.
+      expect(
+        (await carol.sync(
+          carolBefore.cursor,
+        )).vaults.singleWhere((v) => v.id == teamId).rotationPending,
+        isFalse,
+      );
+
+      final members = await alice.api.members(teamId);
+      final trash = (await alice.api.trash())
+          .where((e) => e.vaultId == teamId)
+          .toList();
+      Future<Map<String, Object?>> body({
+        List<MemberDto>? withMembers,
+        int keyVersion = 1,
+      }) async => (await rotateVaultKey(
+        oldKey: oldKey,
+        vaultId: teamId,
+        keyVersion: keyVersion,
+        name: 'Team',
+        members: withMembers ?? members,
+        entries: [live],
+        trash: trash,
+      )).body;
+
+      // Leaving out a member (or listing a removed one) is refused.
+      await expectLater(
+        alice.api.rotateVault(teamId, await body(withMembers: [members.first])),
+        throwsA(isA<ApiException>().having((e) => e.code, 'code', 'conflict')),
+      );
+      // Only the owner rotates.
+      await expectLater(
+        carol.api.rotateVault(teamId, await body()),
+        throwsA(isA<ApiException>().having((e) => e.status, 'status', 403)),
+      );
+
+      final rotation = await rotateVaultKey(
+        oldKey: oldKey,
+        vaultId: teamId,
+        keyVersion: 1,
+        name: 'Team',
+        members: members,
+        entries: [live],
+        trash: trash,
+      );
+      await alice.api.rotateVault(teamId, rotation.body);
+      // A second rotation from the old state comes too late.
+      await expectLater(
+        alice.api.rotateVault(teamId, await body()),
+        throwsA(
+          isA<ApiException>().having((e) => e.code, 'code', 'key_changed'),
+        ),
+      );
+
+      state = await alice.sync(state.cursor);
+      team = state.vaults.singleWhere((v) => v.id == teamId);
+      expect(team.rotationPending, isFalse);
+      expect(team.keyVersion, 2);
+      expect(state.resetVaults, contains(teamId));
+
+      // Carol loads the vault anew and opens it with the new key.
+      final carolNow = await carol.sync(carolBefore.cursor);
+      expect(carolNow.resetVaults, contains(teamId));
+      expect(carol.vaultKeys[teamId], rotation.key);
+      final entry = carolNow.entries.singleWhere((e) => e.id == live.id);
+      expect(
+        (await UnlockedKeys.decryptEntry(
+          rotation.key,
+          teamId,
+          live.id,
+          entry.data,
+        )).issuer,
+        'GitHub',
+      );
+      // The recycle bin moved along.
+      final restored = await alice.api.restoreEntry(binnedId);
+      expect(
+        (await UnlockedKeys.decryptEntry(
+          rotation.key,
+          teamId,
+          binnedId,
+          restored.data,
+        )).issuer,
+        'GitHub',
+      );
+      // A write with the old key version is refused.
+      await expectLater(
+        carol.api.putEntry(
+          id: VaultCrypto.newId(),
+          vaultId: teamId,
+          data: await UnlockedKeys.encryptEntry(oldKey, teamId, 'x', _github),
+          baseRevision: 0,
+          keyVersion: 1,
+        ),
+        throwsA(
+          isA<ApiException>().having((e) => e.code, 'code', 'key_changed'),
+        ),
+      );
+    });
+
+    test('a deleted account leaves rotations behind', () async {
+      final alice = await _User.register(h, 'alice');
+      final invite = await alice.api.adminCreateInvite();
+      final bob = await _User.register(h, 'bob', invite: invite.code);
+      await alice.sync();
+      final teamId = VaultCrypto.newId();
+      final key = VaultCrypto.randomBytes(32);
+      await alice.api.createVault(
+        id: teamId,
+        encryptedName: await UnlockedKeys.encryptVaultName(key, teamId, 'T'),
+        sealedKey: await VaultCrypto.seal(key, alice.keys.publicKey),
+      );
+      await alice.api.addMember(
+        teamId,
+        userId: bob.account.id,
+        sealedKey: await VaultCrypto.seal(key, bob.account.publicKey),
+        role: VaultRole.read,
+      );
+      await alice.api.adminDeleteUser(bob.account.id);
+      final state = await alice.sync();
+      expect(
+        state.vaults.singleWhere((v) => v.id == teamId).rotationPending,
+        isTrue,
+      );
     });
   });
 }

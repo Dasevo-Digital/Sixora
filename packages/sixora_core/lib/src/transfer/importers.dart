@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import '../crypto/account_keys.dart';
 import '../crypto/vault_crypto.dart';
@@ -167,6 +168,23 @@ abstract final class Importers {
 }
 
 /// Password protected backup file, independent of the server account.
+/// The key of a backup password (Argon2id with its own salt).
+class BackupKey {
+  BackupKey({required this.kdf, required this.salt, required this.key});
+  final KdfParams kdf;
+  final String salt;
+  final Uint8List key;
+
+  static Future<BackupKey> derive(
+    String password, {
+    KdfParams kdf = KdfParams.recommended,
+  }) async {
+    final salt = VaultCrypto.newSaltB64();
+    final keys = await derivePasswordKeysAsync(password, salt, kdf);
+    return BackupKey(kdf: kdf, salt: salt, key: keys.kek);
+  }
+}
+
 abstract final class SixoraBackup {
   static const format = 'sixora-backup';
   static const _aad = 'sixora-backup-v1';
@@ -175,9 +193,15 @@ abstract final class SixoraBackup {
     List<OtpEntry> entries,
     String password, {
     KdfParams kdf = KdfParams.recommended,
-  }) async {
-    final salt = VaultCrypto.newSaltB64();
-    final keys = await derivePasswordKeysAsync(password, salt, kdf);
+  }) async =>
+      encryptWithKey(entries, await BackupKey.derive(password, kdf: kdf));
+
+  /// Same file as [encrypt], with a key derived earlier: automatic backups
+  /// need no password prompt and no Argon2 run each time.
+  static Future<String> encryptWithKey(
+    List<OtpEntry> entries,
+    BackupKey key,
+  ) async {
     final payload = jsonEncode({
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'entries': [for (final e in entries) e.toJson()],
@@ -185,9 +209,9 @@ abstract final class SixoraBackup {
     return const JsonEncoder.withIndent('  ').convert({
       'format': format,
       'version': 1,
-      'kdf': kdf.toJson(),
-      'salt': salt,
-      'data': await VaultCrypto.encryptString(keys.kek, payload, aad: _aad),
+      'kdf': key.kdf.toJson(),
+      'salt': key.salt,
+      'data': await VaultCrypto.encryptString(key.key, payload, aad: _aad),
     });
   }
 

@@ -276,8 +276,10 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                                     title: '${m.username} entfernen?',
                                     message:
                                         '${m.username} verliert den Zugriff auf diesen Tresor. '
-                                        'Codes, die bereits gesehen oder kopiert wurden, bleiben '
-                                        'natürlich bekannt – bei Bedarf beim Dienst neu einrichten.',
+                                        'Sixora erneuert danach den Schlüssel des Tresors, damit '
+                                        'der alte nichts mehr öffnet. Schlüssel von Konten, die '
+                                        '${m.username} schon gesehen hat, bleiben aber bekannt – '
+                                        'bei Bedarf beim Dienst neu einrichten.',
                                     action: 'Entfernen',
                                     destructive: true,
                                   );

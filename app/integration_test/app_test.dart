@@ -16,6 +16,7 @@ import 'package:sixora/src/app.dart';
 import 'package:sixora/src/data/app_controller.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sixora/src/environment.dart';
+import 'package:sixora/src/platform/backup_folder.dart';
 import 'package:sixora/src/platform/link_inbox.dart';
 import 'package:sixora/src/platform/qr_image.dart';
 import 'package:sixora/src/platform/secure_clipboard.dart';
@@ -47,6 +48,19 @@ Future<void> _pumpUntil(
       .map((e) => (e.widget as Text).data)
       .whereType<String>();
   throw TestFailure('Nicht gefunden: $finder\nSichtbar: ${texts.join(' | ')}');
+}
+
+Future<void> _waitFor(
+  WidgetTester tester,
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 10),
+}) async {
+  final end = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(end)) {
+    await tester.pump(const Duration(milliseconds: 200));
+    if (condition()) return;
+  }
+  throw TestFailure('Bedingung nicht erfüllt');
 }
 
 Finder _field(String label) => find.widgetWithText(TextField, label);
@@ -178,6 +192,95 @@ void main() {
     );
     await controller.restore((await controller.trash()).single);
     await _pumpUntil(tester, find.byType(OtpTile));
+
+    // Another sign-in shows up at once; signing it out ends that session.
+    final pre = await SixoraApi(Uri.parse(_server)).prelogin(user);
+    final stranger = SixoraApi(Uri.parse(_server));
+    await stranger.login(
+      username: user,
+      authKey: (await derivePasswordKeysAsync(
+        _password,
+        pre.salt,
+        KdfParams.fromJson(pre.kdf),
+      )).authKeyB64,
+      device: const DeviceInfo(name: 'Testrechner', platform: 'linux'),
+    );
+    await _pumpUntil(
+      tester,
+      find.textContaining('Neue Anmeldung: Testrechner'),
+      timeout: const Duration(seconds: 5),
+    );
+    await tester.tap(find.widgetWithText(TextButton, 'Abmelden'));
+    await _pumpUntil(tester, find.widgetWithText(FilledButton, 'Abmelden'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Abmelden'));
+    await _waitFor(tester, () => controller.unknownSessions.isEmpty);
+    expect(find.textContaining('Neue Anmeldung'), findsNothing);
+    await expectLater(
+      stranger.sync(0),
+      throwsA(isA<ApiException>().having((e) => e.status, 'status', 401)),
+    );
+    stranger.close();
+
+    // Sharing and unsharing: the vault gets a new key by itself.
+    final invite = await controller.online((api) => api.adminCreateInvite());
+    final bobName = 'bob${DateTime.now().millisecondsSinceEpoch % 100000}';
+    final bobAccount = await NewAccount.create(
+      username: bobName,
+      password: 'bob-passwort-123',
+      kdf: const KdfParams(memoryKiB: 19456, iterations: 2),
+    );
+    final bobApi = SixoraApi(Uri.parse(_server));
+    await bobApi.register({
+      ...bobAccount.body,
+      'device': const DeviceInfo(name: 'Bob', platform: 'test').toJson(),
+      'inviteCode': invite.code,
+    });
+    bobApi.close();
+    await controller.createVault('Team');
+    final team = controller.vaults.singleWhere((v) => v.name == 'Team');
+    await controller.saveEntry(
+      const OtpEntry(issuer: 'Teamkonto', account: '', secret: _secret),
+      vaultId: team.id,
+    );
+    final bob = await controller.lookupUser(bobName);
+    await controller.share(team, bob, VaultRole.write);
+    expect(controller.vault(team.id)!.dto.keyVersion, 1);
+    await controller.removeMember(controller.vault(team.id)!, bob.id);
+    await _waitFor(
+      tester,
+      () => controller.vault(team.id)?.dto.keyVersion == 2,
+    );
+    expect(controller.vault(team.id)!.dto.rotationPending, isFalse);
+    expect(controller.vault(team.id)!.key, isNot(team.key));
+    expect(
+      controller.items.where((i) => i.entry.issuer == 'Teamkonto'),
+      hasLength(1),
+    );
+    expect(controller.undecryptable, 0);
+
+    // Automatic backup into a folder; the file opens with its password.
+    final folder = Directory(
+      '${(await getTemporaryDirectory()).path}/sixora-sicherung-'
+      '${DateTime.now().millisecondsSinceEpoch}',
+    )..createSync(recursive: true);
+    await controller.enableAutoBackup(
+      FolderRef(folder.path, 'Test'),
+      'backup-passwort-123',
+    );
+    final files = folder.listSync().whereType<File>().toList();
+    expect(files, hasLength(1));
+    expect(files.single.path, contains('Sixora-Sicherung-'));
+    final backup = await Importers.read(
+      files.single.readAsStringSync(),
+      password: 'backup-passwort-123',
+    );
+    expect(backup.entries.map((e) => e.issuer).toSet(), {
+      'GitHub',
+      'Teamkonto',
+    });
+    expect(controller.settings.backupError, isNull);
+    await controller.disableAutoBackup();
+    folder.deleteSync(recursive: true);
 
     // Copying marks the code as concealed; the text arrives as usual.
     await SecureClipboard.copy('123456', expiresIn: Duration.zero);

@@ -11,7 +11,9 @@ import '../data/local_store.dart';
 import '../widgets/common.dart';
 import '../platform/desktop_shell.dart';
 import 'account_screens.dart';
+import 'account_check_screen.dart';
 import 'admin_screen.dart';
+import 'auto_backup_screen.dart';
 import 'entry_qr_screen.dart';
 import 'import_screen.dart';
 import 'recovery_key_screen.dart';
@@ -250,6 +252,28 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 onTap: () => _export(context),
               ),
+              ListTile(
+                leading: const Icon(Icons.backup_outlined),
+                title: const Text('Automatische Sicherung'),
+                subtitle: Text(
+                  !c.autoBackup
+                      ? 'Aus'
+                      : s.backupError != null
+                      ? 'Fehler: ${s.backupError}'
+                      : '${s.backupFolderLabel} · zuletzt ${formatDate(s.lastBackup)}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () => _open(context, const AutoBackupScreen()),
+              ),
+              ListTile(
+                leading: const Icon(Icons.health_and_safety_outlined),
+                title: const Text('Kontenprüfung'),
+                subtitle: const Text(
+                  'Doppelte Konten, schwache Schlüssel, fehlende Logos',
+                ),
+                onTap: () => _open(context, const AccountCheckScreen()),
+              ),
               if (account.isAdmin) ...[
                 const SectionTitle('Server'),
                 ListTile(
@@ -485,31 +509,8 @@ class SettingsScreen extends StatelessWidget {
     final stamp = DateTime.now().toIso8601String().substring(0, 10);
     switch (choice) {
       case 'backup':
-        final pw = await askText(
-          context,
-          title: 'Passwort für die Sicherung',
-          message:
-              'Mindestens 10 Zeichen. Ohne dieses Passwort lässt sich die Sicherung nicht öffnen.',
-          label: 'Passwort',
-          password: true,
-          action: 'Weiter',
-        );
+        final pw = await askNewBackupPassword(context);
         if (pw == null || !context.mounted) return;
-        if (pw.length < 10) {
-          showMessage(context, 'Das Passwort braucht mindestens 10 Zeichen');
-          return;
-        }
-        final pw2 = await askText(
-          context,
-          title: 'Passwort wiederholen',
-          label: 'Passwort',
-          password: true,
-        );
-        if (pw2 == null || !context.mounted) return;
-        if (pw != pw2) {
-          showMessage(context, 'Die Passwörter stimmen nicht überein');
-          return;
-        }
         final text = await runBusy(
           context,
           () => SixoraBackup.encrypt(entries, pw),

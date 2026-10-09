@@ -127,6 +127,8 @@ class VaultDto {
     required this.encryptedName,
     required this.sealedKey,
     required this.memberCount,
+    this.keyVersion = 1,
+    this.rotationPending = false,
   });
   final String id;
   final bool personal;
@@ -139,6 +141,12 @@ class VaultDto {
   final String sealedKey;
   final int memberCount;
 
+  /// Counts key rotations; writes name the version they encrypted with.
+  final int keyVersion;
+
+  /// A member left: the owner should replace the key (only sent to owners).
+  final bool rotationPending;
+
   factory VaultDto.fromJson(Map<String, Object?> j) => VaultDto(
     id: j['id'] as String,
     personal: j['personal'] as bool? ?? false,
@@ -148,6 +156,8 @@ class VaultDto {
     encryptedName: j['encryptedName'] as String,
     sealedKey: j['sealedKey'] as String,
     memberCount: (j['memberCount'] as num?)?.toInt() ?? 1,
+    keyVersion: (j['keyVersion'] as num?)?.toInt() ?? 1,
+    rotationPending: j['rotationPending'] as bool? ?? false,
   );
 
   Map<String, Object?> toJson() => {
@@ -159,6 +169,8 @@ class VaultDto {
     'encryptedName': encryptedName,
     'sealedKey': sealedKey,
     'memberCount': memberCount,
+    'keyVersion': keyVersion,
+    'rotationPending': rotationPending,
   };
 }
 
@@ -210,6 +222,7 @@ class SyncResult {
     required this.vaults,
     required this.entries,
     required this.resetVaults,
+    this.sessions,
   });
   final int cursor;
 
@@ -223,6 +236,9 @@ class SyncResult {
   /// the user; local copies of them are replaced.
   final Set<String> resetVaults;
 
+  /// The account's signed-in devices; null from servers before 0.1.4.
+  final List<SessionDto>? sessions;
+
   factory SyncResult.fromJson(Map<String, Object?> j) => SyncResult(
     cursor: (j['cursor'] as num).toInt(),
     vaults: [
@@ -233,6 +249,12 @@ class SyncResult {
         EntryDto.fromJson((e as Map).cast()),
     ],
     resetVaults: {...(j['resetVaults'] as List? ?? const []).cast<String>()},
+    sessions: j['sessions'] is List
+        ? [
+            for (final s in j['sessions'] as List)
+              SessionDto.fromJson((s as Map).cast()),
+          ]
+        : null,
   );
 }
 
