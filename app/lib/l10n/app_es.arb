@@ -350,8 +350,8 @@
   "decrypt": "Descifrar",
   "accountsImported": "{count, plural, =1{1 cuenta importada} other{{count} cuentas importadas}}",
   "supported": "Compatibles:",
-  "supportedFormats": "• Google Authenticator: «Transferir cuentas» → escanear los códigos QR o elegir capturas (todas a la vez si hay varios códigos)\n• Aegis: exportación como JSON sin cifrar\n• 2FAuth: exportación como JSON\n• Sixora: copia de seguridad cifrada\n• Todo lo que tenga enlaces otpauth://, p. ej. exportaciones de Bitwarden, Ente Auth, andOTP o archivos de texto",
-  "microsoftNoExport": "Microsoft Authenticator no permite exportar. Allí configura de nuevo cada cuenta en el servicio o vuelve a mostrar el código QR.",
+  "supportedFormats": "• Google Authenticator: «Transferir cuentas» → escanear los códigos QR o elegir capturas (todas a la vez si hay varios códigos)\n• Aegis: exportación como JSON sin cifrar\n• 2FAS: copia sin contraseña (.2fas)\n• Bitwarden: exportación como JSON (sin cifrar) o CSV\n• andOTP: exportación JSON sin cifrar\n• FreeOTP+: exportación JSON\n• 2FAuth: exportación como JSON\n• Sixora: copia de seguridad cifrada\n• Todo lo que tenga enlaces otpauth://, p. ej. Ente Auth (exportación como texto) o archivos de texto",
+  "microsoftNoExport": "Microsoft Authenticator y Authy no permiten exportar. Configura de nuevo cada cuenta en el servicio o vuelve a mostrar el código QR.",
   "chooseFilesOrImages": "Elegir archivos o imágenes",
   "missingTransferCodes": "Aún falta el código {codes}.",
   "missingTransferCodesHint": "Google Authenticator reparte las cuentas en varios códigos QR. Añade también los que faltan.",
@@ -504,5 +504,8 @@
   "errRecoveryKeyInvalid": "La clave de recuperación no es válida",
   "errCounterNegative": "El contador es negativo",
   "errAegisEncrypted": "Copia de Aegis cifrada: expórtala sin cifrar en Aegis",
-  "choose": "Elegir"
+  "choose": "Elegir",
+  "err2fasEncrypted": "Copia de 2FAS cifrada: expórtala sin contraseña en 2FAS",
+  "errBitwardenEncrypted": "Exportación de Bitwarden cifrada: expórtala como «.json» sin cifrar",
+  "errEnteEncrypted": "Copia de Ente Auth cifrada: expórtala sin cifrar (como archivo de texto)"
 }

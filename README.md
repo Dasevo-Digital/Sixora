@@ -74,8 +74,10 @@ die Prüfsummen aller Dateien.
   ⌘/Strg+F sucht, Enter kopiert den ersten Treffer, ⌘/Strg+N fügt hinzu,
   ⌘/Strg+L sperrt.
 - **Import:** Google Authenticator („Konten übertragen“), Aegis
-  (unverschlüsseltes JSON), 2FAuth, Sixora-Sicherungen und alles mit
-  `otpauth://`-Links (z. B. Bitwarden, Ente Auth, andOTP).
+  (unverschlüsseltes JSON), 2FAS (ohne Passwort), Bitwarden (JSON oder CSV),
+  andOTP, FreeOTP+, 2FAuth, Sixora-Sicherungen und alles mit
+  `otpauth://`-Links (z. B. Ente Auth). Microsoft Authenticator und Authy
+  bieten keinen Export.
 - **Export:** verschlüsselte Sicherung mit eigenem Passwort, QR-Codes für
   Google Authenticator und andere Apps, unverschlüsselte Textdatei.
 - **Teilen:** eigene Tresore, z. B. „Team“, mit anderen Benutzern des

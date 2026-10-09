@@ -2203,13 +2203,13 @@ abstract class AppLocalizations {
   /// No description provided for @supportedFormats.
   ///
   /// In de, this message translates to:
-  /// **'• Google Authenticator: „Konten übertragen“ → QR-Codes scannen oder Screenshots wählen (alle auf einmal, bei mehreren Codes)\n• Aegis: Export als unverschlüsseltes JSON\n• 2FAuth: Export als JSON\n• Sixora: verschlüsselte Sicherung\n• Alles mit otpauth://-Links, z. B. Exporte von Bitwarden, Ente Auth, andOTP oder Textdateien'**
+  /// **'• Google Authenticator: „Konten übertragen“ → QR-Codes scannen oder Screenshots wählen (alle auf einmal, bei mehreren Codes)\n• Aegis: Export als unverschlüsseltes JSON\n• 2FAS: Sicherung ohne Passwort (.2fas)\n• Bitwarden: Export als JSON (unverschlüsselt) oder CSV\n• andOTP: unverschlüsselter JSON-Export\n• FreeOTP+: JSON-Export\n• 2FAuth: Export als JSON\n• Sixora: verschlüsselte Sicherung\n• Alles mit otpauth://-Links, z. B. Ente Auth (Export als Text) oder Textdateien'**
   String get supportedFormats;
 
   /// No description provided for @microsoftNoExport.
   ///
   /// In de, this message translates to:
-  /// **'Microsoft Authenticator bietet keinen Export. Dort jedes Konto beim Dienst neu einrichten oder den QR-Code erneut anzeigen lassen.'**
+  /// **'Microsoft Authenticator und Authy bieten keinen Export. Dort jedes Konto beim Dienst neu einrichten oder den QR-Code erneut anzeigen lassen.'**
   String get microsoftNoExport;
 
   /// No description provided for @chooseFilesOrImages.
@@ -3129,6 +3129,24 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Auswählen'**
   String get choose;
+
+  /// No description provided for @err2fasEncrypted.
+  ///
+  /// In de, this message translates to:
+  /// **'Verschlüsselte 2FAS-Sicherung: bitte in 2FAS ohne Passwort exportieren'**
+  String get err2fasEncrypted;
+
+  /// No description provided for @errBitwardenEncrypted.
+  ///
+  /// In de, this message translates to:
+  /// **'Verschlüsselter Bitwarden-Export: bitte als „.json“ ohne Verschlüsselung exportieren'**
+  String get errBitwardenEncrypted;
+
+  /// No description provided for @errEnteEncrypted.
+  ///
+  /// In de, this message translates to:
+  /// **'Verschlüsselte Ente-Auth-Sicherung: bitte unverschlüsselt (als Textdatei) exportieren'**
+  String get errEnteEncrypted;
 }
 
 class _AppLocalizationsDelegate

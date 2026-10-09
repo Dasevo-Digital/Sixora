@@ -70,5 +70,14 @@ String coreErrorText(String message) {
   if (message.startsWith('Verschlüsselte Aegis-Sicherung')) {
     return t.errAegisEncrypted;
   }
+  if (message.startsWith('Verschlüsselte 2FAS-Sicherung')) {
+    return t.err2fasEncrypted;
+  }
+  if (message.startsWith('Verschlüsselter Bitwarden-Export')) {
+    return t.errBitwardenEncrypted;
+  }
+  if (message.startsWith('Verschlüsselte Ente-Auth-Sicherung')) {
+    return t.errEnteEncrypted;
+  }
   return message;
 }

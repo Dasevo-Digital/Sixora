@@ -1257,11 +1257,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get supportedFormats =>
-      '• Google Authenticator: “Transfer accounts” → scan the QR codes or choose screenshots (all at once if there are several codes)\n• Aegis: export as unencrypted JSON\n• 2FAuth: export as JSON\n• Sixora: encrypted backup\n• Anything with otpauth:// links, e.g. exports from Bitwarden, Ente Auth, andOTP or text files';
+      '• Google Authenticator: “Transfer accounts” → scan the QR codes or choose screenshots (all at once if there are several codes)\n• Aegis: export as unencrypted JSON\n• 2FAS: backup without password (.2fas)\n• Bitwarden: export as JSON (unencrypted) or CSV\n• andOTP: unencrypted JSON export\n• FreeOTP+: JSON export\n• 2FAuth: export as JSON\n• Sixora: encrypted backup\n• Anything with otpauth:// links, e.g. Ente Auth (text export) or text files';
 
   @override
   String get microsoftNoExport =>
-      'Microsoft Authenticator offers no export. Set up each account again with the service there or have the QR code shown again.';
+      'Microsoft Authenticator and Authy offer no export. Set up each account again with the service or have the QR code shown again.';
 
   @override
   String get chooseFilesOrImages => 'Choose files or images';
@@ -1821,4 +1821,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get choose => 'Choose';
+
+  @override
+  String get err2fasEncrypted =>
+      'Encrypted 2FAS backup: please export it without a password in 2FAS';
+
+  @override
+  String get errBitwardenEncrypted =>
+      'Encrypted Bitwarden export: please export as “.json” without encryption';
+
+  @override
+  String get errEnteEncrypted =>
+      'Encrypted Ente Auth backup: please export it unencrypted (as a text file)';
 }

@@ -1271,11 +1271,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get supportedFormats =>
-      '• Google Authenticator: «Transferir cuentas» → escanear los códigos QR o elegir capturas (todas a la vez si hay varios códigos)\n• Aegis: exportación como JSON sin cifrar\n• 2FAuth: exportación como JSON\n• Sixora: copia de seguridad cifrada\n• Todo lo que tenga enlaces otpauth://, p. ej. exportaciones de Bitwarden, Ente Auth, andOTP o archivos de texto';
+      '• Google Authenticator: «Transferir cuentas» → escanear los códigos QR o elegir capturas (todas a la vez si hay varios códigos)\n• Aegis: exportación como JSON sin cifrar\n• 2FAS: copia sin contraseña (.2fas)\n• Bitwarden: exportación como JSON (sin cifrar) o CSV\n• andOTP: exportación JSON sin cifrar\n• FreeOTP+: exportación JSON\n• 2FAuth: exportación como JSON\n• Sixora: copia de seguridad cifrada\n• Todo lo que tenga enlaces otpauth://, p. ej. Ente Auth (exportación como texto) o archivos de texto';
 
   @override
   String get microsoftNoExport =>
-      'Microsoft Authenticator no permite exportar. Allí configura de nuevo cada cuenta en el servicio o vuelve a mostrar el código QR.';
+      'Microsoft Authenticator y Authy no permiten exportar. Configura de nuevo cada cuenta en el servicio o vuelve a mostrar el código QR.';
 
   @override
   String get chooseFilesOrImages => 'Elegir archivos o imágenes';
@@ -1844,4 +1844,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get choose => 'Elegir';
+
+  @override
+  String get err2fasEncrypted =>
+      'Copia de 2FAS cifrada: expórtala sin contraseña en 2FAS';
+
+  @override
+  String get errBitwardenEncrypted =>
+      'Exportación de Bitwarden cifrada: expórtala como «.json» sin cifrar';
+
+  @override
+  String get errEnteEncrypted =>
+      'Copia de Ente Auth cifrada: expórtala sin cifrar (como archivo de texto)';
 }

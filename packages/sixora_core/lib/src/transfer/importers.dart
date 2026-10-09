@@ -26,8 +26,9 @@ class NeedsPasswordException implements Exception {
 /// Detects and reads the export formats of common authenticator apps.
 ///
 /// Supported: Sixora backups (encrypted), Aegis (unencrypted JSON), 2FAuth
-/// JSON, Google Authenticator transfer codes and any text containing
-/// `otpauth://` links (e.g. exports of Bitwarden, andOTP, Ente Auth, …).
+/// JSON, 2FAS (.2fas without password), Bitwarden (JSON and CSV), andOTP
+/// (unencrypted JSON), FreeOTP+ (JSON), Google Authenticator transfer codes
+/// and any text containing `otpauth://` links (e.g. Ente Auth's export).
 abstract final class Importers {
   static Future<ImportResult> read(String text, {String? password}) async {
     final trimmed = text.trim();
@@ -63,7 +64,41 @@ abstract final class Importers {
       if (json['data'] is List && '${json['app']}'.contains('2fauth')) {
         return _twoFauth(json);
       }
+      if (json['services'] is List && json.containsKey('schemaVersion')) {
+        if ((json['services'] as List).isEmpty &&
+            json['servicesEncrypted'] is String) {
+          throw const FormatException(
+            'Verschlüsselte 2FAS-Sicherung: bitte in 2FAS ohne Passwort '
+            'exportieren',
+          );
+        }
+        return _twoFas(json);
+      }
+      if (json['items'] is List && json.containsKey('encrypted')) {
+        return _bitwarden(json);
+      }
+      if (json['encrypted'] == true) {
+        throw const FormatException(
+          'Verschlüsselter Bitwarden-Export: bitte als „.json“ ohne '
+          'Verschlüsselung exportieren',
+        );
+      }
+      if (json['tokens'] is List) return _freeOtp(json);
+      if (json['encryptedData'] is String && json['kdfParams'] is Map) {
+        throw const FormatException(
+          'Verschlüsselte Ente-Auth-Sicherung: bitte unverschlüsselt (als '
+          'Textdatei) exportieren',
+        );
+      }
     }
+    if (json is List &&
+        json.isNotEmpty &&
+        json.first is Map &&
+        (json.first as Map).containsKey('secret')) {
+      return _andOtp(json);
+    }
+    final firstLine = trimmed.split('\n').first;
+    if (firstLine.contains('login_totp')) return _bitwardenCsv(trimmed);
     return _uris(trimmed);
   }
 
@@ -165,6 +200,246 @@ abstract final class Importers {
     }
     return ImportResult('2FAuth', entries, skipped: skipped);
   }
+}
+
+/// 2FAS: `.2fas` file exported without a password.
+ImportResult _twoFas(Map json) {
+  final groups = <String, String>{
+    for (final g in json['groups'] as List? ?? const [])
+      if (g is Map) '${g['id']}': '${g['name']}',
+  };
+  final entries = <OtpEntry>[];
+  var skipped = 0;
+  for (final raw in json['services'] as List) {
+    try {
+      final service = (raw as Map).cast<String, Object?>();
+      final otp = (service['otp'] as Map? ?? const {}).cast<String, Object?>();
+      final type = switch ('${otp['tokenType'] ?? 'TOTP'}'.toUpperCase()) {
+        'TOTP' => OtpType.totp,
+        'HOTP' => OtpType.hotp,
+        'STEAM' => OtpType.steam,
+        _ => throw const FormatException('Typ nicht unterstützt'),
+      };
+      final issuer = '${otp['issuer'] ?? service['name'] ?? ''}';
+      final entry = OtpEntry(
+        issuer: issuer.isEmpty ? '${service['name'] ?? ''}' : issuer,
+        account: '${otp['account'] ?? otp['label'] ?? ''}',
+        secret: Base32.normalize('${service['secret']}'),
+        type: type,
+        algorithm: OtpAlgorithm.parse(otp['algorithm'] as String?),
+        digits: (otp['digits'] as num?)?.toInt() ?? 6,
+        period: (otp['period'] as num?)?.toInt() ?? 30,
+        counter: (otp['counter'] as num?)?.toInt() ?? 0,
+        group: groups['${service['groupId']}'] ?? '',
+      );
+      entry.validate();
+      entries.add(entry);
+    } catch (_) {
+      skipped++;
+    }
+  }
+  return ImportResult('2FAS', entries, skipped: skipped);
+}
+
+/// Bitwarden: one login per item; `login.totp` holds an otpauth link, a
+/// `steam://` secret or the bare Base32 secret.
+OtpEntry _bitwardenTotp(String totp, String name, String user) {
+  final value = totp.trim();
+  if (value.toLowerCase().startsWith('otpauth://')) {
+    final entry = OtpAuthUri.parse(value);
+    // Bitwarden keeps the item name; the link may lack an issuer.
+    return entry.issuer.isEmpty ? entry.copyWith(issuer: name) : entry;
+  }
+  final steam = value.toLowerCase().startsWith('steam://');
+  return OtpEntry(
+    issuer: name,
+    account: user,
+    secret: Base32.normalize(steam ? value.substring(8) : value),
+    type: steam ? OtpType.steam : OtpType.totp,
+  );
+}
+
+ImportResult _bitwarden(Map json) {
+  final folders = <String, String>{
+    for (final f in json['folders'] as List? ?? const [])
+      if (f is Map) '${f['id']}': '${f['name']}',
+  };
+  final entries = <OtpEntry>[];
+  var skipped = 0;
+  for (final raw in json['items'] as List) {
+    if (raw is! Map) continue;
+    final login = raw['login'];
+    final totp = login is Map ? login['totp'] : null;
+    if (totp is! String || totp.trim().isEmpty) continue;
+    try {
+      final entry =
+          _bitwardenTotp(
+            totp,
+            '${raw['name'] ?? ''}',
+            '${login['username'] ?? ''}',
+          ).copyWith(
+            group: folders['${raw['folderId']}'] ?? '',
+            favorite: raw['favorite'] == true,
+          );
+      entry.validate();
+      entries.add(entry);
+    } catch (_) {
+      skipped++;
+    }
+  }
+  if (entries.isEmpty && skipped == 0) {
+    throw const FormatException('Keine Konten in der Datei gefunden');
+  }
+  return ImportResult('Bitwarden', entries, skipped: skipped);
+}
+
+/// Bitwarden's CSV export (columns name, login_username, login_totp, …).
+ImportResult _bitwardenCsv(String text) {
+  final rows = _csv(text);
+  final head = rows.first;
+  final name = head.indexOf('name');
+  final user = head.indexOf('login_username');
+  final totp = head.indexOf('login_totp');
+  final folder = head.indexOf('folder');
+  final entries = <OtpEntry>[];
+  var skipped = 0;
+  for (final row in rows.skip(1)) {
+    String cell(int i) => i >= 0 && i < row.length ? row[i] : '';
+    if (cell(totp).trim().isEmpty) continue;
+    try {
+      final entry = _bitwardenTotp(
+        cell(totp),
+        cell(name),
+        cell(user),
+      ).copyWith(group: cell(folder));
+      entry.validate();
+      entries.add(entry);
+    } catch (_) {
+      skipped++;
+    }
+  }
+  if (entries.isEmpty && skipped == 0) {
+    throw const FormatException('Keine Konten in der Datei gefunden');
+  }
+  return ImportResult('Bitwarden', entries, skipped: skipped);
+}
+
+/// RFC 4180 CSV: quoted fields with "" for a quote, line breaks inside.
+List<List<String>> _csv(String text) {
+  final rows = <List<String>>[];
+  var row = <String>[];
+  final field = StringBuffer();
+  var quoted = false;
+  for (var i = 0; i < text.length; i++) {
+    final c = text[i];
+    if (quoted) {
+      if (c == '"') {
+        if (i + 1 < text.length && text[i + 1] == '"') {
+          field.write('"');
+          i++;
+        } else {
+          quoted = false;
+        }
+      } else {
+        field.write(c);
+      }
+    } else if (c == '"') {
+      quoted = true;
+    } else if (c == ',') {
+      row.add(field.toString());
+      field.clear();
+    } else if (c == '\n' || c == '\r') {
+      if (c == '\r' && i + 1 < text.length && text[i + 1] == '\n') i++;
+      row.add(field.toString());
+      field.clear();
+      rows.add(row);
+      row = <String>[];
+    } else {
+      field.write(c);
+    }
+  }
+  if (field.isNotEmpty || row.isNotEmpty) {
+    row.add(field.toString());
+    rows.add(row);
+  }
+  return rows;
+}
+
+/// andOTP: unencrypted JSON export, a list of tokens.
+ImportResult _andOtp(List json) {
+  final entries = <OtpEntry>[];
+  var skipped = 0;
+  for (final raw in json) {
+    try {
+      final e = (raw as Map).cast<String, Object?>();
+      final type = switch ('${e['type'] ?? 'TOTP'}'.toUpperCase()) {
+        'TOTP' => OtpType.totp,
+        'HOTP' => OtpType.hotp,
+        'STEAM' => OtpType.steam,
+        _ => throw const FormatException('Typ nicht unterstützt'),
+      };
+      final tags = (e['tags'] as List? ?? const []).whereType<String>();
+      var issuer = '${e['issuer'] ?? ''}';
+      var account = '${e['label'] ?? ''}';
+      // Older versions: "Issuer:account" in the label.
+      if (issuer.isEmpty && account.contains(':')) {
+        final at = account.indexOf(':');
+        issuer = account.substring(0, at).trim();
+        account = account.substring(at + 1).trim();
+      }
+      final entry = OtpEntry(
+        issuer: issuer,
+        account: account,
+        secret: Base32.normalize('${e['secret']}'),
+        type: type,
+        algorithm: OtpAlgorithm.parse(e['algorithm'] as String?),
+        digits: (e['digits'] as num?)?.toInt() ?? 6,
+        period: (e['period'] as num?)?.toInt() ?? 30,
+        counter: (e['counter'] as num?)?.toInt() ?? 0,
+        group: tags.isEmpty ? '' : tags.first,
+      );
+      entry.validate();
+      entries.add(entry);
+    } catch (_) {
+      skipped++;
+    }
+  }
+  return ImportResult('andOTP', entries, skipped: skipped);
+}
+
+/// FreeOTP+: JSON with the secret as signed bytes.
+ImportResult _freeOtp(Map json) {
+  final entries = <OtpEntry>[];
+  var skipped = 0;
+  for (final raw in json['tokens'] as List) {
+    try {
+      final e = (raw as Map).cast<String, Object?>();
+      final bytes = [
+        for (final b in e['secret'] as List) (b as num).toInt() & 0xff,
+      ];
+      final type = switch ('${e['type'] ?? 'TOTP'}'.toUpperCase()) {
+        'TOTP' => OtpType.totp,
+        'HOTP' => OtpType.hotp,
+        _ => throw const FormatException('Typ nicht unterstützt'),
+      };
+      final issuer = '${e['issuerExt'] ?? ''}';
+      final entry = OtpEntry(
+        issuer: issuer.isEmpty ? '${e['issuerInt'] ?? ''}' : issuer,
+        account: '${e['label'] ?? ''}',
+        secret: Base32.encode(bytes),
+        type: type,
+        algorithm: OtpAlgorithm.parse(e['algo'] as String?),
+        digits: (e['digits'] as num?)?.toInt() ?? 6,
+        period: (e['period'] as num?)?.toInt() ?? 30,
+        counter: (e['counter'] as num?)?.toInt() ?? 0,
+      );
+      entry.validate();
+      entries.add(entry);
+    } catch (_) {
+      skipped++;
+    }
+  }
+  return ImportResult('FreeOTP+', entries, skipped: skipped);
 }
 
 /// Password protected backup file, independent of the server account.

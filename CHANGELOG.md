@@ -6,6 +6,11 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.20 – 09.10.2026
+- Import aus 2FAS (Sicherung ohne Passwort), Bitwarden (JSON und CSV),
+  andOTP und FreeOTP+. Verschlüsselte Exporte von 2FAS, Bitwarden und
+  Ente Auth werden erkannt und erklärt.
+
 ### 0.1.19 – 09.10.2026
 - Sixora spricht Deutsch, Englisch und Spanisch. Die Sprache folgt dem
   System (sonst Englisch) und lässt sich unter Einstellungen → Sprache

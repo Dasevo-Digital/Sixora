@@ -350,8 +350,8 @@
   "decrypt": "Decrypt",
   "accountsImported": "{count, plural, =1{1 account imported} other{{count} accounts imported}}",
   "supported": "Supported:",
-  "supportedFormats": "• Google Authenticator: “Transfer accounts” → scan the QR codes or choose screenshots (all at once if there are several codes)\n• Aegis: export as unencrypted JSON\n• 2FAuth: export as JSON\n• Sixora: encrypted backup\n• Anything with otpauth:// links, e.g. exports from Bitwarden, Ente Auth, andOTP or text files",
-  "microsoftNoExport": "Microsoft Authenticator offers no export. Set up each account again with the service there or have the QR code shown again.",
+  "supportedFormats": "• Google Authenticator: “Transfer accounts” → scan the QR codes or choose screenshots (all at once if there are several codes)\n• Aegis: export as unencrypted JSON\n• 2FAS: backup without password (.2fas)\n• Bitwarden: export as JSON (unencrypted) or CSV\n• andOTP: unencrypted JSON export\n• FreeOTP+: JSON export\n• 2FAuth: export as JSON\n• Sixora: encrypted backup\n• Anything with otpauth:// links, e.g. Ente Auth (text export) or text files",
+  "microsoftNoExport": "Microsoft Authenticator and Authy offer no export. Set up each account again with the service or have the QR code shown again.",
   "chooseFilesOrImages": "Choose files or images",
   "missingTransferCodes": "Code {codes} is still missing.",
   "missingTransferCodesHint": "Google Authenticator spreads the accounts over several QR codes. Please add the missing ones too.",
@@ -504,5 +504,8 @@
   "errRecoveryKeyInvalid": "The recovery key is invalid",
   "errCounterNegative": "The counter is negative",
   "errAegisEncrypted": "Encrypted Aegis backup: please export it unencrypted in Aegis",
-  "choose": "Choose"
+  "choose": "Choose",
+  "err2fasEncrypted": "Encrypted 2FAS backup: please export it without a password in 2FAS",
+  "errBitwardenEncrypted": "Encrypted Bitwarden export: please export as “.json” without encryption",
+  "errEnteEncrypted": "Encrypted Ente Auth backup: please export it unencrypted (as a text file)"
 }
