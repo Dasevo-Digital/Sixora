@@ -170,6 +170,7 @@ class EntryDto {
     required this.deleted,
     required this.data,
     this.updatedAt,
+    this.deletedAt,
   });
   final String id;
   final String vaultId;
@@ -180,6 +181,9 @@ class EntryDto {
   final String data;
   final DateTime? updatedAt;
 
+  /// Only for entries from the recycle bin.
+  final DateTime? deletedAt;
+
   factory EntryDto.fromJson(Map<String, Object?> j) => EntryDto(
     id: j['id'] as String,
     vaultId: j['vaultId'] as String,
@@ -187,6 +191,7 @@ class EntryDto {
     deleted: j['deleted'] as bool? ?? false,
     data: j['data'] as String? ?? '',
     updatedAt: _date(j['updatedAt']),
+    deletedAt: _date(j['deletedAt']),
   );
 
   Map<String, Object?> toJson() => {

@@ -79,4 +79,4 @@ jobs:
       - if: matrix.target == 'ios'
         run: flutter build ios --release --no-codesign
       - if: matrix.target == 'android'
-        run: flutter build apk --release --flavor prod
+        run: flutter build apk --release --flavor prod --split-per-abi

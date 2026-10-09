@@ -30,6 +30,8 @@ Future<void> main(List<String> args) async {
     serverName: config.serverName,
     trustProxy: config.trustProxy,
     tls: config.tls,
+    dataDir: config.dataDir,
+    backupDays: config.backupDays,
     log: (line) => stdout.writeln('${DateTime.now().toIso8601String()} $line'),
   );
 

@@ -1,10 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
+import '../platform/link_inbox.dart';
 import '../widgets/brand.dart';
 import '../widgets/common.dart';
 import 'recovery_key_screen.dart';
+import 'scan_screen.dart';
 
 enum _Mode { login, register, recover }
 
@@ -29,14 +33,52 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   bool _busy = false;
   String? _error;
 
+  /// Set by an invitation link or QR code: register with this code.
+  bool _invited = false;
+
   @override
   void initState() {
     super.initState();
     _password.addListener(() => setState(() {}));
+    LinkInbox.instance.addListener(_takeInvite);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _takeInvite());
+  }
+
+  void _takeInvite() {
+    if (!mounted || _busy) return;
+    final link = LinkInbox.instance.take((l) => InviteLink.parse(l) != null);
+    if (link != null) _applyInvite(InviteLink.parse(link)!);
+  }
+
+  /// Fills in server and invite code and connects; the address is shown
+  /// before anything is sent, so a forged invitation stands out.
+  Future<void> _applyInvite(InviteLink invite) async {
+    setState(() {
+      _info = null;
+      _server.text = invite.server.toString();
+      _invite.text = invite.code;
+      _invited = true;
+    });
+    await _connect();
+  }
+
+  Future<void> _scanInvite() async {
+    final text = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const ScanScreen()),
+    );
+    if (text == null || !mounted) return;
+    final invite = InviteLink.parse(text);
+    if (invite == null) {
+      setState(() => _error = 'Das ist kein Sixora-Einladungscode');
+      return;
+    }
+    await _applyInvite(invite);
   }
 
   @override
   void dispose() {
+    LinkInbox.instance.removeListener(_takeInvite);
     for (final c in [
       _server,
       _username,
@@ -60,7 +102,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       setState(() {
         _url = url;
         _info = info;
-        _mode = info.hasUsers ? _Mode.login : _Mode.register;
+        _mode = info.hasUsers && !_invited ? _Mode.login : _Mode.register;
       });
     } catch (e) {
       setState(() => _error = errorText(e));
@@ -212,11 +254,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       autocorrect: false,
       autofillHints: const [AutofillHints.url],
       decoration: InputDecoration(
-        labelText: 'Server-Adresse',
+        labelText: 'Server-Adresse oder Einladungslink',
         hintText: 'sixora.example.org',
         prefixIcon: const Icon(Icons.dns_outlined),
         suffixIcon: PasteButton(controller: _server),
       ),
+      // A pasted invitation link fills in everything.
+      onChanged: (text) {
+        final invite = InviteLink.parse(text);
+        if (invite != null) _applyInvite(invite);
+      },
       onSubmitted: (_) => _connect(),
     ),
     const SizedBox(height: 16),
@@ -224,6 +271,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       onPressed: _busy ? null : _connect,
       child: _busy ? const _Spinner() : const Text('Verbinden'),
     ),
+    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) ...[
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        onPressed: _busy ? null : _scanInvite,
+        icon: const Icon(Icons.qr_code_scanner),
+        label: const Text('Einladungs-QR-Code scannen'),
+      ),
+    ],
   ];
 
   List<Widget> _accountStep(ThemeData theme) {

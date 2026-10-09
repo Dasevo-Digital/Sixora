@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../widgets/common.dart';
@@ -153,34 +154,66 @@ class _Invites extends StatelessWidget {
                     c.online((api) => api.adminCreateInvite(note: note.trim())),
               );
               if (invite == null || !context.mounted) return;
+              final link = InviteLink(
+                server: c.cached!.server,
+                code: invite.code!,
+              ).build();
               await showDialog<void>(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text('Einladungscode'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SelectableText(
-                        invite.code!,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              fontFamily: 'monospace',
-                              fontFamilyFallback: const ['Menlo', 'Consolas'],
+                  title: const Text('Einladung'),
+                  content: SizedBox(
+                    width: 360,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
                             ),
+                            child: QrImageView(
+                              data: link,
+                              size: 220,
+                              backgroundColor: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SelectableText(
+                            invite.code!,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  fontFamily: 'monospace',
+                                  fontFamilyFallback: const [
+                                    'Menlo',
+                                    'Consolas',
+                                  ],
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'In der Sixora-App bei „Einladungs-QR-Code scannen“ '
+                            'scannen oder den Link schicken: Server-Adresse und '
+                            'Code sind dann schon eingetragen. Gültig bis '
+                            '${formatDate(invite.expiresAt)}, nur einmal '
+                            'verwendbar. Code und Link werden nur jetzt angezeigt.',
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Gültig bis ${formatDate(invite.expiresAt)}. Zusammen mit der '
-                        'Server-Adresse ${c.cached!.server.host} weitergeben. Der Code wird '
-                        'nur jetzt angezeigt.',
-                      ),
-                    ],
+                    ),
                   ),
                   actions: [
                     TextButton(
                       onPressed: () =>
+                          Clipboard.setData(ClipboardData(text: link)),
+                      child: const Text('Link kopieren'),
+                    ),
+                    TextButton(
+                      onPressed: () =>
                           Clipboard.setData(ClipboardData(text: invite.code!)),
-                      child: const Text('Kopieren'),
+                      child: const Text('Code kopieren'),
                     ),
                     FilledButton(
                       onPressed: () => Navigator.pop(context),

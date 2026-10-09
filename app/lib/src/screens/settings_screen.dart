@@ -14,6 +14,7 @@ import 'admin_screen.dart';
 import 'entry_qr_screen.dart';
 import 'import_screen.dart';
 import 'recovery_key_screen.dart';
+import 'trash_screen.dart';
 import 'vaults_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -151,6 +152,12 @@ class SettingsScreen extends StatelessWidget {
                 leading: const Icon(Icons.devices_outlined),
                 title: const Text('Angemeldete Geräte'),
                 onTap: () => _open(context, const SessionsScreen()),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Papierkorb'),
+                subtitle: const Text('Gelöschte Konten der letzten 30 Tage'),
+                onTap: () => _open(context, const TrashScreen()),
               ),
               ListTile(
                 leading: const Icon(Icons.history),

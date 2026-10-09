@@ -613,4 +613,160 @@ void main() {
       );
     });
   });
+
+  group('recycle bin, backups, long poll', () {
+    test('deleted entries can be restored or purged', () async {
+      final alice = await _User.register(h, 'alice');
+      final first = await alice.sync();
+      final vaultId = alice.personalVaultId;
+      final id = VaultCrypto.newId();
+      await alice.put(vaultId, id, _github);
+      final deleted = await alice.api.deleteEntry(id, baseRevision: 1);
+      // The normal sync only sees the tombstone, without ciphertext.
+      final after = await alice.sync(first.cursor);
+      expect(after.entries.single.deleted, isTrue);
+      expect(after.entries.single.data, isEmpty);
+
+      final trash = await alice.api.trash();
+      expect(trash.single.id, id);
+      expect(trash.single.deletedAt, isNotNull);
+      expect(
+        (await UnlockedKeys.decryptEntry(
+          alice.vaultKeys[vaultId]! as dynamic,
+          vaultId,
+          id,
+          trash.single.data,
+        )).issuer,
+        'GitHub',
+      );
+
+      final restored = await alice.api.restoreEntry(id);
+      expect(restored.deleted, isFalse);
+      expect(restored.revision, deleted.revision + 1);
+      final synced = await alice.sync(after.cursor);
+      expect(synced.entries.single.deleted, isFalse);
+      expect(await alice.api.trash(), isEmpty);
+
+      await alice.api.deleteEntry(id, baseRevision: restored.revision);
+      await alice.api.purgeEntry(id);
+      expect(await alice.api.trash(), isEmpty);
+      await expectLater(
+        alice.api.restoreEntry(id),
+        throwsA(isA<ApiException>().having((e) => e.status, 'status', 404)),
+      );
+    });
+
+    test('other users see nothing of my recycle bin', () async {
+      final alice = await _User.register(h, 'alice');
+      final invite = await alice.api.adminCreateInvite();
+      final bob = await _User.register(h, 'bob', invite: invite.code);
+      await alice.sync();
+      final id = VaultCrypto.newId();
+      await alice.put(alice.personalVaultId, id, _github);
+      await alice.api.deleteEntry(id, baseRevision: 1);
+      expect(await bob.api.trash(), isEmpty);
+      await expectLater(
+        bob.api.restoreEntry(id),
+        throwsA(isA<ApiException>().having((e) => e.status, 'status', 404)),
+      );
+      await expectLater(
+        bob.api.purgeEntry(id),
+        throwsA(isA<ApiException>().having((e) => e.status, 'status', 404)),
+      );
+    });
+
+    test('the recycle bin forgets after 30 days', () async {
+      var now = DateTime.utc(2026, 1, 1);
+      await h.stop();
+      final db = openSixoraDatabase(':memory:');
+      h = _Harness();
+      h.app = SixoraServerApp(
+        db: db,
+        registration: Registration.open,
+        clock: () => now,
+      );
+      h.server = await io.serve(h.app.handler, InternetAddress.loopbackIPv4, 0);
+      h.url = Uri.parse('http://127.0.0.1:${h.server.port}/');
+      final alice = await _User.register(h, 'alice');
+      await alice.sync();
+      final id = VaultCrypto.newId();
+      await alice.put(alice.personalVaultId, id, _github);
+      await alice.api.deleteEntry(id, baseRevision: 1);
+      now = now.add(const Duration(days: 29));
+      h.app.maintain();
+      expect(await alice.api.trash(), hasLength(1));
+      now = now.add(const Duration(days: 2));
+      h.app.maintain();
+      expect(await alice.api.trash(), isEmpty);
+    });
+
+    test('one copy per day, the newest backupDays are kept', () async {
+      final dir = await Directory.systemTemp.createTemp('sixora-backup');
+      addTearDown(() => dir.delete(recursive: true));
+      var now = DateTime.utc(2026, 3, 1, 2);
+      final app = SixoraServerApp(
+        db: openSixoraDatabase('${dir.path}/sixora.db'),
+        registration: Registration.open,
+        dataDir: dir.path,
+        backupDays: 3,
+        clock: () => now,
+      );
+      for (var day = 0; day < 6; day++) {
+        app.maintain();
+        app.maintain(); // twice a day: still one file
+        now = now.add(const Duration(days: 1));
+      }
+      final files = Directory(
+        '${dir.path}/backups',
+      ).listSync().map((f) => f.uri.pathSegments.last).toList()..sort();
+      // backupDays: 3 → the three newest daily copies.
+      expect(files, [
+        'sixora-2026-03-04.db',
+        'sixora-2026-03-05.db',
+        'sixora-2026-03-06.db',
+      ]);
+      // A real, openable database.
+      final copy = openSixoraDatabase('${dir.path}/backups/${files.last}');
+      expect(copy.select('SELECT COUNT(*) AS n FROM users').first['n'], 0);
+      copy.close();
+      app.db.close();
+    });
+
+    test('a waiting sync returns as soon as something changes', () async {
+      final alice = await _User.register(h, 'alice');
+      final first = await alice.sync();
+      // Nothing changes: the request waits out its time.
+      final quiet = Stopwatch()..start();
+      final idle = await alice.api.sync(
+        first.cursor,
+        wait: const Duration(seconds: 1),
+      );
+      expect(quiet.elapsedMilliseconds, greaterThanOrEqualTo(900));
+      expect(idle.entries, isEmpty);
+
+      // Another device writes: the waiting request answers right away.
+      final watch = Stopwatch()..start();
+      final waiting = h.api()..token = alice.api.token;
+      final pending = waiting.sync(
+        first.cursor,
+        wait: const Duration(seconds: 20),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await alice.put(alice.personalVaultId, VaultCrypto.newId(), _github);
+      final woke = await pending;
+      expect(watch.elapsed, lessThan(const Duration(seconds: 5)));
+      expect(woke.entries, hasLength(1));
+    });
+
+    test('an old database gets the recycle bin columns', () {
+      final db = openSixoraDatabase(':memory:');
+      final columns = db
+          .select('PRAGMA table_info(entries)')
+          .map((r) => r['name'])
+          .toList();
+      expect(columns, containsAll(['deleted_at', 'trash_data']));
+      expect(db.select('PRAGMA user_version').first.columnAt(0), 2);
+      db.close();
+    });
+  });
 }

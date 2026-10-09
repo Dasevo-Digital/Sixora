@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
+import '../platform/link_inbox.dart';
 import '../platform/qr_image.dart';
 import '../widgets/common.dart';
 import '../widgets/otp_tile.dart';
@@ -35,7 +36,20 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _search.addListener(() => setState(() {}));
-    WidgetsBinding.instance.addPostFrameCallback((_) => _offerBiometrics());
+    LinkInbox.instance.addListener(_takeLink);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _offerBiometrics();
+      _takeLink();
+    });
+  }
+
+  /// A 2FA link (otpauth://, Google transfer) that opened the app.
+  void _takeLink() {
+    if (!mounted) return;
+    final link = LinkInbox.instance.take(
+      (l) => OtpAuthUri.looksLike(l) || GoogleMigration.looksLike(l),
+    );
+    if (link != null) _handleCode(link);
   }
 
   /// After an unlock with the password: offer Face ID & co. once.
@@ -89,6 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    LinkInbox.instance.removeListener(_takeLink);
     _ticker.dispose();
     _search.dispose();
     _searchFocus.dispose();
@@ -389,11 +404,35 @@ class _HomeScreenState extends State<HomeScreen> {
           message:
               'Der Eintrag verschwindet auf allen Geräten'
               '${vault?.shared == true ? ' und bei allen, mit denen der Tresor geteilt ist' : ''}. '
-              'Deaktiviere die Zwei-Faktor-Anmeldung vorher beim Dienst, sonst sperrst du dich aus.',
+              '30 Tage lang lässt er sich im Papierkorb (Einstellungen) '
+              'wiederherstellen.',
           action: 'Löschen',
           destructive: true,
         );
-        if (ok && mounted) await runBusy(context, () => c.deleteEntry(item));
+        if (ok && mounted) {
+          final done = await runBusy(context, () async {
+            await c.deleteEntry(item);
+            return true;
+          });
+          if (done == true && mounted) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  behavior: SnackBarBehavior.floating,
+                  content: Text('„${item.entry.displayName}“ gelöscht'),
+                  action: SnackBarAction(
+                    label: 'Rückgängig',
+                    onPressed: () => runBusy(context, () async {
+                      final trash = await c.trash();
+                      final hit = trash.where((t) => t.item.id == item.id);
+                      if (hit.isNotEmpty) await c.restore(hit.first);
+                    }),
+                  ),
+                ),
+              );
+          }
+        }
     }
   }
 

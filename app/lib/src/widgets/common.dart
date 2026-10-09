@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/app_controller.dart';
+import '../platform/secure_clipboard.dart';
 
 /// Gives the [AppController] to the widget tree.
 class AppScope extends InheritedNotifier<AppController> {
@@ -324,14 +325,19 @@ Future<void> copySecret(
   String? what,
 }) async {
   final c = AppScope.read(context);
-  await Clipboard.setData(ClipboardData(text: text));
+  final clear = c.settings.clearClipboard;
+  // Expiry 0 = keep; the system handles the expiry where it can (iOS).
+  await SecureClipboard.copy(
+    text,
+    expiresIn: clear ? const Duration(seconds: 30) : Duration.zero,
+  );
   if (context.mounted) {
     showMessage(
       context,
       '${what ?? 'Code'} kopiert${c.settings.clearClipboard ? ' – wird nach 30 s aus der Zwischenablage entfernt' : ''}',
     );
   }
-  if (c.settings.clearClipboard) {
+  if (clear && !SecureClipboard.expiresBySystem) {
     Timer(const Duration(seconds: 30), () async {
       final current = await Clipboard.getData(Clipboard.kTextPlain);
       if (current?.text == text) {

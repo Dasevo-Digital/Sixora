@@ -33,6 +33,18 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- 2FA links (otpauth://, Google Authenticator transfer) and
+                 Sixora invitations open the app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="otpauth"/>
+                <data android:scheme="otpauth-migration"/>
+                <data android:scheme="sixora"/>
+            </intent-filter>
+            <!-- The app reads links itself (app_links), not Flutter's router. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

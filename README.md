@@ -177,6 +177,9 @@ App berühren:
   Schlüsselbund-Eintrag an. `SIXORA_ENV=test` nutzt gar keinen
   Schlüsselbund.
 - Android: `flutter run --flavor dev` (App-ID `de.status403.sixora.dev`).
+  Release-APKs je Architektur bauen: `flutter build apk --release --flavor
+  prod --split-per-abi` (arm64 ca. ein Drittel der Größe einer
+  Universal-APK; die meisten Geräte brauchen `app-arm64-v8a-prod-release.apk`).
 - macOS: `app/tool/mac_install.sh dev` baut „Sixora Dev“ und installiert die
   App, `app/tool/mac_install.sh` dasselbe für die echte App. Beide werden mit
   `app/tool/sign_macos.sh` signiert, damit der Schlüsselbund „Immer

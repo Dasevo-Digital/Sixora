@@ -9,13 +9,16 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:sixora/src/app.dart';
 import 'package:sixora/src/data/app_controller.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sixora/src/environment.dart';
+import 'package:sixora/src/platform/link_inbox.dart';
 import 'package:sixora/src/platform/qr_image.dart';
+import 'package:sixora/src/platform/secure_clipboard.dart';
 import 'package:sixora/src/widgets/otp_tile.dart';
 import 'package:sixora_core/sixora_core.dart';
 
@@ -63,7 +66,10 @@ void main() {
     await tester.pumpWidget(SixoraApp(controller: controller));
 
     // Connect to the empty server: the first account becomes admin.
-    await tester.enterText(_field('Server-Adresse'), _server);
+    await tester.enterText(
+      _field('Server-Adresse oder Einladungslink'),
+      _server,
+    );
     await tester.tap(find.text('Verbinden'));
     await _pumpUntil(
       tester,
@@ -144,9 +150,37 @@ void main() {
     await _pumpUntil(tester, find.byType(OtpTile));
     expect(find.text('GitHub'), findsOneWidget);
 
+    // Recycle bin: delete, find it there, restore.
+    final github = controller.items.single;
+    await controller.deleteEntry(github);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(controller.items, isEmpty);
+    final trash = await controller.trash();
+    expect(trash.single.item.entry.issuer, 'GitHub');
+    await controller.restore(trash.single);
+    expect(controller.items.single.entry.issuer, 'GitHub');
+    expect(await controller.trash(), isEmpty);
+
+    // Copying marks the code as concealed; the text arrives as usual.
+    await SecureClipboard.copy('123456', expiresIn: Duration.zero);
+    expect((await Clipboard.getData(Clipboard.kTextPlain))?.text, '123456');
+    await Clipboard.setData(const ClipboardData(text: ''));
+
+    // An otpauth:// link that opened the app lands in the editor.
+    LinkInbox.instance.value =
+        'otpauth://totp/Example:bob@example.org?secret=JBSWY3DPEHPK3PXP&issuer=Example';
+    await _pumpUntil(tester, find.text('Konto hinzufügen'));
+    expect(
+      tester.widget<TextField>(_field('Dienst')).controller!.text,
+      'Example',
+    );
+    expect(LinkInbox.instance.value, isNull);
+    await tester.tap(find.byTooltip('Zurück'));
+    await tester.pump(const Duration(seconds: 1));
+
     // Clean up: log out removes the local copy.
     await controller.logout();
-    await _pumpUntil(tester, _field('Server-Adresse'));
+    await _pumpUntil(tester, _field('Server-Adresse oder Einladungslink'));
   });
 
   testWidgets('the system reads a dense transfer code from a screenshot', (

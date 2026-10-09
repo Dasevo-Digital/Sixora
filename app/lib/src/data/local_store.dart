@@ -148,9 +148,20 @@ class LocalStore {
     }
   }
 
-  Future<void> _write(File file, Map<String, Object?> json) async {
-    final tmp = File('${file.path}.tmp');
-    await tmp.writeAsString(jsonEncode(json), flush: true);
-    await tmp.rename(file.path);
+  /// Writes go one after another, each through its own temporary file:
+  /// sync and edits can save at the same moment.
+  Future<void> _queue = Future.value();
+  int _serial = 0;
+
+  Future<void> _write(File file, Map<String, Object?> json) {
+    final text = jsonEncode(json);
+    final tmp = File('${file.path}.${pid}_${_serial++}.tmp');
+    final done = _queue.then((_) async {
+      await tmp.writeAsString(text, flush: true);
+      await tmp.rename(file.path);
+    });
+    // A failed write must not block the ones after it.
+    _queue = done.catchError((Object _) {});
+    return done;
   }
 }

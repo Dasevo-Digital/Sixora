@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import 'package:crypto/crypto.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -42,6 +44,8 @@ class SixoraServerApp {
     this.serverName = 'Sixora',
     this.trustProxy = false,
     this.tls = false,
+    this.dataDir,
+    this.backupDays = 14,
     void Function(String line)? log,
     DateTime Function()? clock,
   }) : _log = log ?? ((_) {}),
@@ -54,6 +58,12 @@ class SixoraServerApp {
   final String serverName;
   final bool trustProxy;
   final bool tls;
+
+  /// Where nightly database copies go (`<dataDir>/backups`); null = none.
+  final String? dataDir;
+
+  /// How many daily copies to keep; 0 switches them off.
+  final int backupDays;
   final void Function(String) _log;
   final DateTime Function() _clock;
   late final String _secret;
@@ -65,6 +75,10 @@ class SixoraServerApp {
   static const sessionIdleDays = 180;
   static const maxSessionsPerUser = 50;
   static const auditKeepDays = 365;
+  static const trashDays = 30;
+
+  /// Longest wait of a sync request for changes (long poll).
+  static const maxSyncWait = Duration(seconds: 30);
 
   final _userFailures = FailureLimiter(
     max: 10,
@@ -112,6 +126,9 @@ class SixoraServerApp {
     r.get('/api/v1/sync', _sync);
     r.put('/api/v1/entries/<id>', _putEntry);
     r.delete('/api/v1/entries/<id>', _deleteEntry);
+    r.get('/api/v1/trash', _trash);
+    r.post('/api/v1/trash/<id>/restore', _restoreEntry);
+    r.delete('/api/v1/trash/<id>', _purgeEntry);
     r.post('/api/v1/vaults', _createVault);
     r.patch('/api/v1/vaults/<id>', _renameVault);
     r.delete('/api/v1/vaults/<id>', _deleteVault);
@@ -152,6 +169,46 @@ class SixoraServerApp {
     db.execute('DELETE FROM audit WHERE at < ?', [
       now.subtract(const Duration(days: auditKeepDays)).toIso8601String(),
     ]);
+    // The recycle bin forgets after 30 days; the tombstone stays for sync.
+    db.execute(
+      "UPDATE entries SET trash_data = '' WHERE deleted = 1 AND trash_data != '' "
+      'AND deleted_at < ?',
+      [now.subtract(const Duration(days: trashDays)).toIso8601String()],
+    );
+    backup(now);
+  }
+
+  /// One consistent copy of the database per day (`VACUUM INTO`), kept for
+  /// [backupDays] days. Encrypted vault data only, but also the accounts:
+  /// the folder is readable by the service user alone.
+  String? backup([DateTime? at]) {
+    final dir = dataDir;
+    if (dir == null || backupDays <= 0) return null;
+    final now = (at ?? _clock()).toUtc();
+    final folder = Directory(p.join(dir, 'backups'))
+      ..createSync(recursive: true);
+    final day = now.toIso8601String().substring(0, 10);
+    final file = File(p.join(folder.path, 'sixora-$day.db'));
+    if (!file.existsSync()) {
+      try {
+        db.execute('VACUUM INTO ?', [file.path]);
+        _log('Sicherung: ${file.path}');
+      } on SqliteException catch (e) {
+        _log('Sicherung fehlgeschlagen: ${e.message}');
+        return null;
+      }
+    }
+    final keepFrom = now.subtract(Duration(days: backupDays));
+    for (final old in folder.listSync().whereType<File>()) {
+      final match = RegExp(
+        r'sixora-(\d{4}-\d{2}-\d{2})\.db$',
+      ).firstMatch(old.path);
+      final date = match == null
+          ? null
+          : DateTime.tryParse('${match[1]}T00:00:00Z');
+      if (date != null && date.isBefore(keepFrom)) old.deleteSync();
+    }
+    return file.path;
   }
 
   // --- Middleware ------------------------------------------------------------
@@ -333,8 +390,13 @@ class SixoraServerApp {
     db.execute(
       "UPDATE meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'seq'",
     );
+    // Waiting sync requests wake up once the change is committed (the
+    // transaction finishes synchronously before microtasks run).
+    scheduleMicrotask(_changed.notifyListeners);
     return _currentSeq();
   }
+
+  final _changed = _ChangeSignal();
 
   int _currentSeq() => int.parse(
     db.select("SELECT value FROM meta WHERE key = 'seq'").first['value']
@@ -1003,10 +1065,18 @@ class SixoraServerApp {
     return m;
   }
 
-  Response _sync(Request request) {
+  Future<Response> _sync(Request request) async {
     final s = _auth(request);
     final since =
         int.tryParse(request.url.queryParameters['since'] ?? '0') ?? 0;
+    // Long poll: with `wait`, an unchanged state holds the request until
+    // something changes or the time is up – changes from other devices
+    // arrive at once instead of with the next poll.
+    final wait = int.tryParse(request.url.queryParameters['wait'] ?? '') ?? 0;
+    if (wait > 0 && since > 0 && _currentSeq() <= since) {
+      final limit = Duration(seconds: wait.clamp(1, maxSyncWait.inSeconds));
+      await _changed.next.timeout(limit, onTimeout: () {});
+    }
     final cursor = _currentSeq();
     final vaults = db.select(
       'SELECT v.id, v.personal, v.owner_id, v.encrypted_name, o.username AS owner_name, '
@@ -1123,7 +1193,7 @@ class SixoraServerApp {
         }
         db.execute(
           'UPDATE entries SET data = ?, revision = revision + 1, deleted = 0, seq = ?, '
-          'updated_at = ?, updated_by = ? WHERE id = ?',
+          "updated_at = ?, updated_by = ?, deleted_at = NULL, trash_data = '' WHERE id = ?",
           [data, _nextSeq(), _now(), s.userId, id],
         );
       }
@@ -1153,14 +1223,76 @@ class SixoraServerApp {
           'Eintrag wurde auf einem anderen Gerät geändert',
         );
       }
+      // Into the recycle bin: the ciphertext moves to trash_data.
       db.execute(
-        "UPDATE entries SET data = '', revision = revision + 1, deleted = 1, seq = ?, "
-        'updated_at = ?, updated_by = ? WHERE id = ?',
+        "UPDATE entries SET trash_data = data, data = '', revision = revision + 1, "
+        'deleted = 1, deleted_at = ?, seq = ?, updated_at = ?, updated_by = ? '
+        'WHERE id = ?',
+        [_now(), _nextSeq(), _now(), s.userId, id],
+      );
+      return db.select('SELECT * FROM entries WHERE id = ?', [id]).first;
+    });
+    return _json(_entryJson(row));
+  }
+
+  // --- Recycle bin -----------------------------------------------------------
+
+  /// Deleted entries of the last 30 days in the user's vaults (encrypted).
+  Response _trash(Request request) {
+    final s = _auth(request);
+    final rows = db.select(
+      'SELECT e.* FROM entries e JOIN vault_members m ON m.vault_id = e.vault_id '
+      "WHERE m.user_id = ? AND e.deleted = 1 AND e.trash_data != '' "
+      'ORDER BY e.deleted_at DESC',
+      [s.userId],
+    );
+    return _json({
+      'entries': [
+        for (final r in rows)
+          {
+            ..._entryJson(r),
+            'data': r['trash_data'],
+            'deletedAt': r['deleted_at'],
+          },
+      ],
+    });
+  }
+
+  Row _trashed(String id, String userId) {
+    final rows = db.select(
+      "SELECT * FROM entries WHERE id = ? AND deleted = 1 AND trash_data != ''",
+      [id],
+    );
+    if (rows.isEmpty) {
+      throw const ApiError(404, 'not_found', 'Nicht im Papierkorb');
+    }
+    _requireMember(rows.first['vault_id'] as String, userId, write: true);
+    return rows.first;
+  }
+
+  Future<Response> _restoreEntry(Request request, String id) async {
+    final s = _auth(request);
+    final row = _transaction(() {
+      _trashed(id, s.userId);
+      db.execute(
+        "UPDATE entries SET data = trash_data, trash_data = '', deleted = 0, "
+        'deleted_at = NULL, revision = revision + 1, seq = ?, updated_at = ?, '
+        'updated_by = ? WHERE id = ?',
         [_nextSeq(), _now(), s.userId, id],
       );
       return db.select('SELECT * FROM entries WHERE id = ?', [id]).first;
     });
     return _json(_entryJson(row));
+  }
+
+  /// Removes the ciphertext for good; the tombstone stays for sync.
+  Response _purgeEntry(Request request, String id) {
+    final s = _auth(request);
+    _transaction(() {
+      _trashed(id, s.userId);
+      db.execute("UPDATE entries SET trash_data = '' WHERE id = ?", [id]);
+    });
+    return _ok();
   }
 
   Future<Response> _createVault(Request request) async {
@@ -1549,5 +1681,18 @@ class SixoraServerApp {
     return _auditJson(
       db.select('SELECT * FROM audit ORDER BY id DESC LIMIT 500'),
     );
+  }
+}
+
+/// Wakes up waiting sync requests when anything changed.
+class _ChangeSignal {
+  Completer<void> _next = Completer<void>();
+
+  Future<void> get next => _next.future;
+
+  void notifyListeners() {
+    final done = _next;
+    _next = Completer<void>();
+    done.complete();
   }
 }

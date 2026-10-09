@@ -73,6 +73,7 @@ class SixoraApi {
   Future<Object?> _send(
     String method,
     String path, {
+    Duration timeout = _timeout,
     Object? body,
     Map<String, String>? query,
   }) async {
@@ -88,8 +89,8 @@ class SixoraApi {
     final http.Response response;
     try {
       response = await http.Response.fromStream(
-        await _client.send(request).timeout(_timeout),
-      ).timeout(_timeout);
+        await _client.send(request).timeout(timeout),
+      ).timeout(timeout);
     } on TimeoutException {
       throw const ApiException(0, 'offline', 'Server antwortet nicht');
     } on SocketException catch (e) {
@@ -140,8 +141,11 @@ class SixoraApi {
     String path, {
     Object? body,
     Map<String, String>? query,
+    Duration timeout = _timeout,
   }) async =>
-      ((await _send(method, path, body: body, query: query)) as Map? ?? {})
+      ((await _send(method, path, body: body, query: query, timeout: timeout))
+                  as Map? ??
+              {})
           .cast();
 
   Future<List<Map<String, Object?>>> _list(
@@ -152,7 +156,6 @@ class SixoraApi {
     final m = await _map('GET', path, query: query);
     return [for (final e in m[key] as List? ?? const []) (e as Map).cast()];
   }
-
   // --- Public ----------------------------------------------------------------
 
   Future<ServerInfo> info() async {
@@ -275,9 +278,31 @@ class SixoraApi {
 
   // --- Vault data ----------------------------------------------------------
 
-  Future<SyncResult> sync(int since) async => SyncResult.fromJson(
-    await _map('GET', 'sync', query: {'since': '$since'}),
-  );
+  /// Changes since [since]. With [wait] the server holds the request until
+  /// something changes (at most [wait]), so changes from other devices
+  /// arrive at once.
+  Future<SyncResult> sync(int since, {Duration? wait}) async =>
+      SyncResult.fromJson(
+        await _map(
+          'GET',
+          'sync',
+          query: {
+            'since': '$since',
+            if (wait != null) 'wait': '${wait.inSeconds}',
+          },
+          timeout: wait == null ? _timeout : wait + _timeout,
+        ),
+      );
+
+  /// Deleted entries of the last 30 days, still encrypted.
+  Future<List<EntryDto>> trash() async => [
+    for (final e in await _list('trash', 'entries')) EntryDto.fromJson(e),
+  ];
+
+  Future<EntryDto> restoreEntry(String id) async =>
+      EntryDto.fromJson(await _map('POST', 'trash/$id/restore'));
+
+  Future<void> purgeEntry(String id) => _send('DELETE', 'trash/$id');
 
   /// Creates or updates an entry. [baseRevision] is the revision the change
   /// is based on (0 for new entries); a mismatch gives a 409 conflict.

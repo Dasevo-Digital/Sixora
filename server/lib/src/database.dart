@@ -1,6 +1,6 @@
 import 'package:sqlite3/sqlite3.dart';
 
-const _schemaVersion = 1;
+const _schemaVersion = 2;
 
 /// Opens (and migrates) the server database.
 ///
@@ -110,6 +110,15 @@ void _migrate(Database db) {
         ip TEXT NOT NULL DEFAULT ''
       );
       CREATE INDEX audit_user ON audit(user_id, id);
+    ''');
+  }
+  if (version < 2) {
+    // Recycle bin: a deleted entry keeps its ciphertext here for 30 days.
+    // `data` stays empty, so the normal sync never hands it out again.
+    db.execute('''
+      ALTER TABLE entries ADD COLUMN deleted_at TEXT;
+      ALTER TABLE entries ADD COLUMN trash_data TEXT NOT NULL DEFAULT '';
+      CREATE INDEX entries_trash ON entries(vault_id, deleted, deleted_at);
     ''');
   }
   db.execute('PRAGMA user_version = $_schemaVersion');

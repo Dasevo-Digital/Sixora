@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'src/app.dart';
 import 'src/data/app_controller.dart';
 import 'src/data/service_icons.dart';
+import 'src/platform/link_inbox.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +23,7 @@ kennzeichnet nur den Dienst und bedeutet keine Verbindung zu Sixora.''',
   );
   // Loads in the background; avatars show letters until then.
   ServiceIcons.load();
+  LinkInbox.instance.start();
   final controller = await AppController.create();
   runApp(SixoraApp(controller: controller));
 }

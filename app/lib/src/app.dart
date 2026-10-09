@@ -87,6 +87,8 @@ class _SixoraAppState extends State<SixoraApp> {
       case AppLifecycleState.hidden || AppLifecycleState.paused:
         _backgroundSince ??= DateTime.now();
         if (autoLock == AutoLock.immediately) c.lock();
+        // Phones suspend apps in the background: no connection kept open.
+        if (_mobile) c.pauseSync();
       case AppLifecycleState.resumed:
         final since = _backgroundSince;
         _backgroundSince = null;
@@ -95,7 +97,7 @@ class _SixoraAppState extends State<SixoraApp> {
             DateTime.now().difference(since).inMinutes >= autoLock.minutes) {
           c.lock();
         } else if (since != null) {
-          unawaited(c.sync());
+          c.resumeSync();
         }
         setState(() => _obscured = false);
         _resetIdle();

@@ -27,6 +27,7 @@ class ServerConfig {
     required this.tlsCert,
     required this.tlsKey,
     required this.serverName,
+    this.backupDays = 14,
     this.command = const [],
     this.healthcheck = false,
   });
@@ -42,6 +43,10 @@ class ServerConfig {
   final String? tlsCert;
   final String? tlsKey;
   final String serverName;
+
+  /// Daily database copies in `<data>/backups`, kept this many days
+  /// (SIXORA_BACKUP_DAYS, 0 = off).
+  final int backupDays;
 
   /// Administrative sub command, e.g. `invite` or `users`.
   final List<String> command;
@@ -103,6 +108,8 @@ class ServerConfig {
       serverName: e['SIXORA_SERVER_NAME']?.trim().isNotEmpty == true
           ? e['SIXORA_SERVER_NAME']!.trim()
           : 'Sixora',
+      backupDays:
+          int.tryParse(e['SIXORA_BACKUP_DAYS'] ?? '')?.clamp(0, 365) ?? 14,
       command: r.rest,
       healthcheck: r.flag('healthcheck'),
     );

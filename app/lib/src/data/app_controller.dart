@@ -38,6 +38,13 @@ class Item {
   final OtpEntry entry;
 }
 
+/// A deleted entry in the recycle bin.
+class TrashItem {
+  TrashItem(this.item, this.deletedAt);
+  final Item item;
+  final DateTime? deletedAt;
+}
+
 /// Error for the user, in German.
 class UserError implements Exception {
   const UserError(this.message);
@@ -80,7 +87,10 @@ class AppController extends ChangeNotifier {
   /// Set after an unlock with the password when Face ID & co. could be
   /// offered; the home screen asks once.
   bool offerBiometrics = false;
-  Timer? _syncTimer;
+
+  /// Generation of the long-poll loop; a new one stops the old.
+  int _watch = 0;
+  Future<void> _applying = Future.value();
 
   static Future<AppController> create() async {
     final base = await getApplicationSupportDirectory();
@@ -438,14 +448,69 @@ class AppController extends ChangeNotifier {
     await _decryptAll();
     phase = Phase.unlocked;
     notifyListeners();
-    _syncTimer?.cancel();
-    _syncTimer = Timer.periodic(const Duration(minutes: 1), (_) => sync());
     unawaited(sync());
+    _startWatching();
   }
+
+  /// Keeps one request waiting at the server: changes from other devices
+  /// arrive within a moment instead of with the next poll.
+  void _startWatching() {
+    final generation = ++_watch;
+    unawaited(_watchLoop(generation));
+  }
+
+  void _stopWatching() => _watch++;
+
+  /// App in the background: no open connection; back in front: catch up.
+  void pauseSync() => _stopWatching();
+
+  void resumeSync() {
+    if (phase != Phase.unlocked) return;
+    unawaited(sync());
+    _startWatching();
+  }
+
+  Future<void> _watchLoop(int generation) async {
+    var backoff = const Duration(seconds: 5);
+    bool current() => generation == _watch && phase == Phase.unlocked;
+    while (current()) {
+      final since = cached?.cursor ?? 0;
+      final started = DateTime.now();
+      try {
+        final result = await _online(
+          (api) => api.sync(since, wait: const Duration(seconds: 25)),
+        );
+        if (!current()) return;
+        await _apply(result);
+        if (syncError != null) {
+          syncError = null;
+          notifyListeners();
+        }
+        backoff = const Duration(seconds: 5);
+        // A server without long poll answers at once: then poll gently.
+        if (result.cursor == since &&
+            DateTime.now().difference(started) < const Duration(seconds: 2)) {
+          await Future<void>.delayed(const Duration(seconds: 30));
+        }
+      } on Object catch (e) {
+        if (!current()) return;
+        syncError = errorText(e);
+        notifyListeners();
+        await Future<void>.delayed(backoff);
+        backoff = backoff * 2 > const Duration(minutes: 1)
+            ? const Duration(minutes: 1)
+            : backoff * 2;
+      }
+    }
+  }
+
+  /// Applies sync results one after another.
+  Future<void> _apply(SyncResult result) =>
+      _applying = _applying.then((_) => _applySync(result));
 
   void lock() {
     if (phase != Phase.unlocked) return;
-    _syncTimer?.cancel();
+    _stopWatching();
     _wipeKeys();
     items = const [];
     phase = Phase.locked;
@@ -467,7 +532,7 @@ class AppController extends ChangeNotifier {
 
   /// Logs out this device and removes all local data.
   Future<void> logout({String? notice}) async {
-    _syncTimer?.cancel();
+    _stopWatching();
     final api = _api;
     if (api != null && notice == null) {
       try {
@@ -528,7 +593,7 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     try {
       final result = await _online((api) => api.sync(cached!.cursor));
-      await _applySync(result);
+      await _apply(result);
       syncError = null;
     } on UserError catch (e) {
       syncError = e.message;
@@ -542,7 +607,9 @@ class AppController extends ChangeNotifier {
 
   Future<void> _applySync(SyncResult r) async {
     final c = cached;
-    if (c == null) return;
+    // An answer older than what is stored (a long poll that overlapped a
+    // manual sync) would bring back outdated entries.
+    if (c == null || r.cursor < c.cursor) return;
     final ids = {for (final v in r.vaults) v.id};
     c.vaults
       ..clear()
@@ -722,6 +789,47 @@ class AppController extends ChangeNotifier {
 
   bool isDuplicate(OtpEntry e) => items.any((i) => i.entry.sameKeyAs(e));
 
+  // --- Recycle bin -------------------------------------------------------
+
+  /// Deleted entries of the last 30 days that this device can decrypt.
+  Future<List<TrashItem>> trash() async {
+    final dtos = await _online((api) => api.trash());
+    final out = <TrashItem>[];
+    for (final e in dtos) {
+      final vault = _vaults[e.vaultId];
+      if (vault == null) continue;
+      try {
+        out.add(
+          TrashItem(
+            Item(
+              e.id,
+              e.vaultId,
+              e.revision,
+              await UnlockedKeys.decryptEntry(
+                vault.key,
+                e.vaultId,
+                e.id,
+                e.data,
+              ),
+            ),
+            e.deletedAt,
+          ),
+        );
+      } on Object {
+        // Not readable: leave it out.
+      }
+    }
+    return out;
+  }
+
+  Future<void> restore(TrashItem t) async {
+    final dto = await _write((api) => api.restoreEntry(t.item.id));
+    await _storeEntry(dto);
+  }
+
+  Future<void> purge(TrashItem t) =>
+      _online((api) => api.purgeEntry(t.item.id));
+
   // --- Vaults ----------------------------------------------------------------
 
   Future<void> createVault(String name) async {
@@ -841,7 +949,7 @@ class AppController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _syncTimer?.cancel();
+    _stopWatching();
     _api?.close();
     super.dispose();
   }
