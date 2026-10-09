@@ -9,6 +9,7 @@ import 'package:sixora_core/sixora_core.dart';
 import '../data/biometric_vault.dart';
 import '../data/local_store.dart';
 import '../widgets/common.dart';
+import '../platform/desktop_shell.dart';
 import 'account_screens.dart';
 import 'admin_screen.dart';
 import 'entry_qr_screen.dart';
@@ -165,6 +166,40 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: const Text('Anmeldungen und Änderungen am Konto'),
                 onTap: () => _open(context, const AuditScreen()),
               ),
+              if (DesktopShell.supported) ...[
+                const SectionTitle('Schreibtisch'),
+                SwitchListTile(
+                  secondary: const Icon(Icons.menu_open),
+                  title: Text(
+                    Theme.of(context).platform == TargetPlatform.macOS
+                        ? 'In der Menüleiste weiterlaufen'
+                        : 'Im Infobereich weiterlaufen',
+                  ),
+                  subtitle: const Text(
+                    'Beim Schließen des Fensters bleibt Sixora erreichbar; '
+                    'Codes lassen sich über das Symbol kopieren.',
+                  ),
+                  value: s.keepInTray,
+                  onChanged: (v) async {
+                    s.keepInTray = v;
+                    await c.saveSettings();
+                    await DesktopShell.instance?.applySettings();
+                  },
+                ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.keyboard_command_key),
+                  title: Text('Tastenkürzel ${DesktopShell.shortcutLabel}'),
+                  subtitle: const Text(
+                    'Holt Sixora von überall nach vorn, mit dem Cursor in der Suche.',
+                  ),
+                  value: s.globalHotkey,
+                  onChanged: (v) async {
+                    s.globalHotkey = v;
+                    await c.saveSettings();
+                    await DesktopShell.instance?.applySettings();
+                  },
+                ),
+              ],
               const SectionTitle('Anzeige'),
               SwitchListTile(
                 secondary: const Icon(Icons.update),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'src/app.dart';
 import 'src/data/app_controller.dart';
 import 'src/data/service_icons.dart';
+import 'src/platform/desktop_shell.dart';
 import 'src/platform/link_inbox.dart';
 
 Future<void> main() async {
@@ -26,4 +27,6 @@ kennzeichnet nur den Dienst und bedeutet keine Verbindung zu Sixora.''',
   LinkInbox.instance.start();
   final controller = await AppController.create();
   runApp(SixoraApp(controller: controller));
+  // Menu bar / tray and the global shortcut on desktops.
+  await DesktopShell.start(controller);
 }

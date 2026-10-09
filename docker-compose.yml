@@ -28,6 +28,8 @@ services:
       # Behind a reverse proxy: take the client address for rate limits and
       # the audit log from X-Forwarded-For.
       SIXORA_TRUST_PROXY: "true"
+      # Daily database copies in ./data/backups, kept this many days (0 = off).
+      # SIXORA_BACKUP_DAYS: "14"
       # Shown in the apps.
       # SIXORA_SERVER_NAME: Sixora
       # Own TLS instead of a reverse proxy (mount the files read-only):

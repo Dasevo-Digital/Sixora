@@ -26,6 +26,9 @@ Nutzung sind ohne gesonderte schriftliche Genehmigung nicht gestattet.
   keine Abrufe bei Dritten (`app/tool/update_service_icons.py`). Einige
   Marken, etwa Microsoft oder Amazon, haben ihre Logos dort entfernen
   lassen; sie zeigen den Anfangsbuchstaben.
+- **Links:** `otpauth://`-Links (z. B. „In Authenticator-App öffnen“ auf
+  einer Website) und Google-Authenticator-Übertragungen öffnen Sixora
+  direkt (iOS, Android, macOS, Windows).
 - **Ordnen:** Suche, Favoriten, Gruppen, Farben, Notizen. Am Desktop:
   ⌘/Strg+F sucht, Enter kopiert den ersten Treffer, ⌘/Strg+N fügt hinzu,
   ⌘/Strg+L sperrt.
@@ -37,14 +40,24 @@ Nutzung sind ohne gesonderte schriftliche Genehmigung nicht gestattet.
 - **Teilen:** eigene Tresore, z. B. „Team“, mit anderen Benutzern des
   Servers teilen, nur lesend oder mit Schreibrecht. Ein Fingerabdruck
   prüft den Schlüssel des Gegenübers.
-- **Sicherheit:** automatische Sperre, Entsperren mit Fingerabdruck,
-  Gesicht oder Geräte-PIN (Android, iOS, macOS, Windows), verborgene Codes,
-  Bildschirmschutz unter Android, Sichtschutz im App-Umschalter, angemeldete
-  Geräte verwalten, Aktivitätsprotokoll.
+- **Sicherheit:** automatische Sperre, Entsperren mit Face ID, Touch ID,
+  Fingerabdruck oder Windows Hello (auf iPhone und Android ist der Schlüssel
+  an die Biometrie gebunden), verborgene Codes, Bildschirmschutz unter
+  Android, Sichtschutz im App-Umschalter, angemeldete Geräte verwalten,
+  Aktivitätsprotokoll. Kopierte Codes gelten als vertraulich: kein
+  Zwischenablage-Verlauf, keine Übertragung auf andere Geräte.
 - **Offline:** Die Codes funktionieren ohne Verbindung. Nur Änderungen
   brauchen den Server.
+- **Sofort abgeglichen:** Änderungen anderer Geräte kommen ohne Verzögerung
+  an (der Server hält eine Anfrage offen, bis sich etwas ändert).
+- **Papierkorb:** Gelöschte Konten lassen sich 30 Tage lang
+  wiederherstellen.
+- **Schreibtisch:** Symbol in der Menüleiste bzw. im Infobereich, über das
+  sich Codes kopieren lassen, ohne das Fenster zu öffnen; ⌥⌘O bzw.
+  Strg+Alt+O holt Sixora mit dem Cursor in der Suche nach vorn.
 - **Mehrbenutzer:** Das erste Konto wird Administrator. Die Registrierung
-  ist offen, nur mit Einladungscode oder geschlossen. Administratoren können
+  ist offen, nur mit Einladungscode oder geschlossen. Einladungen gibt es
+  als QR-Code und Link, die Server-Adresse und Code gleich mitbringen. Administratoren können
   Benutzer sperren und befördern und sehen das Protokoll.
 
 ## Sicherheitsmodell
@@ -103,6 +116,7 @@ nur für Adressen im lokalen Netz an.
 | `SIXORA_SERVER_NAME` | Name, den die Apps anzeigen | `Sixora` |
 | `SIXORA_PORT`, `SIXORA_HOST` | Port und Adresse | `8080`, `0.0.0.0` |
 | `SIXORA_DATA_DIR` | Datenverzeichnis | `/data` im Image |
+| `SIXORA_BACKUP_DAYS` | Tage, die tägliche Datenbank-Kopien in `<Daten>/backups` aufgehoben werden (0 = aus) | `14` |
 
 Das erste Konto, das sich registriert, wird Administrator, egal welche
 Registrierungsart eingestellt ist. Weitere Benutzer lädt man in der App unter

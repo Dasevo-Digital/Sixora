@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
+import '../platform/desktop_shell.dart';
 import '../platform/link_inbox.dart';
 import '../platform/qr_image.dart';
 import '../widgets/common.dart';
@@ -37,10 +38,21 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _search.addListener(() => setState(() {}));
     LinkInbox.instance.addListener(_takeLink);
+    DesktopShell.focusSearch.addListener(_focusSearch);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _offerBiometrics();
       _takeLink();
     });
+  }
+
+  /// The global shortcut: straight into the search field.
+  void _focusSearch() {
+    if (!mounted) return;
+    _search.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _search.text.length,
+    );
+    _searchFocus.requestFocus();
   }
 
   /// A 2FA link (otpauth://, Google transfer) that opened the app.
@@ -104,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     LinkInbox.instance.removeListener(_takeLink);
+    DesktopShell.focusSearch.removeListener(_focusSearch);
     _ticker.dispose();
     _search.dispose();
     _searchFocus.dispose();

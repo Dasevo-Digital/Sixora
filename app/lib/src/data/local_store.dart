@@ -79,6 +79,12 @@ class AppSettings {
 
   /// The offer to unlock with biometrics was shown (or answered).
   bool biometricsOffered = false;
+
+  /// Desktop: closing the window keeps Sixora in the menu bar / tray.
+  bool keepInTray = true;
+
+  /// Desktop: ⌥⌘O / Strg+Alt+O brings Sixora to the front.
+  bool globalHotkey = true;
   bool clearClipboard = true;
   bool showNextCode = true;
   bool allowScreenshots = false;
@@ -89,6 +95,8 @@ class AppSettings {
     'hideCodes': hideCodes,
     'quickUnlock': quickUnlock,
     'biometricsOffered': biometricsOffered,
+    'keepInTray': keepInTray,
+    'globalHotkey': globalHotkey,
     'clearClipboard': clearClipboard,
     'showNextCode': showNextCode,
     'allowScreenshots': allowScreenshots,
@@ -100,6 +108,8 @@ class AppSettings {
     ..hideCodes = j['hideCodes'] as bool? ?? false
     ..quickUnlock = j['quickUnlock'] as bool? ?? false
     ..biometricsOffered = j['biometricsOffered'] as bool? ?? false
+    ..keepInTray = j['keepInTray'] as bool? ?? true
+    ..globalHotkey = j['globalHotkey'] as bool? ?? true
     ..clearClipboard = j['clearClipboard'] as bool? ?? true
     ..showNextCode = j['showNextCode'] as bool? ?? true
     ..allowScreenshots = j['allowScreenshots'] as bool? ?? false

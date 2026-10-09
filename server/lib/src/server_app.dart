@@ -13,7 +13,7 @@ import 'config.dart';
 import 'landing_page.dart';
 import 'security.dart';
 
-const serverVersion = '0.1.2';
+const serverVersion = '0.1.3';
 const apiVersion = 1;
 
 /// Error answered as `{"error": code, "message": text}`.

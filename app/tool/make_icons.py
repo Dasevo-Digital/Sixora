@@ -140,6 +140,14 @@ def android_foreground(px):
     return render(px, lambda s: glyph(s, 0.42))
 
 
+def template(px):
+    """Black silhouette for the macOS menu bar (template image)."""
+    im = render(px, lambda s: glyph(s, 1.05, knockout=True))
+    black = Image.new("RGBA", im.size, (0, 0, 0, 255))
+    black.putalpha(im.getchannel("A"))
+    return black
+
+
 def android_monochrome(px):
     return render(px, lambda s: glyph(s, 0.42, knockout=True))
 
@@ -198,6 +206,13 @@ def main():
             '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
             '    <color name="ic_launcher_background">#4F46E5</color>\n</resources>\n'
         )
+    # Tray / menu bar: macOS template (black, the system tints it), a small
+    # tile for Linux and an ICO for the Windows notification area.
+    template(36).save(path("assets/tray/tray_template.png"))
+    tile(64, 0.0).save(path("assets/tray/tray.png"))
+    images = [tile(sz, 0.0) for sz in (16, 20, 24, 32, 48)]
+    images[-1].save(path("assets/tray/tray.ico"), format="ICO",
+                    sizes=[(sz, sz) for sz in (16, 20, 24, 32, 48)], append_images=images[:-1])
     print("icons written")
 
 
