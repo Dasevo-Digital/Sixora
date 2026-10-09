@@ -17,6 +17,34 @@ class MainFlutterWindow: NSWindow {
 
     super.awakeFromNib()
   }
+
+  /// Control-click is a right click on the Mac. Flutter only knows the
+  /// right button, so the click is passed on as one: the context menu
+  /// (e.g. „Einfügen“) opens either way.
+  private var controlClick = false
+
+  override func sendEvent(_ event: NSEvent) {
+    switch event.type {
+    case .leftMouseDown where event.modifierFlags.contains(.control):
+      controlClick = true
+      super.sendEvent(asRightButton(event, .rightMouseDown))
+    case .leftMouseDragged where controlClick:
+      super.sendEvent(asRightButton(event, .rightMouseDragged))
+    case .leftMouseUp where controlClick:
+      controlClick = false
+      super.sendEvent(asRightButton(event, .rightMouseUp))
+    default:
+      super.sendEvent(event)
+    }
+  }
+
+  private func asRightButton(_ event: NSEvent, _ type: NSEvent.EventType) -> NSEvent {
+    NSEvent.mouseEvent(
+      with: type, location: event.locationInWindow,
+      modifierFlags: event.modifierFlags.subtracting(.control), timestamp: event.timestamp,
+      windowNumber: event.windowNumber, context: nil, eventNumber: event.eventNumber,
+      clickCount: event.clickCount, pressure: event.pressure) ?? event
+  }
 }
 
 /// Copies codes marked as concealed and transient (nspasteboard.org), so
