@@ -24,6 +24,8 @@ install -d -o sixora -g sixora -m 0700 /var/lib/sixora
 install -d -m 0755 /etc/sixora
 [ -f /etc/sixora/sixora.env ] || install -m 0644 "$HERE/sixora.env" /etc/sixora/sixora.env
 
+FRESH=1
+[ ! -f /var/lib/sixora/sixora.db ] || FRESH=0
 systemctl stop sixora 2>/dev/null || true
 rm -rf /opt/sixora.new && mkdir -p /opt/sixora.new
 cp -R "$TMP/bundle/." /opt/sixora.new/
@@ -46,7 +48,8 @@ systemctl daemon-reload
 systemctl enable --now sixora
 sleep 2
 if sixora-admin --healthcheck; then
-  echo "Sixora is running. The first account to register becomes administrator."
+  echo "Sixora is running."
+  [ "$FRESH" -eq 0 ] || echo "New server: the first account to register becomes administrator."
 else
   echo "Sixora did not start – see: journalctl -u sixora" >&2
   exit 1
