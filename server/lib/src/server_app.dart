@@ -15,6 +15,12 @@ import 'config.dart';
 import 'landing_page.dart';
 import 'security.dart';
 
+part 'server_account.dart';
+part 'server_admin.dart';
+part 'server_auth.dart';
+part 'server_sync.dart';
+part 'server_vaults.dart';
+
 const serverVersion = '0.1.5';
 const apiVersion = 1;
 
@@ -275,17 +281,6 @@ class SixoraServerApp {
     );
   };
 
-  static Response _json(Object body, {int status = 200}) => Response(
-    status,
-    body: jsonEncode(body),
-    headers: {'Content-Type': 'application/json; charset=utf-8'},
-  );
-
-  static Response _error(int status, String code, String message) =>
-      _json({'error': code, 'message': message}, status: status);
-
-  static Response _ok() => _json({'ok': true});
-
   /// Client address for rate limits and the audit log. Behind a trusted
   /// proxy it is the address the proxy itself saw: X-Real-IP, or the last
   /// X-Forwarded-For entry. Earlier entries come from the client and can be
@@ -323,65 +318,6 @@ class SixoraServerApp {
     if (json is! Map) throw const FormatException('JSON-Objekt erwartet');
     return json.cast();
   }
-
-  static String _str(
-    Map<String, Object?> body,
-    String key, {
-    int max = 200,
-    bool required = true,
-  }) {
-    final v = body[key];
-    if (v == null && !required) return '';
-    if (v is! String || (required && v.isEmpty) || v.length > max) {
-      throw FormatException('Feld „$key“ fehlt oder ist ungültig');
-    }
-    return v;
-  }
-
-  /// Base64 field with a decoded length between [min] and [max] bytes.
-  static String _b64(
-    Map<String, Object?> body,
-    String key, {
-    int min = 16,
-    int max = 4096,
-  }) {
-    final v = _str(body, key, max: max * 2);
-    try {
-      final len = base64.decode(v).length;
-      if (len >= min && len <= max) return v;
-    } on FormatException {
-      // handled below
-    }
-    throw FormatException('Feld „$key“ ist ungültig');
-  }
-
-  static String _uuid(Object? v, String what) {
-    if (v is String && uuidPattern.hasMatch(v)) return v;
-    throw FormatException('$what ist ungültig');
-  }
-
-  /// Same bounds as the clients enforce.
-  static String _kdf(Object? v) {
-    if (v is! Map) throw const FormatException('kdf fehlt');
-    final m = v['m'], t = v['t'], p = v['p'];
-    if (v['alg'] != 'argon2id' ||
-        m is! int ||
-        t is! int ||
-        p is! int ||
-        m < 19456 ||
-        m > 1048576 ||
-        t < 2 ||
-        t > 20 ||
-        p < 1 ||
-        p > 8) {
-      throw const FormatException('kdf ist ungültig');
-    }
-    return jsonEncode({'alg': 'argon2id', 'm': m, 't': t, 'p': p});
-  }
-
-  static final _usernamePattern = RegExp(
-    r'^[A-Za-z0-9][A-Za-z0-9._@+-]{1,62}[A-Za-z0-9]$',
-  );
 
   void _audit(
     String event, {
@@ -516,9 +452,6 @@ class SixoraServerApp {
     return token;
   }
 
-  static String _clip(String s, int max) =>
-      s.length <= max ? s : s.substring(0, max);
-
   Map<String, Object?> _accountJson(String userId) {
     final u = db.select('SELECT * FROM users WHERE id = ?', [userId]).first;
     return {
@@ -637,1244 +570,6 @@ class SixoraServerApp {
     'hasUsers': _hasUsers,
   });
 
-  Future<Response> _prelogin(Request request) async {
-    final body = await _body(request);
-    final username = _str(body, 'username', max: 64).trim();
-    final user = _userByName(username);
-    if (user != null) {
-      return _json({
-        'kdf': jsonDecode(user['kdf'] as String),
-        'salt': user['salt'],
-      });
-    }
-    // Unknown users get a stable fake salt and the parameters of the newest
-    // account (what current clients create), so the answer does not reveal
-    // which accounts exist.
-    final fake = Hmac(sha256, utf8.encode(_secret))
-        .convert(utf8.encode('salt|${username.toLowerCase()}'))
-        .bytes
-        .sublist(0, 16);
-    final newest = db.select(
-      'SELECT kdf FROM users ORDER BY created_at DESC LIMIT 1',
-    );
-    return _json({
-      'kdf': newest.isEmpty
-          ? {'alg': 'argon2id', 'm': 65536, 't': 3, 'p': 1}
-          : jsonDecode(newest.first['kdf'] as String),
-      'salt': base64.encode(fake),
-    });
-  }
-
-  Future<Response> _register(Request request) async {
-    final body = await _body(request);
-    final username = _str(body, 'username', max: 64).trim();
-    if (!_usernamePattern.hasMatch(username)) {
-      throw const ApiError(
-        400,
-        'invalid_username',
-        'Benutzername: 3–64 Zeichen, Buchstaben, Ziffern und . _ @ + -',
-      );
-    }
-    final userId = _uuid(body['userId'], 'Benutzer-ID');
-    final kdf = _kdf(body['kdf']);
-    final salt = _b64(body, 'salt', min: 16, max: 64);
-    final authKey = _b64(body, 'authKey', min: 32, max: 32);
-    final wrappedUserKey = _b64(body, 'wrappedUserKey', min: 41, max: 200);
-    final publicKey = _b64(body, 'publicKey', min: 32, max: 32);
-    final encryptedPrivateKey = _b64(
-      body,
-      'encryptedPrivateKey',
-      min: 41,
-      max: 200,
-    );
-    final recoveryWrapped = _b64(
-      body,
-      'recoveryWrappedUserKey',
-      min: 41,
-      max: 200,
-    );
-    final recoveryAuth = _b64(body, 'recoveryAuth', min: 32, max: 32);
-    final vault = body['personalVault'];
-    if (vault is! Map) throw const FormatException('personalVault fehlt');
-    final v = vault.cast<String, Object?>();
-    final vaultId = _uuid(v['id'], 'Tresor-ID');
-    final vaultName = _b64(v, 'encryptedName', min: 41, max: 2000);
-    final sealedKey = _b64(v, 'sealedKey', min: 73, max: 300);
-    final inviteCode = body['inviteCode'] is String
-        ? body['inviteCode'] as String
-        : '';
-    final ip = _ip(request);
-
-    final token = _transaction(() {
-      final first = !_hasUsers;
-      String? inviteId;
-      if (!first) {
-        switch (registration) {
-          case Registration.closed:
-            throw const ApiError(
-              403,
-              'registration_closed',
-              'Registrierung ist geschlossen',
-            );
-          case Registration.invite:
-            if (_ipFailures.blocked('ip:$ip')) {
-              throw const ApiError(
-                429,
-                'rate_limited',
-                'Zu viele Fehlversuche',
-              );
-            }
-            final rows = db.select(
-              'SELECT id FROM invites WHERE code_hash = ? AND expires_at > ?',
-              [sha256Hex(normalizeInviteCode(inviteCode)), _now()],
-            );
-            if (rows.isEmpty) {
-              _ipFailures.fail('ip:$ip');
-              throw const ApiError(
-                403,
-                'invalid_invite',
-                'Einladungscode ist ungültig oder abgelaufen',
-              );
-            }
-            inviteId = rows.first['id'] as String;
-          case Registration.open:
-            break;
-        }
-      }
-      if (_userByName(username) != null) {
-        throw const ApiError(
-          409,
-          'username_taken',
-          'Benutzername ist vergeben',
-        );
-      }
-      if (db.select('SELECT 1 FROM users WHERE id = ?', [userId]).isNotEmpty ||
-          db.select('SELECT 1 FROM vaults WHERE id = ?', [
-            vaultId,
-          ]).isNotEmpty) {
-        throw const ApiError(409, 'conflict', 'ID bereits vergeben');
-      }
-      final now = _now();
-      db.execute(
-        'INSERT INTO users (id, username, is_admin, kdf, salt, auth_hash, '
-        'wrapped_user_key, public_key, encrypted_private_key, '
-        'recovery_wrapped_user_key, recovery_auth_hash, created_at, updated_at) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [
-          userId,
-          username,
-          first ? 1 : 0,
-          kdf,
-          salt,
-          sha256Hex(authKey),
-          wrappedUserKey,
-          publicKey,
-          encryptedPrivateKey,
-          recoveryWrapped,
-          sha256Hex(recoveryAuth),
-          now,
-          now,
-        ],
-      );
-      db.execute(
-        'INSERT INTO vaults (id, owner_id, personal, encrypted_name, created_at) '
-        'VALUES (?, ?, 1, ?, ?)',
-        [vaultId, userId, vaultName, now],
-      );
-      db.execute(
-        'INSERT INTO vault_members (vault_id, user_id, role, sealed_key, seq, added_at) '
-        "VALUES (?, ?, 'owner', ?, ?, ?)",
-        [vaultId, userId, sealedKey, _nextSeq(), now],
-      );
-      if (inviteId != null) {
-        db.execute('DELETE FROM invites WHERE id = ?', [inviteId]);
-      }
-      _audit(
-        'register',
-        userId: userId,
-        username: username,
-        detail: first ? 'erster Benutzer, Administrator' : '',
-        ip: ip,
-      );
-      return _createSession(userId, body['device'], request);
-    });
-    return _json({
-      'token': token,
-      'account': _accountJson(userId),
-    }, status: 201);
-  }
-
-  Future<Response> _login(Request request) async {
-    final body = await _body(request);
-    final username = _str(body, 'username', max: 64).trim();
-    final authKey = _str(body, 'authKey', max: 100);
-    final user = _verify(
-      request,
-      username,
-      authKey,
-      'auth_hash',
-      failEvent: 'login_failed',
-    );
-    final userId = user['id'] as String;
-    final token = _createSession(userId, body['device'], request);
-    _audit(
-      'login',
-      userId: userId,
-      username: user['username'] as String,
-      detail: _deviceLabel(body['device']),
-      ip: _ip(request),
-    );
-    return _json({'token': token, 'account': _accountJson(userId)});
-  }
-
-  static String _deviceLabel(Object? device) => device is Map
-      ? _clip('${device['name'] ?? ''} (${device['platform'] ?? ''})', 120)
-      : '';
-
-  Future<Response> _recoverStart(Request request) async {
-    final body = await _body(request);
-    final user = _verify(
-      request,
-      _str(body, 'username', max: 64).trim(),
-      _str(body, 'recoveryAuth', max: 100),
-      'recovery_auth_hash',
-      failEvent: 'recovery_failed',
-    );
-    return _json({
-      'userId': user['id'],
-      'recoveryWrappedUserKey': user['recovery_wrapped_user_key'],
-    });
-  }
-
-  Future<Response> _recoverFinish(Request request) async {
-    final body = await _body(request);
-    final user = _verify(
-      request,
-      _str(body, 'username', max: 64).trim(),
-      _str(body, 'recoveryAuth', max: 100),
-      'recovery_auth_hash',
-      failEvent: 'recovery_failed',
-    );
-    final userId = user['id'] as String;
-    final kdf = _kdf(body['newKdf']);
-    final salt = _b64(body, 'newSalt', min: 16, max: 64);
-    final authKey = _b64(body, 'newAuthKey', min: 32, max: 32);
-    final wrapped = _b64(body, 'newWrappedUserKey', min: 41, max: 200);
-    final recoveryWrapped = _b64(
-      body,
-      'newRecoveryWrappedUserKey',
-      min: 41,
-      max: 200,
-    );
-    final recoveryAuth = _b64(body, 'newRecoveryAuth', min: 32, max: 32);
-    final token = _transaction(() {
-      db.execute(
-        'UPDATE users SET kdf = ?, salt = ?, auth_hash = ?, wrapped_user_key = ?, '
-        'recovery_wrapped_user_key = ?, recovery_auth_hash = ?, updated_at = ? '
-        'WHERE id = ?',
-        [
-          kdf,
-          salt,
-          sha256Hex(authKey),
-          wrapped,
-          recoveryWrapped,
-          sha256Hex(recoveryAuth),
-          _now(),
-          userId,
-        ],
-      );
-      db.execute('DELETE FROM sessions WHERE user_id = ?', [userId]);
-      _audit(
-        'recovery_used',
-        userId: userId,
-        username: user['username'] as String,
-        detail:
-            'Passwort mit Wiederherstellungsschlüssel ersetzt, alle Geräte abgemeldet',
-        ip: _ip(request),
-      );
-      return _createSession(userId, body['device'], request);
-    });
-    return _json({'token': token, 'account': _accountJson(userId)});
-  }
-
-  // --- Account ---------------------------------------------------------------
-
-  Response _logout(Request request) {
-    final s = _auth(request);
-    db.execute('DELETE FROM sessions WHERE id = ?', [s.id]);
-    _nextSeq();
-    _audit('logout', userId: s.userId, username: s.username, ip: _ip(request));
-    return _ok();
-  }
-
-  Response _account(Request request) =>
-      _json(_accountJson(_auth(request).userId));
-
-  Future<Response> _changePassword(Request request) async {
-    final s = _auth(request);
-    final body = await _body(request);
-    _verifyCurrent(s, request, _str(body, 'authKey', max: 100));
-    final kdf = _kdf(body['newKdf']);
-    final salt = _b64(body, 'newSalt', min: 16, max: 64);
-    final authKey = _b64(body, 'newAuthKey', min: 32, max: 32);
-    final wrapped = _b64(body, 'newWrappedUserKey', min: 41, max: 200);
-    _transaction(() {
-      db.execute(
-        'UPDATE users SET kdf = ?, salt = ?, auth_hash = ?, wrapped_user_key = ?, '
-        'updated_at = ? WHERE id = ?',
-        [kdf, salt, sha256Hex(authKey), wrapped, _now(), s.userId],
-      );
-      db.execute('DELETE FROM sessions WHERE user_id = ? AND id != ?', [
-        s.userId,
-        s.id,
-      ]);
-      _nextSeq();
-      _audit(
-        'password_changed',
-        userId: s.userId,
-        username: s.username,
-        detail: 'andere Geräte abgemeldet',
-        ip: _ip(request),
-      );
-    });
-    return _ok();
-  }
-
-  Future<Response> _setRecovery(Request request) async {
-    final s = _auth(request);
-    final body = await _body(request);
-    _verifyCurrent(s, request, _str(body, 'authKey', max: 100));
-    final wrapped = _b64(body, 'recoveryWrappedUserKey', min: 41, max: 200);
-    final auth = _b64(body, 'recoveryAuth', min: 32, max: 32);
-    db.execute(
-      'UPDATE users SET recovery_wrapped_user_key = ?, recovery_auth_hash = ?, '
-      'updated_at = ? WHERE id = ?',
-      [wrapped, sha256Hex(auth), _now(), s.userId],
-    );
-    _audit(
-      'recovery_key_changed',
-      userId: s.userId,
-      username: s.username,
-      ip: _ip(request),
-    );
-    return _ok();
-  }
-
-  Future<Response> _deleteAccount(Request request) async {
-    final s = _auth(request);
-    final body = await _body(request);
-    _verifyCurrent(s, request, _str(body, 'authKey', max: 100));
-    _transaction(() {
-      _ensureNotLastAdmin(s.userId);
-      _markRotationFor(s.userId);
-      db.execute('DELETE FROM users WHERE id = ?', [s.userId]);
-      _nextSeq();
-      _audit(
-        'account_deleted',
-        userId: s.userId,
-        username: s.username,
-        ip: _ip(request),
-      );
-    });
-    return _ok();
-  }
-
-  void _ensureNotLastAdmin(String userId) {
-    final admins = db
-        .select('SELECT id FROM users WHERE is_admin = 1 AND disabled = 0')
-        .map((r) => r['id'])
-        .toList();
-    final others = db.select('SELECT 1 FROM users WHERE id != ? LIMIT 1', [
-      userId,
-    ]);
-    if (admins.length == 1 && admins.single == userId && others.isNotEmpty) {
-      throw const ApiError(
-        409,
-        'last_admin',
-        'Der letzte Administrator kann nicht entfernt werden. '
-            'Bitte zuerst einen anderen Benutzer zum Administrator machen.',
-      );
-    }
-  }
-
-  /// The account's trusted public keys of other users, encrypted by the
-  /// client. The server only keeps the newest version.
-  Response _contacts(Request request) {
-    final s = _auth(request);
-    final u = db.select(
-      'SELECT contacts, contacts_revision FROM users WHERE id = ?',
-      [s.userId],
-    ).first;
-    return _json({'data': u['contacts'], 'revision': u['contacts_revision']});
-  }
-
-  Future<Response> _putContacts(Request request) async {
-    final s = _auth(request);
-    final body = await _body(request);
-    final data = _b64(body, 'data', min: 41, max: maxContactsBytes);
-    final base = body['baseRevision'];
-    if (base is! int || base < 0) {
-      throw const FormatException('baseRevision fehlt');
-    }
-    final revision = _transaction(() {
-      final current =
-          db.select('SELECT contacts_revision FROM users WHERE id = ?', [
-                s.userId,
-              ]).first['contacts_revision']
-              as int;
-      if (current != base) {
-        throw const ApiError(
-          409,
-          'conflict',
-          'Die bekannten Schlüssel wurden auf einem anderen Gerät geändert',
-        );
-      }
-      db.execute(
-        'UPDATE users SET contacts = ?, contacts_revision = ? WHERE id = ?',
-        [data, current + 1, s.userId],
-      );
-      return current + 1;
-    });
-    return _json({'revision': revision});
-  }
-
-  Response _sessions(Request request) {
-    final s = _auth(request);
-    final rows = db.select(
-      'SELECT * FROM sessions WHERE user_id = ? ORDER BY last_seen_at DESC',
-      [s.userId],
-    );
-    return _json({
-      'sessions': [
-        for (final r in rows)
-          {
-            'id': r['id'],
-            'deviceName': r['device_name'],
-            'platform': r['platform'],
-            'createdAt': r['created_at'],
-            'lastSeenAt': r['last_seen_at'],
-            'current': r['id'] == s.id,
-          },
-      ],
-    });
-  }
-
-  Response _revokeSession(Request request, String id) {
-    final s = _auth(request);
-    final rows = db.select(
-      'SELECT device_name FROM sessions WHERE id = ? AND user_id = ?',
-      [id, s.userId],
-    );
-    if (rows.isEmpty) {
-      throw const ApiError(404, 'not_found', 'Gerät nicht gefunden');
-    }
-    db.execute('DELETE FROM sessions WHERE id = ?', [id]);
-    _nextSeq();
-    _audit(
-      'session_revoked',
-      userId: s.userId,
-      username: s.username,
-      detail: rows.first['device_name'] as String,
-      ip: _ip(request),
-    );
-    return _ok();
-  }
-
-  Response _accountAudit(Request request) {
-    final s = _auth(request);
-    return _auditJson(
-      db.select(
-        'SELECT * FROM audit WHERE user_id = ? ORDER BY id DESC LIMIT 200',
-        [s.userId],
-      ),
-    );
-  }
-
-  static Response _auditJson(ResultSet rows) => _json({
-    'events': [
-      for (final r in rows)
-        {
-          'at': r['at'],
-          'event': r['event'],
-          'detail': r['detail'],
-          'username': r['username'],
-          'ip': r['ip'],
-        },
-    ],
-  });
-
-  // --- Vault data ------------------------------------------------------------
-
-  Row? _membership(String vaultId, String userId) {
-    final rows = db.select(
-      'SELECT * FROM vault_members WHERE vault_id = ? AND user_id = ?',
-      [vaultId, userId],
-    );
-    return rows.isEmpty ? null : rows.first;
-  }
-
-  Row _requireMember(
-    String vaultId,
-    String userId, {
-    bool write = false,
-    bool owner = false,
-  }) {
-    final m = _membership(vaultId, userId);
-    if (m == null) {
-      throw const ApiError(404, 'not_found', 'Tresor nicht gefunden');
-    }
-    final role = m['role'] as String;
-    if (owner && role != 'owner') {
-      throw const ApiError(403, 'forbidden', 'Nur der Eigentümer darf das');
-    }
-    if (write && role == 'read') {
-      throw const ApiError(
-        403,
-        'read_only',
-        'Dieser Tresor ist schreibgeschützt geteilt',
-      );
-    }
-    return m;
-  }
-
-  Future<Response> _sync(Request request) async {
-    final s = _auth(request);
-    final since =
-        int.tryParse(request.url.queryParameters['since'] ?? '0') ?? 0;
-    // Long poll: with `wait`, an unchanged state holds the request until
-    // something changes or the time is up – changes from other devices
-    // arrive at once instead of with the next poll.
-    final wait = int.tryParse(request.url.queryParameters['wait'] ?? '') ?? 0;
-    if (wait > 0 && since > 0 && _currentSeq() <= since) {
-      final limit = Duration(seconds: wait.clamp(1, maxSyncWait.inSeconds));
-      await _changed.next.timeout(limit, onTimeout: () {});
-    }
-    final cursor = _currentSeq();
-    final vaults = db.select(
-      'SELECT v.id, v.personal, v.owner_id, v.encrypted_name, v.key_version, '
-      'v.rotate_pending, o.username AS owner_name, '
-      'm.role, m.sealed_key, m.seq, '
-      '(SELECT COUNT(*) FROM vault_members x WHERE x.vault_id = v.id) AS member_count '
-      'FROM vault_members m JOIN vaults v ON v.id = m.vault_id '
-      'JOIN users o ON o.id = v.owner_id WHERE m.user_id = ? '
-      'ORDER BY v.personal DESC, v.created_at',
-      [s.userId],
-    );
-    final reset = <String>[];
-    final entries = <Map<String, Object?>>[];
-    for (final v in vaults) {
-      final id = v['id'] as String;
-      final full = since <= 0 || (v['seq'] as int) > since;
-      final ResultSet rows;
-      if (full) {
-        reset.add(id);
-        rows = db.select(
-          'SELECT * FROM entries WHERE vault_id = ? AND deleted = 0 AND seq <= ?',
-          [id, cursor],
-        );
-      } else {
-        rows = db.select(
-          'SELECT * FROM entries WHERE vault_id = ? AND seq > ? AND seq <= ?',
-          [id, since, cursor],
-        );
-      }
-      entries.addAll(rows.map(_entryJson));
-    }
-    return _json({
-      'cursor': cursor,
-      'resetVaults': reset,
-      'vaults': [
-        for (final v in vaults)
-          {
-            'id': v['id'],
-            'personal': v['personal'] == 1,
-            'ownerId': v['owner_id'],
-            'ownerName': v['owner_name'],
-            'role': v['role'],
-            'encryptedName': v['encrypted_name'],
-            'sealedKey': v['sealed_key'],
-            'memberCount': v['member_count'],
-            'keyVersion': v['key_version'],
-            if (v['role'] == 'owner')
-              'rotationPending': v['rotate_pending'] == 1,
-          },
-      ],
-      'entries': entries,
-      // Lets every device notice a sign-in it does not know.
-      'sessions': [
-        for (final r in db.select(
-          'SELECT id, device_name, platform, created_at FROM sessions '
-          'WHERE user_id = ? ORDER BY created_at',
-          [s.userId],
-        ))
-          {
-            'id': r['id'],
-            'deviceName': r['device_name'],
-            'platform': r['platform'],
-            'createdAt': r['created_at'],
-            'current': r['id'] == s.id,
-          },
-      ],
-    });
-  }
-
-  static Map<String, Object?> _entryJson(Row r) => {
-    'id': r['id'],
-    'vaultId': r['vault_id'],
-    'revision': r['revision'],
-    'deleted': r['deleted'] == 1,
-    'data': r['data'],
-    'updatedAt': r['updated_at'],
-  };
-
-  Future<Response> _putEntry(Request request, String id) async {
-    final s = _auth(request);
-    _uuid(id, 'Eintrags-ID');
-    final body = await _body(request);
-    final vaultId = _uuid(body['vaultId'], 'Tresor-ID');
-    final data = _b64(body, 'data', min: 41, max: maxEntryBytes);
-    final base = body['baseRevision'];
-    if (base is! int || base < 0) {
-      throw const FormatException('baseRevision fehlt');
-    }
-    final keyVersion = body['keyVersion'];
-    final row = _transaction(() {
-      _requireMember(vaultId, s.userId, write: true);
-      // Written with a key that was replaced meanwhile: nobody could read it.
-      if (keyVersion is int &&
-          db.select('SELECT key_version FROM vaults WHERE id = ?', [
-                vaultId,
-              ]).first['key_version'] !=
-              keyVersion) {
-        throw const ApiError(
-          409,
-          'key_changed',
-          'Der Tresorschlüssel wurde erneuert. Bitte erneut versuchen.',
-        );
-      }
-      final existing = db.select('SELECT * FROM entries WHERE id = ?', [id]);
-      if (existing.isEmpty) {
-        if (base != 0) {
-          throw const ApiError(
-            409,
-            'conflict',
-            'Eintrag wurde inzwischen gelöscht',
-          );
-        }
-        final count =
-            db.select(
-                  'SELECT COUNT(*) AS n FROM entries WHERE vault_id = ? AND deleted = 0',
-                  [vaultId],
-                ).first['n']
-                as int;
-        if (count >= maxEntriesPerVault) {
-          throw const ApiError(
-            409,
-            'limit',
-            'Zu viele Einträge in diesem Tresor',
-          );
-        }
-        db.execute(
-          'INSERT INTO entries (id, vault_id, data, revision, deleted, seq, updated_at, updated_by) '
-          'VALUES (?, ?, ?, 1, 0, ?, ?, ?)',
-          [id, vaultId, data, _nextSeq(), _now(), s.userId],
-        );
-      } else {
-        final e = existing.first;
-        if (e['vault_id'] != vaultId) {
-          throw const ApiError(
-            409,
-            'conflict',
-            'Eintrag gehört zu einem anderen Tresor',
-          );
-        }
-        if (e['revision'] != base) {
-          throw ApiError(
-            409,
-            'conflict',
-            'Eintrag wurde auf einem anderen Gerät geändert (Revision ${e['revision']})',
-          );
-        }
-        db.execute(
-          'UPDATE entries SET data = ?, revision = revision + 1, deleted = 0, seq = ?, '
-          "updated_at = ?, updated_by = ?, deleted_at = NULL, trash_data = '' WHERE id = ?",
-          [data, _nextSeq(), _now(), s.userId, id],
-        );
-      }
-      return db.select('SELECT * FROM entries WHERE id = ?', [id]).first;
-    });
-    return _json(_entryJson(row));
-  }
-
-  Response _deleteEntry(Request request, String id) {
-    final s = _auth(request);
-    final base = int.tryParse(
-      request.url.queryParameters['baseRevision'] ?? '',
-    );
-    if (base == null) throw const FormatException('baseRevision fehlt');
-    final row = _transaction(() {
-      final existing = db.select('SELECT * FROM entries WHERE id = ?', [id]);
-      if (existing.isEmpty) {
-        throw const ApiError(404, 'not_found', 'Eintrag nicht gefunden');
-      }
-      final e = existing.first;
-      _requireMember(e['vault_id'] as String, s.userId, write: true);
-      if (e['deleted'] == 1) return e;
-      if (e['revision'] != base) {
-        throw const ApiError(
-          409,
-          'conflict',
-          'Eintrag wurde auf einem anderen Gerät geändert',
-        );
-      }
-      // Into the recycle bin: the ciphertext moves to trash_data.
-      db.execute(
-        "UPDATE entries SET trash_data = data, data = '', revision = revision + 1, "
-        'deleted = 1, deleted_at = ?, seq = ?, updated_at = ?, updated_by = ? '
-        'WHERE id = ?',
-        [_now(), _nextSeq(), _now(), s.userId, id],
-      );
-      return db.select('SELECT * FROM entries WHERE id = ?', [id]).first;
-    });
-    return _json(_entryJson(row));
-  }
-
-  // --- Recycle bin -----------------------------------------------------------
-
-  /// Deleted entries of the last 30 days in the user's vaults (encrypted).
-  Response _trash(Request request) {
-    final s = _auth(request);
-    final rows = db.select(
-      'SELECT e.* FROM entries e JOIN vault_members m ON m.vault_id = e.vault_id '
-      "WHERE m.user_id = ? AND e.deleted = 1 AND e.trash_data != '' "
-      'ORDER BY e.deleted_at DESC',
-      [s.userId],
-    );
-    return _json({
-      'entries': [
-        for (final r in rows)
-          {
-            ..._entryJson(r),
-            'data': r['trash_data'],
-            'deletedAt': r['deleted_at'],
-          },
-      ],
-    });
-  }
-
-  Row _trashed(String id, String userId) {
-    final rows = db.select(
-      "SELECT * FROM entries WHERE id = ? AND deleted = 1 AND trash_data != ''",
-      [id],
-    );
-    if (rows.isEmpty) {
-      throw const ApiError(404, 'not_found', 'Nicht im Papierkorb');
-    }
-    _requireMember(rows.first['vault_id'] as String, userId, write: true);
-    return rows.first;
-  }
-
-  Future<Response> _restoreEntry(Request request, String id) async {
-    final s = _auth(request);
-    final row = _transaction(() {
-      _trashed(id, s.userId);
-      db.execute(
-        "UPDATE entries SET data = trash_data, trash_data = '', deleted = 0, "
-        'deleted_at = NULL, revision = revision + 1, seq = ?, updated_at = ?, '
-        'updated_by = ? WHERE id = ?',
-        [_nextSeq(), _now(), s.userId, id],
-      );
-      return db.select('SELECT * FROM entries WHERE id = ?', [id]).first;
-    });
-    return _json(_entryJson(row));
-  }
-
-  /// Removes the ciphertext for good; the tombstone stays for sync.
-  Response _purgeEntry(Request request, String id) {
-    final s = _auth(request);
-    _transaction(() {
-      _trashed(id, s.userId);
-      db.execute("UPDATE entries SET trash_data = '' WHERE id = ?", [id]);
-    });
-    return _ok();
-  }
-
-  Future<Response> _createVault(Request request) async {
-    final s = _auth(request);
-    final body = await _body(request);
-    final id = _uuid(body['id'], 'Tresor-ID');
-    final name = _b64(body, 'encryptedName', min: 41, max: 2000);
-    final sealed = _b64(body, 'sealedKey', min: 73, max: 300);
-    _transaction(() {
-      final count =
-          db.select('SELECT COUNT(*) AS n FROM vaults WHERE owner_id = ?', [
-                s.userId,
-              ]).first['n']
-              as int;
-      if (count >= maxVaultsPerUser) {
-        throw const ApiError(409, 'limit', 'Zu viele Tresore');
-      }
-      if (db.select('SELECT 1 FROM vaults WHERE id = ?', [id]).isNotEmpty) {
-        throw const ApiError(409, 'conflict', 'ID bereits vergeben');
-      }
-      db.execute(
-        'INSERT INTO vaults (id, owner_id, personal, encrypted_name, created_at) '
-        'VALUES (?, ?, 0, ?, ?)',
-        [id, s.userId, name, _now()],
-      );
-      db.execute(
-        'INSERT INTO vault_members (vault_id, user_id, role, sealed_key, seq, added_at) '
-        "VALUES (?, ?, 'owner', ?, ?, ?)",
-        [id, s.userId, sealed, _nextSeq(), _now()],
-      );
-    });
-    return _json({'ok': true}, status: 201);
-  }
-
-  Future<Response> _renameVault(Request request, String id) async {
-    final s = _auth(request);
-    final body = await _body(request);
-    final name = _b64(body, 'encryptedName', min: 41, max: 2000);
-    final keyVersion = body['keyVersion'];
-    _requireMember(id, s.userId, owner: true);
-    _transaction(() {
-      if (keyVersion is int &&
-          db.select('SELECT key_version FROM vaults WHERE id = ?', [
-                id,
-              ]).first['key_version'] !=
-              keyVersion) {
-        throw const ApiError(
-          409,
-          'key_changed',
-          'Der Tresorschlüssel wurde erneuert. Bitte erneut versuchen.',
-        );
-      }
-      db.execute('UPDATE vaults SET encrypted_name = ? WHERE id = ?', [
-        name,
-        id,
-      ]);
-      _nextSeq();
-    });
-    return _ok();
-  }
-
-  Response _deleteVault(Request request, String id) {
-    final s = _auth(request);
-    _requireMember(id, s.userId, owner: true);
-    final personal = db.select('SELECT personal FROM vaults WHERE id = ?', [
-      id,
-    ]).first['personal'];
-    if (personal == 1) {
-      throw const ApiError(
-        409,
-        'personal',
-        'Der persönliche Tresor kann nicht gelöscht werden',
-      );
-    }
-    _transaction(() {
-      db.execute('DELETE FROM vaults WHERE id = ?', [id]);
-      _nextSeq();
-      _audit(
-        'vault_deleted',
-        userId: s.userId,
-        username: s.username,
-        detail: id,
-        ip: _ip(request),
-      );
-    });
-    return _ok();
-  }
-
-  Response _members(Request request, String id) {
-    final s = _auth(request);
-    _requireMember(id, s.userId);
-    final rows = db.select(
-      'SELECT m.user_id, m.role, u.username, u.public_key FROM vault_members m '
-      "JOIN users u ON u.id = m.user_id WHERE m.vault_id = ? "
-      "ORDER BY m.role = 'owner' DESC, u.username",
-      [id],
-    );
-    return _json({
-      'members': [
-        for (final r in rows)
-          {
-            'userId': r['user_id'],
-            'username': r['username'],
-            'role': r['role'],
-            'publicKey': r['public_key'],
-          },
-      ],
-    });
-  }
-
-  Future<Response> _putMember(Request request, String id, String userId) async {
-    final s = _auth(request);
-    final body = await _body(request);
-    final sealed = _b64(body, 'sealedKey', min: 73, max: 300);
-    final role = body['role'];
-    if (role != 'read' && role != 'write') {
-      throw const FormatException('Rolle ist ungültig');
-    }
-    _requireMember(id, s.userId, owner: true);
-    if (userId == s.userId) {
-      throw const ApiError(
-        400,
-        'bad_request',
-        'Eigene Rolle kann nicht geändert werden',
-      );
-    }
-    final vault = db.select('SELECT personal FROM vaults WHERE id = ?', [
-      id,
-    ]).first;
-    if (vault['personal'] == 1) {
-      throw const ApiError(
-        409,
-        'personal',
-        'Der persönliche Tresor kann nicht geteilt werden. Bitte einen eigenen Tresor zum Teilen anlegen.',
-      );
-    }
-    final target = db.select(
-      'SELECT username, disabled FROM users WHERE id = ?',
-      [userId],
-    );
-    if (target.isEmpty || target.first['disabled'] == 1) {
-      throw const ApiError(404, 'not_found', 'Benutzer nicht gefunden');
-    }
-    _transaction(() {
-      final existing = _membership(id, userId);
-      if (existing == null) {
-        db.execute(
-          'INSERT INTO vault_members (vault_id, user_id, role, sealed_key, seq, added_at) '
-          'VALUES (?, ?, ?, ?, ?, ?)',
-          [id, userId, role, sealed, _nextSeq(), _now()],
-        );
-      } else {
-        // A role change keeps the member's local copy valid.
-        db.execute(
-          'UPDATE vault_members SET role = ?, sealed_key = ? WHERE vault_id = ? AND user_id = ?',
-          [role, sealed, id, userId],
-        );
-        _nextSeq();
-      }
-      _audit(
-        'vault_shared',
-        userId: s.userId,
-        username: s.username,
-        detail: '${target.first['username']} ($role)',
-        ip: _ip(request),
-      );
-    });
-    return _ok();
-  }
-
-  Response _removeMember(Request request, String id, String userId) {
-    final s = _auth(request);
-    final mine = _requireMember(id, s.userId);
-    final leaving = userId == s.userId;
-    if (!leaving && mine['role'] != 'owner') {
-      throw const ApiError(
-        403,
-        'forbidden',
-        'Nur der Eigentümer darf Mitglieder entfernen',
-      );
-    }
-    if (leaving && mine['role'] == 'owner') {
-      throw const ApiError(
-        409,
-        'owner',
-        'Der Eigentümer kann den Tresor nicht verlassen, nur löschen',
-      );
-    }
-    final target = _membership(id, userId);
-    if (target == null) {
-      throw const ApiError(404, 'not_found', 'Mitglied nicht gefunden');
-    }
-    _transaction(() {
-      db.execute(
-        'DELETE FROM vault_members WHERE vault_id = ? AND user_id = ?',
-        [id, userId],
-      );
-      // The former member still knows the vault key: the owner's next
-      // device online replaces it.
-      db.execute('UPDATE vaults SET rotate_pending = 1 WHERE id = ?', [id]);
-      _nextSeq();
-      _audit(
-        leaving ? 'vault_left' : 'vault_unshared',
-        userId: s.userId,
-        username: s.username,
-        detail: userId,
-        ip: _ip(request),
-      );
-    });
-    return _ok();
-  }
-
-  /// Vaults shared with [userId] (not owned) need a new key once the user
-  /// is gone.
-  void _markRotationFor(String userId) => db.execute(
-    'UPDATE vaults SET rotate_pending = 1 WHERE id IN '
-    "(SELECT vault_id FROM vault_members WHERE user_id = ? AND role != 'owner')",
-    [userId],
-  );
-
-  /// Replaces the vault key: every entry (also in the recycle bin), the name
-  /// and every member's sealed key arrive re-encrypted at once. The request
-  /// must cover exactly the current members and entries, otherwise
-  /// something changed meanwhile and the client tries again.
-  Future<Response> _rotateVault(Request request, String id) async {
-    final s = _auth(request);
-    final body = await _body(request, maxBytes: maxRotateBytes);
-    final keyVersion = body['keyVersion'];
-    if (keyVersion is! int) throw const FormatException('keyVersion fehlt');
-    final name = _b64(body, 'encryptedName', min: 41, max: 2000);
-    final members = <String, String>{};
-    for (final m in body['members'] as List? ?? const []) {
-      if (m is! Map) throw const FormatException('members ist ungültig');
-      final map = m.cast<String, Object?>();
-      members[_uuid(map['userId'], 'Benutzer-ID')] = _b64(
-        map,
-        'sealedKey',
-        min: 73,
-        max: 300,
-      );
-    }
-    ({Map<String, String> data, Map<String, int> revisions}) parse(String key) {
-      final data = <String, String>{};
-      final revisions = <String, int>{};
-      for (final e in body[key] as List? ?? const []) {
-        if (e is! Map) throw FormatException('$key ist ungültig');
-        final map = e.cast<String, Object?>();
-        final entryId = _uuid(map['id'], 'Eintrags-ID');
-        final rev = map['revision'];
-        if (rev is! int) throw FormatException('$key: revision fehlt');
-        data[entryId] = _b64(map, 'data', min: 41, max: maxEntryBytes);
-        revisions[entryId] = rev;
-      }
-      return (data: data, revisions: revisions);
-    }
-
-    final entries = parse('entries');
-    final trash = parse('trash');
-    _transaction(() {
-      _requireMember(id, s.userId, owner: true);
-      final vault = db.select('SELECT key_version FROM vaults WHERE id = ?', [
-        id,
-      ]).first;
-      if (vault['key_version'] != keyVersion) {
-        throw const ApiError(
-          409,
-          'key_changed',
-          'Der Tresorschlüssel wurde inzwischen erneuert',
-        );
-      }
-      bool same(Map<String, int> sent, ResultSet rows) =>
-          rows.length == sent.length &&
-          rows.every((r) => sent[r['id']] == r['revision']);
-      final current = db.select(
-        'SELECT user_id FROM vault_members WHERE vault_id = ?',
-        [id],
-      );
-      final live = db.select(
-        'SELECT id, revision FROM entries WHERE vault_id = ? AND deleted = 0',
-        [id],
-      );
-      final trashed = db.select(
-        'SELECT id, revision FROM entries WHERE vault_id = ? AND deleted = 1 '
-        "AND trash_data != ''",
-        [id],
-      );
-      if (current.length != members.length ||
-          !current.every((r) => members.containsKey(r['user_id'])) ||
-          !same(entries.revisions, live) ||
-          !same(trash.revisions, trashed)) {
-        throw const ApiError(
-          409,
-          'conflict',
-          'Der Tresor wurde inzwischen geändert',
-        );
-      }
-      final now = _now();
-      db.execute(
-        'UPDATE vaults SET encrypted_name = ?, key_version = key_version + 1, '
-        'rotate_pending = 0 WHERE id = ?',
-        [name, id],
-      );
-      // A new member seq makes every member load the vault anew.
-      for (final m in members.entries) {
-        db.execute(
-          'UPDATE vault_members SET sealed_key = ?, seq = ? '
-          'WHERE vault_id = ? AND user_id = ?',
-          [m.value, _nextSeq(), id, m.key],
-        );
-      }
-      for (final e in entries.data.entries) {
-        db.execute(
-          'UPDATE entries SET data = ?, revision = revision + 1, seq = ?, '
-          'updated_at = ?, updated_by = ? WHERE id = ?',
-          [e.value, _nextSeq(), now, s.userId, e.key],
-        );
-      }
-      for (final e in trash.data.entries) {
-        db.execute('UPDATE entries SET trash_data = ? WHERE id = ?', [
-          e.value,
-          e.key,
-        ]);
-      }
-      _audit(
-        'vault_key_rotated',
-        userId: s.userId,
-        username: s.username,
-        detail: '$id (${entries.data.length} Einträge)',
-        ip: _ip(request),
-      );
-    });
-    return _ok();
-  }
-
-  Response _lookupUser(Request request) {
-    _auth(request);
-    final name = request.url.queryParameters['username']?.trim() ?? '';
-    final u = name.isEmpty ? null : _userByName(name);
-    if (u == null || u['disabled'] == 1) {
-      throw const ApiError(404, 'not_found', 'Benutzer nicht gefunden');
-    }
-    return _json({
-      'id': u['id'],
-      'username': u['username'],
-      'publicKey': u['public_key'],
-    });
-  }
-
-  // --- Administration ------------------------------------------------------
-
-  Response _adminUsers(Request request) {
-    _admin(request);
-    final rows = db.select('SELECT * FROM users ORDER BY username');
-    return _json({
-      'users': [
-        for (final u in rows)
-          {
-            'id': u['id'],
-            'username': u['username'],
-            'publicKey': u['public_key'],
-            'isAdmin': u['is_admin'] == 1,
-            'disabled': u['disabled'] == 1,
-            'createdAt': u['created_at'],
-          },
-      ],
-    });
-  }
-
-  Future<Response> _adminUpdateUser(Request request, String id) async {
-    final s = _admin(request);
-    final body = await _body(request);
-    final disabled = body['disabled'];
-    final isAdmin = body['isAdmin'];
-    final rows = db.select('SELECT username FROM users WHERE id = ?', [id]);
-    if (rows.isEmpty) {
-      throw const ApiError(404, 'not_found', 'Benutzer nicht gefunden');
-    }
-    if (id == s.userId && (disabled == true || isAdmin == false)) {
-      throw const ApiError(
-        409,
-        'self',
-        'Das eigene Konto kann hier nicht herabgestuft werden',
-      );
-    }
-    _transaction(() {
-      if (disabled is bool) {
-        db.execute('UPDATE users SET disabled = ? WHERE id = ?', [
-          disabled ? 1 : 0,
-          id,
-        ]);
-        if (disabled) {
-          db.execute('DELETE FROM sessions WHERE user_id = ?', [id]);
-        }
-      }
-      if (isAdmin is bool) {
-        db.execute('UPDATE users SET is_admin = ? WHERE id = ?', [
-          isAdmin ? 1 : 0,
-          id,
-        ]);
-      }
-      _audit(
-        'admin_user_updated',
-        userId: s.userId,
-        username: s.username,
-        detail:
-            '${rows.first['username']}: '
-                    '${disabled is bool ? (disabled ? 'gesperrt ' : 'entsperrt ') : ''}'
-                    '${isAdmin is bool ? (isAdmin ? 'Administrator' : 'kein Administrator') : ''}'
-                .trim(),
-        ip: _ip(request),
-      );
-    });
-    return _ok();
-  }
-
-  Response _adminDeleteUser(Request request, String id) {
-    final s = _admin(request);
-    if (id == s.userId) {
-      throw const ApiError(
-        409,
-        'self',
-        'Das eigene Konto bitte in den Kontoeinstellungen löschen',
-      );
-    }
-    final rows = db.select('SELECT username FROM users WHERE id = ?', [id]);
-    if (rows.isEmpty) {
-      throw const ApiError(404, 'not_found', 'Benutzer nicht gefunden');
-    }
-    _transaction(() {
-      _markRotationFor(id);
-      db.execute('DELETE FROM users WHERE id = ?', [id]);
-      _nextSeq();
-      _audit(
-        'admin_user_deleted',
-        userId: s.userId,
-        username: s.username,
-        detail: rows.first['username'] as String,
-        ip: _ip(request),
-      );
-    });
-    return _ok();
-  }
-
-  Response _adminInvites(Request request) {
-    _admin(request);
-    final rows = db.select(
-      'SELECT * FROM invites WHERE expires_at > ? ORDER BY created_at DESC',
-      [_now()],
-    );
-    return _json({
-      'invites': [
-        for (final r in rows)
-          {
-            'id': r['id'],
-            'note': r['note'],
-            'createdAt': r['created_at'],
-            'expiresAt': r['expires_at'],
-          },
-      ],
-    });
-  }
-
-  Future<Response> _adminCreateInvite(Request request) async {
-    final s = _admin(request);
-    final body = await _body(request);
-    final days = body['days'] is int ? (body['days'] as int).clamp(1, 90) : 7;
-    final note = _str(body, 'note', max: 100, required: false).trim();
-    final invite = createInvite(days: days, note: note, createdBy: s.userId);
-    _audit(
-      'invite_created',
-      userId: s.userId,
-      username: s.username,
-      detail: note,
-      ip: _ip(request),
-    );
-    return _json(invite, status: 201);
-  }
-
   /// Also used by the `invite` command line.
   Map<String, Object?> createInvite({
     int days = 7,
@@ -1905,25 +600,6 @@ class SixoraServerApp {
       'expiresAt': expires,
     };
   }
-
-  Response _adminDeleteInvite(Request request, String id) {
-    final s = _admin(request);
-    db.execute('DELETE FROM invites WHERE id = ?', [id]);
-    _audit(
-      'invite_deleted',
-      userId: s.userId,
-      username: s.username,
-      ip: _ip(request),
-    );
-    return _ok();
-  }
-
-  Response _adminAudit(Request request) {
-    _admin(request);
-    return _auditJson(
-      db.select('SELECT * FROM audit ORDER BY id DESC LIMIT 500'),
-    );
-  }
 }
 
 /// Wakes up waiting sync requests when anything changed.
@@ -1938,3 +614,103 @@ class _ChangeSignal {
     done.complete();
   }
 }
+
+// --- Helpers shared by all parts -------------------------------------------
+
+Response _json(Object body, {int status = 200}) => Response(
+  status,
+  body: jsonEncode(body),
+  headers: {'Content-Type': 'application/json; charset=utf-8'},
+);
+
+Response _error(int status, String code, String message) =>
+    _json({'error': code, 'message': message}, status: status);
+
+Response _ok() => _json({'ok': true});
+
+String _str(
+  Map<String, Object?> body,
+  String key, {
+  int max = 200,
+  bool required = true,
+}) {
+  final v = body[key];
+  if (v == null && !required) return '';
+  if (v is! String || (required && v.isEmpty) || v.length > max) {
+    throw FormatException('Feld „$key“ fehlt oder ist ungültig');
+  }
+  return v;
+}
+
+/// Base64 field with a decoded length between [min] and [max] bytes.
+String _b64(
+  Map<String, Object?> body,
+  String key, {
+  int min = 16,
+  int max = 4096,
+}) {
+  final v = _str(body, key, max: max * 2);
+  try {
+    final len = base64.decode(v).length;
+    if (len >= min && len <= max) return v;
+  } on FormatException {
+    // handled below
+  }
+  throw FormatException('Feld „$key“ ist ungültig');
+}
+
+String _uuid(Object? v, String what) {
+  if (v is String && uuidPattern.hasMatch(v)) return v;
+  throw FormatException('$what ist ungültig');
+}
+
+/// Same bounds as the clients enforce.
+String _kdf(Object? v) {
+  if (v is! Map) throw const FormatException('kdf fehlt');
+  final m = v['m'], t = v['t'], p = v['p'];
+  if (v['alg'] != 'argon2id' ||
+      m is! int ||
+      t is! int ||
+      p is! int ||
+      m < 19456 ||
+      m > 1048576 ||
+      t < 2 ||
+      t > 20 ||
+      p < 1 ||
+      p > 8) {
+    throw const FormatException('kdf ist ungültig');
+  }
+  return jsonEncode({'alg': 'argon2id', 'm': m, 't': t, 'p': p});
+}
+
+final _usernamePattern = RegExp(
+  r'^[A-Za-z0-9][A-Za-z0-9._@+-]{1,62}[A-Za-z0-9]$',
+);
+
+String _clip(String s, int max) => s.length <= max ? s : s.substring(0, max);
+
+String _deviceLabel(Object? device) => device is Map
+    ? _clip('${device['name'] ?? ''} (${device['platform'] ?? ''})', 120)
+    : '';
+
+Response _auditJson(ResultSet rows) => _json({
+  'events': [
+    for (final r in rows)
+      {
+        'at': r['at'],
+        'event': r['event'],
+        'detail': r['detail'],
+        'username': r['username'],
+        'ip': r['ip'],
+      },
+  ],
+});
+
+Map<String, Object?> _entryJson(Row r) => {
+  'id': r['id'],
+  'vaultId': r['vault_id'],
+  'revision': r['revision'],
+  'deleted': r['deleted'] == 1,
+  'data': r['data'],
+  'updatedAt': r['updated_at'],
+};
