@@ -201,7 +201,9 @@ class _EntryEditorState extends State<EntryEditor> {
             autocorrect: false,
             enableSuggestions: false,
             textCapitalization: TextCapitalization.characters,
-            contextMenuBuilder: _showSecret ? null : secretContextMenu,
+            contextMenuBuilder: _showSecret
+                ? textContextMenu
+                : secretContextMenu,
             decoration: InputDecoration(
               labelText: 'Geheimer Schlüssel',
               helperText: 'Base32, Leerzeichen sind egal',

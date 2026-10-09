@@ -14,10 +14,10 @@ import 'secure_clipboard.dart';
 /// Menu bar (macOS) and notification area (Windows, Linux) icon with a
 /// global shortcut: codes without opening the window.
 ///
-/// * The menu copies the code of a favourite (up to ten accounts) – the
-///   code itself never appears in the menu.
-/// * ⌥⌘O (macOS) / Strg+Alt+O brings the window to the front with the
-///   search field focused.
+/// * The menu copies the code of a favourite (up to ten) – the code itself
+///   never appears in the menu. Everything else is a search away.
+/// * „Suchen …“ and ⌥⌘O (macOS) / Strg+Alt+O bring the window to the front
+///   with the search field focused.
 /// * Closing the window keeps Sixora running in the menu bar, if wanted.
 class DesktopShell with TrayListener, WindowListener {
   DesktopShell._(this.c);
@@ -101,17 +101,11 @@ class DesktopShell with TrayListener, WindowListener {
     await windowManager.destroy();
   }
 
-  /// Entries in the menu: favourites first, at most ten, no counters.
-  List<Item> get _quick {
-    final list = c.items.where((i) => i.entry.type != OtpType.hotp).toList();
-    list.sort((a, b) {
-      if (a.entry.favorite != b.entry.favorite) {
-        return a.entry.favorite ? -1 : 1;
-      }
-      return 0;
-    });
-    return list.take(10).toList();
-  }
+  /// Entries in the menu: favourites only, at most ten, no counters.
+  List<Item> get _quick => c.items
+      .where((i) => i.entry.favorite && i.entry.type != OtpType.hotp)
+      .take(10)
+      .toList();
 
   void _changed() {
     // Rebuild the menu only when what it shows changes.
@@ -128,19 +122,25 @@ class DesktopShell with TrayListener, WindowListener {
     await trayManager.setContextMenu(
       Menu(
         items: [
-          MenuItem(key: 'open', label: 'Sixora öffnen ($shortcutLabel)'),
-          MenuItem.separator(),
+          MenuItem(key: 'open', label: 'Sixora öffnen'),
           if (unlocked) ...[
+            MenuItem(key: 'search', label: 'Suchen … ($shortcutLabel)'),
+            MenuItem.separator(),
             if (quick.isEmpty)
-              MenuItem(label: 'Noch keine Konten', disabled: true)
-            else
+              MenuItem(
+                label: 'Favoriten: Stern bei einem Konto setzen',
+                disabled: true,
+              )
+            else ...[
+              MenuItem(label: 'Code kopieren', disabled: true),
               for (final item in quick)
                 MenuItem(
                   key: 'copy:${item.id}',
                   label:
-                      'Code kopieren: ${item.entry.displayName}'
+                      '${item.entry.displayName}'
                       '${item.entry.issuer.isNotEmpty && item.entry.account.isNotEmpty ? ' (${item.entry.account})' : ''}',
                 ),
+            ],
             MenuItem.separator(),
             MenuItem(key: 'lock', label: 'Sperren'),
           ] else if (c.phase == Phase.locked)
@@ -171,6 +171,8 @@ class DesktopShell with TrayListener, WindowListener {
     switch (key) {
       case 'open':
         unawaited(show());
+      case 'search':
+        unawaited(show(search: true));
       case 'lock':
         c.lock();
       case 'quit':

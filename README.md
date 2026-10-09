@@ -60,8 +60,9 @@ Nutzung sind ohne gesonderte schriftliche Genehmigung nicht gestattet.
 - **Papierkorb:** Gelöschte Konten lassen sich 30 Tage lang
   wiederherstellen.
 - **Schreibtisch:** Symbol in der Menüleiste bzw. im Infobereich, über das
-  sich Codes kopieren lassen, ohne das Fenster zu öffnen; ⌥⌘O bzw.
-  Strg+Alt+O holt Sixora mit dem Cursor in der Suche nach vorn.
+  sich die Codes der Favoriten kopieren lassen, ohne das Fenster zu öffnen;
+  „Suchen …“, ⌥⌘O bzw. Strg+Alt+O holt Sixora mit dem Cursor in der Suche
+  nach vorn.
 - **Mehrbenutzer:** Das erste Konto wird Administrator. Die Registrierung
   ist offen, nur mit Einladungscode oder geschlossen. Einladungen gibt es
   als QR-Code und Link, die Server-Adresse und Code gleich mitbringen. Administratoren können

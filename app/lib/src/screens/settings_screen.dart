@@ -178,8 +178,9 @@ class SettingsScreen extends StatelessWidget {
                         : 'Im Infobereich weiterlaufen',
                   ),
                   subtitle: const Text(
-                    'Beim Schließen des Fensters bleibt Sixora erreichbar; '
-                    'Codes lassen sich über das Symbol kopieren.',
+                    'Beim Schließen des Fensters bleibt Sixora erreichbar. '
+                    'Über das Symbol lassen sich die Codes der Favoriten '
+                    'kopieren oder alle Konten durchsuchen.',
                   ),
                   value: s.keepInTray,
                   onChanged: (v) async {

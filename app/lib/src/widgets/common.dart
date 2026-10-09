@@ -143,7 +143,7 @@ Future<String?> askText(
             controller: controller,
             autofocus: true,
             obscureText: password,
-            contextMenuBuilder: password ? secretContextMenu : null,
+            contextMenuBuilder: password ? secretContextMenu : textContextMenu,
             decoration: InputDecoration(labelText: label),
             onSubmitted: (v) => Navigator.pop(context, v),
           ),
@@ -209,6 +209,11 @@ Future<T?> runBusy<T>(
     if (open) navigator.pop();
   }
 }
+
+/// The usual context menu (cut, copy, paste, select all). Passing null as
+/// `contextMenuBuilder` would switch the menu off entirely.
+Widget textContextMenu(BuildContext context, EditableTextState field) =>
+    AdaptiveTextSelectionToolbar.editableText(editableTextState: field);
 
 /// Context menu for hidden fields (passwords, secrets). Flutter offers no
 /// "Einfügen" there on its own, so pasting from a password manager would
