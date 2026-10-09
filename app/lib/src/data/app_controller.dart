@@ -126,6 +126,18 @@ class AppController extends ChangeNotifier {
   final _rotationFailed = <String>{};
   Future<void> _applying = Future.value();
 
+  /// For widget tests: data in [dir], no keystore, no server.
+  @visibleForTesting
+  factory AppController.forTest(Directory dir) {
+    final store = LocalStore(dir);
+    return AppController._(
+      store,
+      SecretStore.inFolder(dir),
+      store.loadSettings(),
+      null,
+    )..phase = Phase.setup;
+  }
+
   static Future<AppController> create() async {
     final base = await getApplicationSupportDirectory();
     final dir = Directory(p.join(base.path, AppEnv.dataFolder))

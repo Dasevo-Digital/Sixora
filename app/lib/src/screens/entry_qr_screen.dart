@@ -70,6 +70,7 @@ class _EntryQrScreenState extends State<EntryQrScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(
+                          tooltip: 'Vorheriger Code',
                           onPressed: _page > 0
                               ? () => setState(() => _page--)
                               : null,
@@ -77,6 +78,7 @@ class _EntryQrScreenState extends State<EntryQrScreen> {
                         ),
                         Text('Code ${_page + 1} von ${_codes.length}'),
                         IconButton(
+                          tooltip: 'Nächster Code',
                           onPressed: _page < _codes.length - 1
                               ? () => setState(() => _page++)
                               : null,

@@ -184,114 +184,148 @@ class _OtpTileState extends State<OtpTile> {
           invalid = true;
         }
         final urgent = !hotp && remaining <= 5;
+        // What a screen reader says: the code digit by digit (otherwise
+        // "123456" is read as a number), never a hidden one.
+        final spoken = [
+          e.displayName,
+          if (e.issuer.isNotEmpty && e.account.isNotEmpty) e.account,
+          ?widget.vaultName,
+          invalid
+              ? 'Schlüssel ungültig'
+              : hidden
+              ? 'Code verborgen'
+              : 'Code ${code.split('').join(' ')}',
+          if (!hotp && !hidden && !invalid) 'noch $remaining Sekunden',
+        ].join(', ');
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: invalid
-                ? null
-                : () {
-                    if (hidden) {
-                      setState(() => _revealed = true);
-                    } else {
-                      copySecret(context, code);
-                    }
-                  },
-            onLongPress: () => widget.onMenu(null),
-            onSecondaryTapUp: (d) => widget.onMenu(d.globalPosition),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
-              child: Row(
-                children: [
-                  EntryAvatar(e),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+          child: Semantics(
+            container: true,
+            button: !invalid,
+            label: spoken,
+            onTapHint: hidden ? 'Code anzeigen' : 'Code kopieren',
+            onLongPressHint: 'Weitere Aktionen',
+            child: InkWell(
+              onTap: invalid
+                  ? null
+                  : () {
+                      if (hidden) {
+                        setState(() => _revealed = true);
+                      } else {
+                        copySecret(context, code);
+                      }
+                    },
+              onLongPress: () => widget.onMenu(null),
+              onSecondaryTapUp: (d) => widget.onMenu(d.globalPosition),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
+                child: Row(
+                  children: [
+                    ExcludeSemantics(child: EntryAvatar(e)),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: ExcludeSemantics(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (e.favorite)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 4),
-                                child: Icon(
-                                  Icons.star_rounded,
-                                  size: 16,
-                                  color: Colors.amber.shade600,
+                            Row(
+                              children: [
+                                if (e.favorite)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 4),
+                                    child: Icon(
+                                      Icons.star_rounded,
+                                      size: 16,
+                                      color: Colors.amber.shade600,
+                                    ),
+                                  ),
+                                Flexible(
+                                  child: Text(
+                                    e.displayName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w600),
+                                  ),
                                 ),
-                              ),
-                            Flexible(
-                              child: Text(
-                                e.displayName,
+                              ],
+                            ),
+                            if (e.issuer.isNotEmpty && e.account.isNotEmpty ||
+                                widget.vaultName != null)
+                              Text(
+                                [
+                                  if (e.issuer.isNotEmpty &&
+                                      e.account.isNotEmpty)
+                                    e.account,
+                                  ?widget.vaultName,
+                                ].join(' · '),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.titleMedium?.copyWith(
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            const SizedBox(height: 4),
+                            // One line also with large text: a code broken
+                            // in the middle is easy to misread.
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                hidden ? '••• •••' : groupCode(code),
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
                                   fontWeight: FontWeight.w600,
+                                  letterSpacing: 1.5,
+                                  color: urgent && !hidden
+                                      ? theme.colorScheme.error
+                                      : theme.colorScheme.primary,
                                 ),
                               ),
                             ),
+                            if (next != null && !hidden)
+                              Text(
+                                'Nächster: ${groupCode(next)}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            if (invalid)
+                              Text(
+                                'Schlüssel ist ungültig',
+                                style: TextStyle(
+                                  color: theme.colorScheme.error,
+                                ),
+                              ),
                           ],
                         ),
-                        if (e.issuer.isNotEmpty && e.account.isNotEmpty ||
-                            widget.vaultName != null)
-                          Text(
-                            [
-                              if (e.issuer.isNotEmpty && e.account.isNotEmpty)
-                                e.account,
-                              ?widget.vaultName,
-                            ].join(' · '),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        const SizedBox(height: 4),
-                        Text(
-                          hidden ? '••• •••' : groupCode(code),
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.5,
-                            color: urgent && !hidden
-                                ? theme.colorScheme.error
-                                : theme.colorScheme.primary,
-                          ),
+                      ),
+                    ),
+                    if (hotp)
+                      IconButton(
+                        tooltip: 'Nächster Code',
+                        icon: const Icon(Icons.refresh),
+                        onPressed: () =>
+                            runBusy(context, () => c.nextHotp(widget.item)),
+                      )
+                    else
+                      ExcludeSemantics(
+                        child: _Countdown(
+                          remaining: remaining,
+                          period: e.effectivePeriod,
+                          urgent: urgent,
                         ),
-                        if (next != null && !hidden)
-                          Text(
-                            'Nächster: ${groupCode(next)}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        if (invalid)
-                          Text(
-                            'Schlüssel ist ungültig',
-                            style: TextStyle(color: theme.colorScheme.error),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (hotp)
+                      ),
                     IconButton(
-                      tooltip: 'Nächster Code',
-                      icon: const Icon(Icons.refresh),
-                      onPressed: () =>
-                          runBusy(context, () => c.nextHotp(widget.item)),
-                    )
-                  else
-                    _Countdown(
-                      remaining: remaining,
-                      period: e.effectivePeriod,
-                      urgent: urgent,
+                      tooltip: 'Mehr',
+                      icon: const Icon(Icons.more_vert),
+                      onPressed: () => widget.onMenu(null),
                     ),
-                  IconButton(
-                    tooltip: 'Mehr',
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () => widget.onMenu(null),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -53,6 +53,9 @@ class SecretStore {
     }
   }
 
+  /// For widget tests: a file in [dataDir], never the keystore.
+  static SecretStore inFolder(Directory dataDir) => _fileStore(dataDir);
+
   static SecretStore _fileStore(Directory dataDir) {
     final file = File(p.join(dataDir.path, 'secrets.json'));
     final store = SecretStore._(null, file);

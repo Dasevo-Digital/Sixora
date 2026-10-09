@@ -6,6 +6,14 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.18 – 09.10.2026
+- Bildschirmleser (VoiceOver, TalkBack): Jedes Konto wird mit Name, Konto,
+  dem Code Ziffer für Ziffer und der Restzeit vorgelesen; verborgene Codes
+  bleiben verborgen. Logos und Countdown werden nicht einzeln angesagt.
+- Große Schrift: Der Code bleibt auf einer Zeile. Getestet mit 200 % auf
+  einem schmalen Telefon.
+- Die Blätterknöpfe der QR-Ansicht sind beschriftet.
+
 ### 0.1.17 – 09.10.2026
 - macOS: Das App-Menü ist deutsch.
 
