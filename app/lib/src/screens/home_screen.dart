@@ -433,6 +433,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ..showSnackBar(
                 SnackBar(
                   behavior: SnackBarBehavior.floating,
+                  // With an action, Flutter keeps it until tapped otherwise.
+                  persist: false,
+                  duration: const Duration(seconds: 6),
                   content: Text('„${item.entry.displayName}“ gelöscht'),
                   action: SnackBarAction(
                     label: 'Rückgängig',

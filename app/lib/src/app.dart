@@ -24,6 +24,7 @@ class SixoraApp extends StatefulWidget {
 
 class _SixoraAppState extends State<SixoraApp> {
   static const _window = MethodChannel('sixora/window');
+  static const _privacy = MethodChannel('sixora/privacy');
   final _navigator = GlobalKey<NavigatorState>();
   late final AppLifecycleListener _lifecycle;
   AppController get c => widget.controller;
@@ -101,9 +102,20 @@ class _SixoraAppState extends State<SixoraApp> {
         }
         setState(() => _obscured = false);
         _resetIdle();
+        _uncoverWhenDrawn();
       case AppLifecycleState.detached:
         break;
     }
+  }
+
+  /// iOS: the native cover (see AppDelegate) goes once the current state –
+  /// after a lock the lock screen – has been drawn.
+  void _uncoverWhenDrawn() {
+    if (!Platform.isIOS) return;
+    WidgetsBinding.instance.endOfFrame.then((_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await _privacy.invokeMethod<void>('uncover').catchError((_) => null);
+    });
   }
 
   /// Locks after the auto-lock time without any input, also while the app

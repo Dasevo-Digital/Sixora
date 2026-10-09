@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private let backupFolder = BackupFolder()
+  private let privacyCover = PrivacyCover()
 
   override func application(
     _ application: UIApplication,
@@ -17,6 +18,9 @@ import UniformTypeIdentifiers
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "SixoraFolder") {
       backupFolder.register(registrar.messenger())
+    }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "SixoraPrivacy") {
+      privacyCover.register(registrar.messenger())
     }
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "SixoraClipboard") {
       let channel = FlutterMethodChannel(
@@ -141,5 +145,69 @@ final class BackupFolder: NSObject, UIDocumentPickerDelegate {
     }
     if let error = coordError ?? failure { throw error }
     return output
+  }
+}
+
+/// Covers the window natively as soon as the app stops being active. iOS
+/// takes its app switcher picture right then, and shows that picture again
+/// when the app comes back – before Flutter has drawn anything new. A cover
+/// drawn by Flutter may come too late for both; this one is there at once.
+/// Flutter removes it once the current state (e.g. the lock screen) is on
+/// screen; a timer removes it in any case.
+final class PrivacyCover: NSObject {
+  private var cover: UIView?
+  private var fallback: Timer?
+
+  func register(_ messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "sixora/privacy", binaryMessenger: messenger)
+    channel.setMethodCallHandler { [weak self] call, result in
+      if call.method == "uncover" { self?.uncover() }
+      result(nil)
+    }
+    let center = NotificationCenter.default
+    center.addObserver(
+      self, selector: #selector(willDeactivate(_:)),
+      name: UIScene.willDeactivateNotification, object: nil)
+    center.addObserver(
+      self, selector: #selector(didActivate(_:)),
+      name: UIScene.didActivateNotification, object: nil)
+  }
+
+  @objc private func willDeactivate(_ note: Notification) {
+    fallback?.invalidate()
+    guard cover == nil,
+      let window = (note.object as? UIWindowScene)?.windows.first(where: { $0.isKeyWindow })
+        ?? (note.object as? UIWindowScene)?.windows.first
+    else { return }
+    let view = UIView(frame: window.bounds)
+    view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    view.backgroundColor = UIColor(red: 0x4F / 255, green: 0x46 / 255, blue: 0xE5 / 255, alpha: 1)
+    let icon = UIImageView(
+      image: UIImage(
+        systemName: "lock.shield.fill",
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: 64, weight: .regular)))
+    icon.tintColor = .white
+    icon.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(icon)
+    NSLayoutConstraint.activate([
+      icon.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+      icon.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+    ])
+    window.addSubview(view)
+    cover = view
+  }
+
+  @objc private func didActivate(_ note: Notification) {
+    fallback?.invalidate()
+    fallback = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in
+      self?.uncover()
+    }
+  }
+
+  private func uncover() {
+    fallback?.invalidate()
+    fallback = nil
+    cover?.removeFromSuperview()
+    cover = nil
   }
 }
