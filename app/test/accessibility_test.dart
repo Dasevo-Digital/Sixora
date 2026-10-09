@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sixora/src/data/app_controller.dart';
+import 'package:sixora/src/l10n.dart';
 import 'package:sixora/src/screens/welcome_screen.dart';
 import 'package:sixora/src/widgets/common.dart';
 import 'package:sixora/src/widgets/otp_tile.dart';
@@ -122,5 +123,27 @@ void main() {
     );
     await tester.pump();
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('read out in Spanish and English as well', (tester) async {
+    final handle = tester.ensureSemantics();
+    addTearDown(() => useLocale(const Locale('de')));
+    useLocale(const Locale('es'));
+    await show(tester, item());
+    expect(
+      find.bySemanticsLabel(
+        RegExp(
+          r'^GitHub, alice@example\.org, Código( \d){6}, quedan? \d+ segundos?$',
+        ),
+      ),
+      findsOneWidget,
+    );
+    useLocale(const Locale('en'));
+    await show(tester, item());
+    expect(
+      find.bySemanticsLabel(RegExp(r'Code( \d){6}, \d+ seconds? left$')),
+      findsOneWidget,
+    );
+    handle.dispose();
   });
 }

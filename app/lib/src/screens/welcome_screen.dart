@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
+import '../l10n.dart';
 import '../platform/link_inbox.dart';
 import '../widgets/brand.dart';
 import '../widgets/common.dart';
@@ -70,7 +71,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     if (text == null || !mounted) return;
     final invite = InviteLink.parse(text);
     if (invite == null) {
-      setState(() => _error = 'Das ist kein Sixora-Einladungscode');
+      setState(() => _error = t.notAnInviteCode);
       return;
     }
     await _applyInvite(invite);
@@ -117,13 +118,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   String? _validateNewPassword() {
     if (_username.text.trim().length < 3) {
-      return 'Benutzername: mindestens 3 Zeichen';
+      return t.usernameTooShort;
     }
     if (_password.text.length < 10) {
-      return 'Das Master-Passwort braucht mindestens 10 Zeichen';
+      return t.masterPasswordTooShort;
     }
     if (_password.text != _password2.text) {
-      return 'Die Passwörter stimmen nicht überein';
+      return t.passwordsDoNotMatch;
     }
     return null;
   }
@@ -133,7 +134,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final problem = switch (_mode) {
       _Mode.login
           when _username.text.trim().isEmpty || _password.text.isEmpty =>
-        'Benutzername und Master-Passwort eingeben',
+        t.enterUsernameAndPassword,
       _Mode.register || _Mode.recover => _validateNewPassword(),
       _ => null,
     };
@@ -218,7 +219,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Deine Einmal-Codes, Ende-zu-Ende-verschlüsselt auf deinem eigenen Server.',
+              t.tagline,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -254,7 +255,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       autocorrect: false,
       autofillHints: const [AutofillHints.url],
       decoration: InputDecoration(
-        labelText: 'Server-Adresse oder Einladungslink',
+        labelText: t.serverAddressOrInvite,
         hintText: 'sixora.example.org',
         prefixIcon: const Icon(Icons.dns_outlined),
         suffixIcon: PasteButton(controller: _server),
@@ -269,14 +270,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     const SizedBox(height: 16),
     FilledButton(
       onPressed: _busy ? null : _connect,
-      child: _busy ? const _Spinner() : const Text('Verbinden'),
+      child: _busy ? const _Spinner() : Text(t.connect),
     ),
     if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) ...[
       const SizedBox(height: 8),
       OutlinedButton.icon(
         onPressed: _busy ? null : _scanInvite,
         icon: const Icon(Icons.qr_code_scanner),
-        label: const Text('Einladungs-QR-Code scannen'),
+        label: Text(t.scanInviteQr),
       ),
     ],
   ];
@@ -297,12 +298,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           ),
           title: Text(_info!.name),
           subtitle: Text(
-            '${_url!.host}${_url!.hasPort ? ':${_url!.port}' : ''} · Version ${_info!.version}'
-            '${_url!.scheme == 'http' ? '\nOhne HTTPS – nur im eigenen Netz verwenden!' : ''}',
+            '${_url!.host}${_url!.hasPort ? ':${_url!.port}' : ''} · '
+            '${t.serverVersion(_info!.version)}'
+            '${_url!.scheme == 'http' ? '\n${t.noHttpsWarning}' : ''}',
           ),
           trailing: TextButton(
             onPressed: _busy ? null : () => setState(() => _info = null),
-            child: const Text('Ändern'),
+            child: Text(t.change),
           ),
         ),
       ),
@@ -310,13 +312,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       if (_info!.hasUsers)
         SegmentedButton<_Mode>(
           segments: [
-            const ButtonSegment(value: _Mode.login, label: Text('Anmelden')),
+            ButtonSegment(value: _Mode.login, label: Text(t.signIn)),
             if (_canRegister)
-              const ButtonSegment(
-                value: _Mode.register,
-                label: Text('Registrieren'),
-              ),
-            const ButtonSegment(value: _Mode.recover, label: Text('Vergessen')),
+              ButtonSegment(value: _Mode.register, label: Text(t.register)),
+            ButtonSegment(value: _Mode.recover, label: Text(t.forgotten)),
           ],
           selected: {_mode},
           onSelectionChanged: _busy
@@ -327,10 +326,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 }),
         )
       else
-        Text(
-          'Dieser Server ist neu. Das erste Konto wird Administrator.',
-          style: theme.textTheme.bodyMedium,
-        ),
+        Text(t.newServerFirstAdmin, style: theme.textTheme.bodyMedium),
       const SizedBox(height: 16),
       TextField(
         controller: _username,
@@ -341,8 +337,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           else
             AutofillHints.username,
         ],
-        decoration: const InputDecoration(
-          labelText: 'Benutzername',
+        decoration: InputDecoration(
+          labelText: t.username,
           prefixIcon: Icon(Icons.person_outline),
         ),
       ),
@@ -354,7 +350,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           maxLines: 2,
           minLines: 1,
           decoration: InputDecoration(
-            labelText: 'Wiederherstellungsschlüssel',
+            labelText: t.recoveryKey,
             prefixIcon: const Icon(Icons.health_and_safety_outlined),
             suffixIcon: PasteButton(controller: _recovery),
           ),
@@ -363,9 +359,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       ],
       PasswordField(
         controller: _password,
-        label: _mode == _Mode.recover
-            ? 'Neues Master-Passwort'
-            : 'Master-Passwort',
+        label: _mode == _Mode.recover ? t.newMasterPassword : t.masterPassword,
         autofillHints: [
           if (newPassword)
             AutofillHints.newPassword
@@ -382,12 +376,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             color: strength.score < 0.5 ? theme.colorScheme.error : null,
           ),
           const SizedBox(height: 4),
-          Text('Stärke: ${strength.label}', style: theme.textTheme.bodySmall),
+          Text(
+            t.strengthLabel(strength.label),
+            style: theme.textTheme.bodySmall,
+          ),
         ],
         const SizedBox(height: 12),
         PasswordField(
           controller: _password2,
-          label: 'Master-Passwort wiederholen',
+          label: t.repeatMasterPassword,
           autofillHints: const [AutofillHints.newPassword],
         ),
       ],
@@ -400,7 +397,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           autocorrect: false,
           textCapitalization: TextCapitalization.characters,
           decoration: InputDecoration(
-            labelText: 'Einladungscode',
+            labelText: t.inviteCode,
             prefixIcon: const Icon(Icons.confirmation_number_outlined),
             suffixIcon: PasteButton(controller: _invite),
           ),
@@ -408,12 +405,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       ],
       if (newPassword) ...[
         const SizedBox(height: 12),
-        Text(
-          'Das Master-Passwort verlässt nie dieses Gerät und kann von niemandem '
-          'zurückgesetzt werden – auch nicht vom Administrator. Nur mit dem '
-          'Wiederherstellungsschlüssel kommst du ohne Passwort wieder hinein.',
-          style: theme.textTheme.bodySmall,
-        ),
+        Text(t.masterPasswordNeverLeaves, style: theme.textTheme.bodySmall),
       ],
       const SizedBox(height: 20),
       FilledButton(
@@ -421,15 +413,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         child: _busy
             ? const _Spinner()
             : Text(switch (_mode) {
-                _Mode.login => 'Anmelden',
-                _Mode.register => 'Konto erstellen',
-                _Mode.recover => 'Neues Passwort setzen',
+                _Mode.login => t.signIn,
+                _Mode.register => t.createAccount,
+                _Mode.recover => t.setNewPassword,
               }),
       ),
       if (_busy && _mode != _Mode.login) ...[
         const SizedBox(height: 8),
         Text(
-          'Schlüssel werden erzeugt …',
+          t.generatingKeys,
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall,
         ),

@@ -3,6 +3,7 @@ import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
 import '../data/service_icons.dart';
+import '../l10n.dart';
 import '../widgets/common.dart';
 import '../widgets/otp_tile.dart';
 import 'entry_editor.dart';
@@ -12,25 +13,11 @@ import 'entry_editor.dart';
 class AccountCheckScreen extends StatelessWidget {
   const AccountCheckScreen({super.key});
 
-  static const _texts = {
-    CheckIssue.duplicate: (
-      'Doppelt gespeichert',
-      'Gleicher Schlüssel, gleiche Codes. Eine Kopie genügt; die andere kann '
-          'in den Papierkorb.',
-    ),
-    CheckIssue.weakSecret: (
-      'Kurzer Schlüssel',
-      'Unter 80 Bit. Einen neuen Schlüssel kann nur der Dienst ausstellen: '
-          'die Zwei-Faktor-Anmeldung dort neu einrichten.',
-    ),
-    CheckIssue.invalidSecret: (
-      'Ungültiger Schlüssel',
-      'Daraus lässt sich kein Code berechnen. Bitte den Schlüssel prüfen.',
-    ),
-    CheckIssue.unnamed: (
-      'Ohne Namen',
-      'Weder Dienst noch Konto: schwer zu erkennen.',
-    ),
+  static (String, String) _texts(CheckIssue issue) => switch (issue) {
+    CheckIssue.duplicate => (t.checkDuplicate, t.checkDuplicateHint),
+    CheckIssue.weakSecret => (t.checkWeak, t.checkWeakHint),
+    CheckIssue.invalidSecret => (t.checkInvalid, t.checkInvalidHint),
+    CheckIssue.unnamed => (t.checkUnnamed, t.checkUnnamedHint),
   };
 
   @override
@@ -56,7 +43,7 @@ class AccountCheckScreen extends StatelessWidget {
         [
           if (item.entry.issuer.isNotEmpty) item.entry.account,
           if (c.vaults.length > 1) c.vault(item.vaultId)?.name ?? '',
-        ].where((t) => t.isNotEmpty).join(' · '),
+        ].where((part) => part.isNotEmpty).join(' · '),
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => Navigator.push<void>(
@@ -76,7 +63,7 @@ class AccountCheckScreen extends StatelessWidget {
             ],
       ];
       if (groups.isEmpty) continue;
-      final (title, help) = _texts[issue]!;
+      final (title, help) = _texts(issue);
       sections
         ..add(SectionTitle(title))
         ..add(
@@ -92,21 +79,18 @@ class AccountCheckScreen extends StatelessWidget {
     }
     if (noLogo.isNotEmpty) {
       sections
-        ..add(const SectionTitle('Ohne Logo'))
+        ..add(SectionTitle(t.withoutLogo))
         ..add(
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text(
-              'Kein passendes Logo gefunden. Im Editor lässt sich eines '
-              'auswählen oder der Buchstabe festlegen.',
-            ),
+            child: Text(t.withoutLogoHint),
           ),
         )
         ..addAll(noLogo.map(tile));
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Kontenprüfung')),
+      appBar: AppBar(title: Text(t.accountCheck)),
       body: sections.isEmpty
           ? ListView(
               children: [
@@ -120,8 +104,8 @@ class AccountCheckScreen extends StatelessWidget {
                 Center(
                   child: Text(
                     c.items.isEmpty
-                        ? 'Noch keine Konten'
-                        : 'Alles in Ordnung: ${c.items.length} Konten geprüft',
+                        ? t.noAccountsYet
+                        : t.allGood(c.items.length),
                   ),
                 ),
               ],

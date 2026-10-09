@@ -3,10 +3,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/app_controller.dart';
 import 'data/local_store.dart';
+import 'l10n.dart';
+import 'platform/desktop_shell.dart';
 import 'screens/home_screen.dart';
 import 'screens/lock_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -22,7 +23,7 @@ class SixoraApp extends StatefulWidget {
   State<SixoraApp> createState() => _SixoraAppState();
 }
 
-class _SixoraAppState extends State<SixoraApp> {
+class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
   static const _window = MethodChannel('sixora/window');
   static const _privacy = MethodChannel('sixora/privacy');
   final _navigator = GlobalKey<NavigatorState>();
@@ -42,12 +43,14 @@ class _SixoraAppState extends State<SixoraApp> {
     _phase = c.phase;
     c.addListener(_changed);
     _lifecycle = AppLifecycleListener(onStateChange: _lifecycleChanged);
+    WidgetsBinding.instance.addObserver(this);
     _applySecureWindow();
   }
 
   @override
   void dispose() {
     c.removeListener(_changed);
+    WidgetsBinding.instance.removeObserver(this);
     _lifecycle.dispose();
     _idle?.cancel();
     super.dispose();
@@ -147,7 +150,16 @@ class _SixoraAppState extends State<SixoraApp> {
   }
 
   @override
+  /// The system language changed: matters when the setting is „System“.
+  @override
+  void didChangeLocales(List<Locale>? locales) => setState(() {});
+
+  @override
   Widget build(BuildContext context) {
+    // Before the tree builds: every text below reads [t].
+    final locale = resolveLocale(c.settings.language);
+    useLocale(locale);
+    DesktopShell.setMenuLanguage(locale.languageCode);
     final home = switch (c.phase) {
       Phase.loading => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -177,9 +189,9 @@ class _SixoraAppState extends State<SixoraApp> {
               'dark' => ThemeMode.dark,
               _ => ThemeMode.system,
             },
-            locale: const Locale('de'),
-            supportedLocales: const [Locale('de'), Locale('en')],
-            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            locale: locale,
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             home: KeyedSubtree(key: ValueKey(c.phase), child: home),
             builder: (context, child) => Stack(
               children: [

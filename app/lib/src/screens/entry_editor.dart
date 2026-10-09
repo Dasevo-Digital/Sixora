@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
+import '../data/error_texts.dart';
 import '../data/service_icons.dart';
+import '../l10n.dart';
 import '../widgets/common.dart';
 import '../widgets/otp_tile.dart';
 
@@ -70,14 +72,21 @@ class _EntryEditorState extends State<EntryEditor> {
             ? widget.defaultVaultId!
             : writable.first.id);
     _showSecret = widget.item == null && widget.initial == null;
-    for (final t in [_issuer, _account, _secret, _digits, _period, _counter]) {
-      t.addListener(() => setState(() {}));
+    for (final field in [
+      _issuer,
+      _account,
+      _secret,
+      _digits,
+      _period,
+      _counter,
+    ]) {
+      field.addListener(() => setState(() {}));
     }
   }
 
   @override
   void dispose() {
-    for (final t in [
+    for (final field in [
       _issuer,
       _account,
       _secret,
@@ -87,7 +96,7 @@ class _EntryEditorState extends State<EntryEditor> {
       _period,
       _counter,
     ]) {
-      t.dispose();
+      field.dispose();
     }
     super.dispose();
   }
@@ -131,7 +140,7 @@ class _EntryEditorState extends State<EntryEditor> {
     try {
       entry.validate();
     } on FormatException catch (e) {
-      setState(() => _error = e.message);
+      setState(() => _error = coreErrorText(e.message));
       return;
     }
     final navigator = Navigator.of(context);
@@ -150,9 +159,9 @@ class _EntryEditorState extends State<EntryEditor> {
     final entry = _build();
     return Scaffold(
       appBar: AppBar(
-        title: Text(_editing ? 'Konto bearbeiten' : 'Konto hinzufügen'),
+        title: Text(_editing ? t.editAccount : t.addAccount),
         actions: [
-          TextButton(onPressed: _save, child: const Text('Speichern')),
+          TextButton(onPressed: _save, child: Text(t.save)),
           const SizedBox(width: 8),
         ],
       ),
@@ -163,10 +172,10 @@ class _EntryEditorState extends State<EntryEditor> {
             child: ListTile(
               leading: EntryAvatar(entry),
               title: Text(
-                entry.displayName.isEmpty ? 'Neues Konto' : entry.displayName,
+                entry.displayName.isEmpty ? t.newAccount : entry.displayName,
               ),
               subtitle: Text(
-                preview ?? 'Schlüssel eingeben …',
+                preview ?? t.enterKey,
                 style: preview == null
                     ? null
                     : theme.textTheme.titleLarge?.copyWith(
@@ -180,18 +189,18 @@ class _EntryEditorState extends State<EntryEditor> {
           TextField(
             controller: _issuer,
             textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'Dienst',
-              hintText: 'z. B. GitHub',
+            decoration: InputDecoration(
+              labelText: t.service,
+              hintText: t.serviceExample,
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _account,
             autocorrect: false,
-            decoration: const InputDecoration(
-              labelText: 'Konto',
-              hintText: 'z. B. name@example.org',
+            decoration: InputDecoration(
+              labelText: t.accountName,
+              hintText: t.accountExample,
             ),
           ),
           const SizedBox(height: 12),
@@ -205,14 +214,14 @@ class _EntryEditorState extends State<EntryEditor> {
                 ? textContextMenu
                 : secretContextMenu,
             decoration: InputDecoration(
-              labelText: 'Geheimer Schlüssel',
-              helperText: 'Base32, Leerzeichen sind egal',
+              labelText: t.secretKey,
+              helperText: t.secretKeyHint,
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   PasteButton(controller: _secret),
                   IconButton(
-                    tooltip: _showSecret ? 'Verbergen' : 'Anzeigen',
+                    tooltip: _showSecret ? t.hide : t.show,
                     icon: Icon(
                       _showSecret
                           ? Icons.visibility_off_outlined
@@ -228,12 +237,12 @@ class _EntryEditorState extends State<EntryEditor> {
           TextField(
             controller: _group,
             decoration: InputDecoration(
-              labelText: 'Gruppe (optional)',
-              hintText: 'z. B. Arbeit',
+              labelText: t.groupOptional,
+              hintText: t.groupExample,
               suffixIcon: c.groups.isEmpty
                   ? null
                   : PopupMenuButton<String>(
-                      tooltip: 'Vorhandene Gruppe wählen',
+                      tooltip: t.chooseGroup,
                       icon: const Icon(Icons.arrow_drop_down),
                       onSelected: (g) => _group.text = g,
                       itemBuilder: (_) => [
@@ -247,7 +256,7 @@ class _EntryEditorState extends State<EntryEditor> {
           if (c.writableVaults.length > 1) ...[
             DropdownButtonFormField<String>(
               initialValue: _vaultId,
-              decoration: const InputDecoration(labelText: 'Tresor'),
+              decoration: InputDecoration(labelText: t.vault),
               items: [
                 for (final v in c.writableVaults)
                   DropdownMenuItem(
@@ -270,8 +279,8 @@ class _EntryEditorState extends State<EntryEditor> {
           ],
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Favorit'),
-            subtitle: const Text('Steht oben in der Liste'),
+            title: Text(t.favorite),
+            subtitle: Text(t.favoriteHint),
             value: _favorite,
             onChanged: (v) => setState(() => _favorite = v),
           ),
@@ -283,24 +292,24 @@ class _EntryEditorState extends State<EntryEditor> {
               return ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: EntryAvatar(entry, size: 40),
-                title: const Text('Symbol'),
+                title: Text(t.icon),
                 subtitle: Text(switch (_icon) {
-                  OtpEntry.noIcon => 'Anfangsbuchstabe',
-                  null when icon != null => '${icon.title} (automatisch)',
-                  null => 'Anfangsbuchstabe (kein passendes Logo gefunden)',
-                  _ => icon?.title ?? 'Unbekannt',
+                  OtpEntry.noIcon => t.initialLetter,
+                  null when icon != null => t.iconAutomatic(icon.title),
+                  null => t.initialLetterNoLogo,
+                  _ => icon?.title ?? t.unknown,
                 }),
                 trailing: TextButton(
                   onPressed: icons == null
                       ? null
                       : () => _pickIcon(icons, entry),
-                  child: const Text('Ändern'),
+                  child: Text(t.change),
                 ),
               );
             },
           ),
           const SizedBox(height: 8),
-          Text('Farbe', style: theme.textTheme.labelLarge),
+          Text(t.color, style: theme.textTheme.labelLarge),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -312,7 +321,7 @@ class _EntryEditorState extends State<EntryEditor> {
                     ServiceIcons.loaded.value?.forEntry(entry)?.color ??
                     avatarColor(entry.copyWith(color: () => null)),
                 selected: _color == null,
-                label: 'Auto',
+                label: t.colorAuto,
                 onTap: () => setState(() => _color = null),
               ),
               for (final value in avatarPalette)
@@ -328,31 +337,28 @@ class _EntryEditorState extends State<EntryEditor> {
             controller: _notes,
             minLines: 1,
             maxLines: 4,
-            decoration: const InputDecoration(labelText: 'Notizen (optional)'),
+            decoration: InputDecoration(labelText: t.notesOptional),
           ),
           const SizedBox(height: 8),
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
             initiallyExpanded: _advanced,
             onExpansionChanged: (v) => _advanced = v,
-            title: const Text('Erweitert'),
+            title: Text(t.advanced),
             subtitle: Text(
               '${switch (_type) {
                 OtpType.totp => 'TOTP',
                 OtpType.hotp => 'HOTP',
                 OtpType.steam => 'Steam',
-              }} · ${_algorithm.label} · ${entry.effectiveDigits} Stellen'
+              }} · ${_algorithm.label} · ${t.digitsCount(entry.effectiveDigits)}'
               '${_type == OtpType.totp ? ' · ${entry.period} s' : ''}',
             ),
             children: [
               const SizedBox(height: 8),
               SegmentedButton<OtpType>(
-                segments: const [
-                  ButtonSegment(
-                    value: OtpType.totp,
-                    label: Text('Zeitbasiert'),
-                  ),
-                  ButtonSegment(value: OtpType.hotp, label: Text('Zähler')),
+                segments: [
+                  ButtonSegment(value: OtpType.totp, label: Text(t.timeBased)),
+                  ButtonSegment(value: OtpType.hotp, label: Text(t.counter)),
                   ButtonSegment(value: OtpType.steam, label: Text('Steam')),
                 ],
                 selected: {_type},
@@ -365,9 +371,7 @@ class _EntryEditorState extends State<EntryEditor> {
                     Expanded(
                       child: DropdownButtonFormField<OtpAlgorithm>(
                         initialValue: _algorithm,
-                        decoration: const InputDecoration(
-                          labelText: 'Algorithmus',
-                        ),
+                        decoration: InputDecoration(labelText: t.algorithm),
                         items: [
                           for (final a in OtpAlgorithm.values)
                             DropdownMenuItem(value: a, child: Text(a.label)),
@@ -381,7 +385,7 @@ class _EntryEditorState extends State<EntryEditor> {
                       child: TextField(
                         controller: _digits,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Stellen'),
+                        decoration: InputDecoration(labelText: t.digits),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -390,15 +394,13 @@ class _EntryEditorState extends State<EntryEditor> {
                           ? TextField(
                               controller: _counter,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Zähler',
-                              ),
+                              decoration: InputDecoration(labelText: t.counter),
                             )
                           : TextField(
                               controller: _period,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Intervall (s)',
+                              decoration: InputDecoration(
+                                labelText: t.periodSeconds,
                               ),
                             ),
                     ),
@@ -412,7 +414,7 @@ class _EntryEditorState extends State<EntryEditor> {
             Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
           ],
           const SizedBox(height: 20),
-          FilledButton(onPressed: _save, child: const Text('Speichern')),
+          FilledButton(onPressed: _save, child: Text(t.save)),
         ],
       ),
     );
@@ -500,7 +502,7 @@ class _IconPickerState extends State<_IconPicker> {
   Widget build(BuildContext context) {
     final results = widget.icons.search(_query.text).take(120).toList();
     return AlertDialog(
-      title: const Text('Symbol wählen'),
+      title: Text(t.chooseIcon),
       contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       content: SizedBox(
         width: 460,
@@ -511,12 +513,12 @@ class _IconPickerState extends State<_IconPicker> {
               controller: _query,
               autofocus: true,
               decoration: InputDecoration(
-                hintText: 'Dienst suchen, z. B. Google',
+                hintText: t.searchServiceExample,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _query.text.isEmpty
                     ? null
                     : IconButton(
-                        tooltip: 'Leeren',
+                        tooltip: t.clear,
                         icon: const Icon(Icons.close),
                         onPressed: _query.clear,
                       ),
@@ -527,13 +529,13 @@ class _IconPickerState extends State<_IconPicker> {
               children: [
                 TextButton.icon(
                   icon: const Icon(Icons.auto_awesome_outlined),
-                  label: const Text('Automatisch'),
+                  label: Text(t.automatic),
                   onPressed: () =>
                       Navigator.pop(context, const _IconChoice(null)),
                 ),
                 TextButton.icon(
                   icon: const Icon(Icons.text_fields),
-                  label: const Text('Buchstabe'),
+                  label: Text(t.letter),
                   onPressed: () => Navigator.pop(
                     context,
                     const _IconChoice(OtpEntry.noIcon),
@@ -543,7 +545,7 @@ class _IconPickerState extends State<_IconPicker> {
             ),
             Expanded(
               child: results.isEmpty
-                  ? const Center(child: Text('Kein Logo gefunden'))
+                  ? Center(child: Text(t.noLogoFound))
                   : GridView.extent(
                       maxCrossAxisExtent: 96,
                       childAspectRatio: 0.85,
@@ -578,8 +580,7 @@ class _IconPickerState extends State<_IconPicker> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                'Logos: Simple Icons ${widget.icons.version}. Die Marken gehören '
-                'ihren Inhabern.',
+                t.logosCredit(widget.icons.version),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -589,7 +590,7 @@ class _IconPickerState extends State<_IconPicker> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Abbrechen'),
+          child: Text(t.cancel),
         ),
       ],
     );

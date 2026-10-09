@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n.dart';
 import '../platform/backup_folder.dart';
 import '../widgets/common.dart';
 
@@ -23,7 +24,7 @@ class AutoBackupScreen extends StatelessWidget {
     await runBusy(
       context,
       () => c.enableAutoBackup(folder!, pw),
-      message: 'Erste Sicherung wird geschrieben …',
+      message: t.writingFirstBackup,
     );
   }
 
@@ -33,22 +34,13 @@ class AutoBackupScreen extends StatelessWidget {
     final s = c.settings;
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Automatische Sicherung')),
+      appBar: AppBar(title: Text(t.autoBackup)),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Text(
-              'Sixora schreibt nach Änderungen eine verschlüsselte Sicherung '
-              'aller Konten in einen Ordner deiner Wahl, zum Beispiel in die '
-              'iCloud, in Nextcloud oder auf einen USB-Stick. So bleibt eine '
-              'Kopie, auch wenn Server oder Konto verloren gehen.\n\n'
-              'Pro Tag entsteht eine Datei, die letzten 14 bleiben. Geschrieben '
-              'wird nur, solange Sixora entsperrt ist. Öffnen lässt sich eine '
-              'Sicherung mit ihrem Passwort über „Importieren“, auch in einem '
-              'neuen Konto.',
-            ),
+            child: Text(t.autoBackupExplanation),
           ),
           if (!c.autoBackup)
             Padding(
@@ -56,13 +48,13 @@ class AutoBackupScreen extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: () => _setUp(context),
                 icon: const Icon(Icons.folder_open),
-                label: const Text('Ordner wählen und einrichten'),
+                label: Text(t.chooseFolderAndSetUp),
               ),
             )
           else ...[
             ListTile(
               leading: const Icon(Icons.folder_outlined),
-              title: const Text('Ordner'),
+              title: Text(t.folder),
               subtitle: Text(s.backupFolderLabel),
             ),
             ListTile(
@@ -75,35 +67,34 @@ class AutoBackupScreen extends StatelessWidget {
                     : theme.colorScheme.error,
               ),
               title: Text(
-                s.backupError == null
-                    ? 'Letzte Sicherung'
-                    : 'Letzte Sicherung fehlgeschlagen',
+                s.backupError == null ? t.lastBackup : t.lastBackupFailed,
               ),
               subtitle: Text(
                 s.backupError == null
                     ? formatDate(s.lastBackup)
-                    : '${s.backupError}\nZuletzt erfolgreich: ${formatDate(s.lastBackup)}',
+                    : t.backupErrorDetail(
+                        s.backupError!,
+                        formatDate(s.lastBackup),
+                      ),
               ),
             ),
             ListTile(
               leading: const Icon(Icons.backup_outlined),
-              title: const Text('Jetzt sichern'),
+              title: Text(t.backUpNow),
               onTap: () async {
                 final ok = await runBusy(context, () async {
                   await c.backupNow();
                   return true;
                 });
                 if (ok == true && context.mounted) {
-                  showMessage(context, 'Sicherung geschrieben');
+                  showMessage(context, t.backupWritten);
                 }
               },
             ),
             ListTile(
               leading: const Icon(Icons.fact_check_outlined),
-              title: const Text('Sicherung prüfen'),
-              subtitle: const Text(
-                'Öffnet die neueste Datei wie beim Zurückspielen',
-              ),
+              title: Text(t.verifyBackup),
+              subtitle: Text(t.verifyBackupHint),
               onTap: () async {
                 final r = await runBusy(context, c.verifyBackup);
                 if (r == null || !context.mounted) return;
@@ -116,15 +107,11 @@ class AutoBackupScreen extends StatelessWidget {
                           : Icons.info_outline,
                     ),
                     title: Text(
-                      r.missing.isEmpty
-                          ? 'Sicherung in Ordnung'
-                          : 'Sicherung lesbar, aber nicht aktuell',
+                      r.missing.isEmpty ? t.backupOk : t.backupNotCurrent,
                     ),
                     content: Text(
-                      '${r.file} lässt sich mit dem Passwort öffnen und '
-                      'enthält ${r.accounts} Konten. Im Ordner liegen '
-                      '${r.files} Sicherungen.'
-                      '${r.missing.isEmpty ? '' : '\n\nNoch nicht enthalten: ${r.missing.join(', ')}. „Jetzt sichern“ nimmt sie auf.'}',
+                      '${t.backupVerified(r.file, r.accounts, r.files)}'
+                      '${r.missing.isEmpty ? '' : '\n\n${t.backupMissing(r.missing.join(', '))}'}',
                     ),
                     actions: [
                       TextButton(
@@ -138,16 +125,16 @@ class AutoBackupScreen extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.drive_file_move_outline),
-              title: const Text('Anderen Ordner oder neues Passwort'),
+              title: Text(t.otherFolderOrPassword),
               onTap: () => _setUp(context),
             ),
             ListTile(
               leading: Icon(Icons.block, color: theme.colorScheme.error),
               title: Text(
-                'Ausschalten',
+                t.turnOff,
                 style: TextStyle(color: theme.colorScheme.error),
               ),
-              subtitle: const Text('Vorhandene Dateien bleiben im Ordner'),
+              subtitle: Text(t.turnOffHint),
               onTap: c.disableAutoBackup,
             ),
           ],

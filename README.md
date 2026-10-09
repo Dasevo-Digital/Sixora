@@ -93,6 +93,8 @@ die Prüfsummen aller Dateien.
   Ordner nach Wahl (z. B. iCloud Drive, Nextcloud, USB-Stick), unabhängig
   vom Server; die letzten 14 bleiben. Jede Datei wird nach dem Schreiben
   wieder geöffnet, „Sicherung prüfen“ zeigt, was sie enthält.
+- **Sprachen:** Deutsch, Englisch und Spanisch, nach Systemsprache oder fest
+  in den Einstellungen.
 - **Kontenprüfung:** findet doppelte Konten, zu kurze oder ungültige
   Schlüssel, Konten ohne Namen und ohne Logo.
 - **Offline:** Die Codes funktionieren ohne Verbindung. Nur Änderungen

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/app_controller.dart';
+import '../l10n.dart';
 import '../platform/secure_clipboard.dart';
 
 /// Gives the [AppController] to the widget tree.
@@ -52,7 +53,7 @@ void showMessage(BuildContext context, String text) {
 }
 
 void showError(BuildContext context, Object error) {
-  if (error is UserError && error.message == 'Abgemeldet') return;
+  if (error is UserError && error.message == t.signedOut) return;
   showMessage(context, errorText(error));
 }
 
@@ -71,7 +72,7 @@ Future<bool> confirm(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Abbrechen'),
+          child: Text(t.cancel),
         ),
         FilledButton(
           style: destructive
@@ -94,27 +95,26 @@ Future<bool> confirm(
 Future<String?> askNewBackupPassword(BuildContext context) async {
   final pw = await askText(
     context,
-    title: 'Passwort für die Sicherung',
-    message:
-        'Mindestens 10 Zeichen. Ohne dieses Passwort lässt sich die Sicherung nicht öffnen.',
-    label: 'Passwort',
+    title: t.backupPasswordTitle,
+    message: t.backupPasswordHint,
+    label: t.password,
     password: true,
-    action: 'Weiter',
+    action: t.continueAction,
   );
   if (pw == null || !context.mounted) return null;
   if (pw.length < 10) {
-    showMessage(context, 'Das Passwort braucht mindestens 10 Zeichen');
+    showMessage(context, t.passwordTooShort);
     return null;
   }
   final pw2 = await askText(
     context,
-    title: 'Passwort wiederholen',
-    label: 'Passwort',
+    title: t.repeatPassword,
+    label: t.password,
     password: true,
   );
   if (pw2 == null || !context.mounted) return null;
   if (pw != pw2) {
-    showMessage(context, 'Die Passwörter stimmen nicht überein');
+    showMessage(context, t.passwordsDoNotMatch);
     return null;
   }
   return pw;
@@ -152,7 +152,7 @@ Future<String?> askText(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Abbrechen'),
+          child: Text(t.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, controller.text),
@@ -227,14 +227,14 @@ Widget secretContextMenu(BuildContext context, EditableTextState field) {
     buttonItems: [
       ContextMenuButtonItem(
         type: ContextMenuButtonType.paste,
-        label: 'Einfügen',
+        label: t.paste,
         onPressed: () => field.pasteText(SelectionChangedCause.toolbar),
       ),
       if (value.text.isNotEmpty &&
           value.selection.end - value.selection.start < value.text.length)
         ContextMenuButtonItem(
           type: ContextMenuButtonType.selectAll,
-          label: 'Alles auswählen',
+          label: t.selectAll,
           onPressed: () => field.selectAll(SelectionChangedCause.toolbar),
         ),
     ],
@@ -248,7 +248,7 @@ class PasteButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => IconButton(
-    tooltip: 'Einfügen',
+    tooltip: t.paste,
     icon: const Icon(Icons.content_paste),
     onPressed: () async {
       final text = (await Clipboard.getData(
@@ -256,7 +256,7 @@ class PasteButton extends StatelessWidget {
       ))?.text?.trim();
       if (text == null || text.isEmpty) {
         if (context.mounted) {
-          showMessage(context, 'Die Zwischenablage ist leer');
+          showMessage(context, t.clipboardEmpty);
         }
         return;
       }
@@ -272,7 +272,7 @@ class PasswordField extends StatefulWidget {
   const PasswordField({
     super.key,
     required this.controller,
-    this.label = 'Master-Passwort',
+    this.label,
     this.autofocus = false,
     this.focusNode,
     this.onSubmitted,
@@ -280,7 +280,9 @@ class PasswordField extends StatefulWidget {
     this.helper,
   });
   final TextEditingController controller;
-  final String label;
+
+  /// Defaults to „Master-Passwort“.
+  final String? label;
   final bool autofocus;
   final FocusNode? focusNode;
   final ValueChanged<String>? onSubmitted;
@@ -306,7 +308,7 @@ class _PasswordFieldState extends State<PasswordField> {
     onSubmitted: widget.onSubmitted,
     contextMenuBuilder: secretContextMenu,
     decoration: InputDecoration(
-      labelText: widget.label,
+      labelText: widget.label ?? t.masterPassword,
       helperText: widget.helper,
       helperMaxLines: 3,
       prefixIcon: const Icon(Icons.key_outlined),
@@ -315,7 +317,7 @@ class _PasswordFieldState extends State<PasswordField> {
         children: [
           PasteButton(controller: widget.controller),
           IconButton(
-            tooltip: _visible ? 'Verbergen' : 'Anzeigen',
+            tooltip: _visible ? t.hide : t.show,
             icon: Icon(
               _visible
                   ? Icons.visibility_off_outlined
@@ -346,10 +348,10 @@ IconData biometricIcon(String label) => switch (label) {
   final unique = pw.split('').toSet().length;
   final bits =
       unique * (pool == 0 ? 1 : (pool.bitLength - 1)) + (pw.length - unique);
-  if (bits < 40) return (score: 0.25, label: 'Schwach');
-  if (bits < 60) return (score: 0.5, label: 'Mittel');
-  if (bits < 80) return (score: 0.75, label: 'Gut');
-  return (score: 1, label: 'Sehr gut');
+  if (bits < 40) return (score: 0.25, label: t.strengthWeak);
+  if (bits < 60) return (score: 0.5, label: t.strengthFair);
+  if (bits < 80) return (score: 0.75, label: t.strengthGood);
+  return (score: 1, label: t.strengthVeryGood);
 }
 
 /// Copies [text] and, if wanted, clears the clipboard after 30 s – but only
@@ -369,7 +371,9 @@ Future<void> copySecret(
   if (context.mounted) {
     showMessage(
       context,
-      '${what ?? 'Code'} kopiert${c.settings.clearClipboard ? ' – wird nach 30 s aus der Zwischenablage entfernt' : ''}',
+      c.settings.clearClipboard
+          ? t.copiedClearsSoon(what ?? t.code)
+          : t.copied(what ?? t.code),
     );
   }
   if (clear && !SecureClipboard.expiresBySystem) {

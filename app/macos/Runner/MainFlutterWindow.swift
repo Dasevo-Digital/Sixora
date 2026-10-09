@@ -15,6 +15,7 @@ class MainFlutterWindow: NSWindow {
     registerClipboard(flutterViewController.engine.binaryMessenger)
     BackupFolder.register(flutterViewController.engine.binaryMessenger)
     registerLinkHandler(flutterViewController.engine.binaryMessenger)
+    MenuLanguage.register(flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
   }
@@ -87,8 +88,8 @@ enum BackupFolder {
           panel.canChooseFiles = false
           panel.canCreateDirectories = true
           panel.allowsMultipleSelection = false
-          panel.prompt = "Auswählen"
-          panel.message = "Ordner für die automatische Sicherung"
+          panel.prompt = args["prompt"] as? String ?? "OK"
+          panel.message = args["message"] as? String ?? ""
           guard panel.runModal() == .OK, let url = panel.url else {
             result(nil)
             return
@@ -177,4 +178,159 @@ private func registerLinkHandler(_ messenger: FlutterBinaryMessenger) {
       result(FlutterMethodNotImplemented)
     }
   }
+}
+
+/// The main menu comes from MainMenu.xib in German. When the app runs in
+/// another language (Dart sends it), the titles are swapped; the German
+/// originals stay in a table, so switching back works too.
+enum MenuLanguage {
+  private static var originals: [ObjectIdentifier: String] = [:]
+
+  static func register(_ messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "sixora/menu", binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      if call.method == "setLanguage", let code = call.arguments as? String {
+        apply(code)
+      }
+      result(nil)
+    }
+  }
+
+  private static func apply(_ code: String) {
+    guard let menu = NSApp.mainMenu else { return }
+    let table = code == "en" ? english : code == "es" ? spanish : [:]
+    let app = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Sixora"
+    func walk(_ menu: NSMenu) {
+      for item in menu.items {
+        let id = ObjectIdentifier(item)
+        let original = originals[id] ?? item.title
+        originals[id] = original
+        // Titles with the app name ("Über Sixora") are looked up as "Über %@".
+        let pattern = original.replacingOccurrences(of: app, with: "%@")
+        if let translated = table[pattern] {
+          item.title = translated.replacingOccurrences(of: "%@", with: app)
+        } else {
+          item.title = original
+        }
+        if let sub = item.submenu {
+          let subId = ObjectIdentifier(sub)
+          let subOriginal = originals[subId] ?? sub.title
+          originals[subId] = subOriginal
+          sub.title = table[subOriginal] ?? subOriginal
+          walk(sub)
+        }
+      }
+    }
+    walk(menu)
+  }
+
+  private static let english: [String: String] = [
+    "Über %@": "About %@",
+    "Einstellungen …": "Settings…",
+    "Dienste": "Services",
+    "%@ ausblenden": "Hide %@",
+    "Andere ausblenden": "Hide Others",
+    "Alle einblenden": "Show All",
+    "%@ beenden": "Quit %@",
+    "Bearbeiten": "Edit",
+    "Widerrufen": "Undo",
+    "Wiederholen": "Redo",
+    "Ausschneiden": "Cut",
+    "Kopieren": "Copy",
+    "Einsetzen": "Paste",
+    "Einsetzen und Stil anpassen": "Paste and Match Style",
+    "Löschen": "Delete",
+    "Alles auswählen": "Select All",
+    "Suchen": "Find",
+    "Suchen …": "Find…",
+    "Suchen und ersetzen …": "Find and Replace…",
+    "Weitersuchen": "Find Next",
+    "Rückwärts suchen": "Find Previous",
+    "Auswahl suchen": "Use Selection for Find",
+    "Zur Auswahl springen": "Jump to Selection",
+    "Rechtschreibung und Grammatik": "Spelling and Grammar",
+    "Rechtschreibung": "Spelling",
+    "Rechtschreibung und Grammatik einblenden": "Show Spelling and Grammar",
+    "Dokument jetzt prüfen": "Check Document Now",
+    "Während der Texteingabe prüfen": "Check Spelling While Typing",
+    "Grammatik mit Rechtschreibung prüfen": "Check Grammar With Spelling",
+    "Rechtschreibung automatisch korrigieren": "Correct Spelling Automatically",
+    "Ersetzungen": "Substitutions",
+    "Ersetzungen einblenden": "Show Substitutions",
+    "Intelligentes Kopieren/Einsetzen": "Smart Copy/Paste",
+    "Intelligente Anführungszeichen": "Smart Quotes",
+    "Intelligente Gedankenstriche": "Smart Dashes",
+    "Intelligente Links": "Smart Links",
+    "Datenerkennung": "Data Detectors",
+    "Textersetzung": "Text Replacement",
+    "Umwandlungen": "Transformations",
+    "In Großbuchstaben": "Make Upper Case",
+    "In Kleinbuchstaben": "Make Lower Case",
+    "Großschreibung": "Capitalize",
+    "Sprachausgabe": "Speech",
+    "Sprachausgabe starten": "Start Speaking",
+    "Sprachausgabe stoppen": "Stop Speaking",
+    "Darstellung": "View",
+    "Vollbildmodus aktivieren": "Enter Full Screen",
+    "Fenster": "Window",
+    "Im Dock ablegen": "Minimize",
+    "Zoomen": "Zoom",
+    "Alle nach vorne bringen": "Bring All to Front",
+    "Hilfe": "Help"
+  ]
+
+  private static let spanish: [String: String] = [
+    "Über %@": "Acerca de %@",
+    "Einstellungen …": "Ajustes…",
+    "Dienste": "Servicios",
+    "%@ ausblenden": "Ocultar %@",
+    "Andere ausblenden": "Ocultar otros",
+    "Alle einblenden": "Mostrar todo",
+    "%@ beenden": "Salir de %@",
+    "Bearbeiten": "Edición",
+    "Widerrufen": "Deshacer",
+    "Wiederholen": "Rehacer",
+    "Ausschneiden": "Cortar",
+    "Kopieren": "Copiar",
+    "Einsetzen": "Pegar",
+    "Einsetzen und Stil anpassen": "Pegar y adaptar estilo",
+    "Löschen": "Eliminar",
+    "Alles auswählen": "Seleccionar todo",
+    "Suchen": "Buscar",
+    "Suchen …": "Buscar…",
+    "Suchen und ersetzen …": "Buscar y reemplazar…",
+    "Weitersuchen": "Buscar siguiente",
+    "Rückwärts suchen": "Buscar anterior",
+    "Auswahl suchen": "Usar selección para buscar",
+    "Zur Auswahl springen": "Ir a la selección",
+    "Rechtschreibung und Grammatik": "Ortografía y gramática",
+    "Rechtschreibung": "Ortografía",
+    "Rechtschreibung und Grammatik einblenden": "Mostrar ortografía y gramática",
+    "Dokument jetzt prüfen": "Comprobar documento ahora",
+    "Während der Texteingabe prüfen": "Revisar ortografía mientras se escribe",
+    "Grammatik mit Rechtschreibung prüfen": "Revisar gramática con ortografía",
+    "Rechtschreibung automatisch korrigieren": "Corregir ortografía automáticamente",
+    "Ersetzungen": "Sustituciones",
+    "Ersetzungen einblenden": "Mostrar sustituciones",
+    "Intelligentes Kopieren/Einsetzen": "Copiar/pegar inteligente",
+    "Intelligente Anführungszeichen": "Comillas inteligentes",
+    "Intelligente Gedankenstriche": "Guiones inteligentes",
+    "Intelligente Links": "Enlaces inteligentes",
+    "Datenerkennung": "Detectores de datos",
+    "Textersetzung": "Sustitución de texto",
+    "Umwandlungen": "Transformaciones",
+    "In Großbuchstaben": "Convertir a mayúsculas",
+    "In Kleinbuchstaben": "Convertir a minúsculas",
+    "Großschreibung": "Poner en mayúscula inicial",
+    "Sprachausgabe": "Voz",
+    "Sprachausgabe starten": "Iniciar locución",
+    "Sprachausgabe stoppen": "Detener locución",
+    "Darstellung": "Visualización",
+    "Vollbildmodus aktivieren": "Entrar en pantalla completa",
+    "Fenster": "Ventana",
+    "Im Dock ablegen": "Minimizar",
+    "Zoomen": "Zoom",
+    "Alle nach vorne bringen": "Traer todo al frente",
+    "Hilfe": "Ayuda"
+  ]
 }

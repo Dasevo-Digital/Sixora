@@ -9,8 +9,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../environment.dart';
-import 'biometric_vault.dart';
+import '../l10n.dart';
 import '../platform/backup_folder.dart';
+import 'biometric_vault.dart';
+import 'error_texts.dart';
 import 'local_store.dart';
 import 'secret_store.dart';
 
@@ -79,10 +81,10 @@ class SecurityError extends UserError {
 
 String errorText(Object e) => switch (e) {
   UserError(:final message) => message,
-  ApiException(:final message) => message,
-  CryptoException(:final message) => message,
-  FormatException(:final message) => message,
-  _ => 'Unerwarteter Fehler: $e',
+  ApiException() => apiErrorText(e),
+  CryptoException(:final message) => coreErrorText(message),
+  FormatException(:final message) => coreErrorText(message),
+  _ => t.unexpectedError(e),
 };
 
 /// State of the whole app: account, lock, vaults, entries and sync.
@@ -178,7 +180,7 @@ class AppController extends ChangeNotifier {
   bool get biometricsAvailable => biometrics.available;
 
   /// "Face ID", "Touch ID", "Fingerabdruck", "Windows Hello" …
-  String get biometricLabel => biometrics.kind ?? 'Biometrie';
+  String get biometricLabel => biometrics.kind ?? t.biometrics;
   bool get quickUnlockReady => settings.quickUnlock && biometrics.available;
 
   void _offerBiometrics() {
@@ -228,20 +230,17 @@ class AppController extends ChangeNotifier {
   static Future<(Uri, ServerInfo)> probe(String address) async {
     var text = address.trim();
     if (text.isEmpty) {
-      throw const UserError('Bitte die Server-Adresse eingeben');
+      throw UserError(t.enterServerAddress);
     }
     if (!text.contains('://')) text = 'https://$text';
     final uri = Uri.tryParse(text);
     if (uri == null ||
         uri.host.isEmpty ||
         !{'http', 'https'}.contains(uri.scheme)) {
-      throw const UserError('Ungültige Adresse');
+      throw UserError(t.invalidAddress);
     }
     if (uri.scheme == 'http' && !SixoraApi.isLocalHost(uri.host)) {
-      throw const UserError(
-        'Unverschlüsseltes HTTP ist nur im lokalen Netz erlaubt. '
-        'Bitte https:// verwenden.',
-      );
+      throw UserError(t.httpOnlyLocal);
     }
     final api = SixoraApi(uri);
     try {
@@ -324,7 +323,7 @@ class AppController extends ChangeNotifier {
         aad: 'sixora-user-key|${start.userId}',
       );
     } on CryptoException {
-      throw const UserError('Wiederherstellungsschlüssel passt nicht');
+      throw UserError(t.recoveryKeyMismatch);
     }
     final fresh = await newRecoveryFor(userId: start.userId, userKey: userKey);
     final result = await api.recoverFinish({
@@ -391,7 +390,7 @@ class AppController extends ChangeNotifier {
         salt = null;
       }
       if (salt == null || salt == c.account.salt) {
-        throw const UserError('Master-Passwort ist falsch');
+        throw UserError(t.masterPasswordWrong);
       }
       await login(
         server: c.server,
@@ -429,11 +428,7 @@ class AppController extends ChangeNotifier {
         return result;
       case BiometricResult.invalidated:
         await _forgetBiometrics();
-        throw UserError(
-          'Entsperren mit $biometricLabel ist nicht mehr gültig, z. B. weil '
-          'ein Finger oder Gesicht neu registriert wurde. Bitte mit dem '
-          'Master-Passwort entsperren und es danach neu einrichten.',
-        );
+        throw UserError(t.biometricsInvalidatedEnrolled(biometricLabel));
       case BiometricResult.unlocked:
         break;
     }
@@ -441,10 +436,7 @@ class AppController extends ChangeNotifier {
       _keys = await UnlockedKeys.fromUserKey(cached!.account, userKey!);
     } on CryptoException {
       await _forgetBiometrics();
-      throw UserError(
-        'Entsperren mit $biometricLabel ist nicht mehr gültig. Bitte mit dem '
-        'Master-Passwort entsperren.',
-      );
+      throw UserError(t.biometricsInvalidated(biometricLabel));
     }
     await _afterUnlock();
     return null;
@@ -462,7 +454,7 @@ class AppController extends ChangeNotifier {
         await biometrics.disable();
         await saveSettings();
         throw UserError(
-          '$biometricLabel ließ sich nicht einrichten: ${e.message ?? e.code}',
+          t.biometricsSetupFailed(biometricLabel, e.message ?? e.code),
         );
       }
       if (!ok) {
@@ -615,9 +607,7 @@ class AppController extends ChangeNotifier {
   Future<T> _online<T>(Future<T> Function(SixoraApi api) action) async {
     final api = _api;
     if (api == null || api.token == null) {
-      throw const UserError(
-        'Keine Sitzung. Bitte sperren und mit Passwort entsperren.',
-      );
+      throw UserError(t.noSession);
     }
     try {
       return await action(api);
@@ -625,14 +615,13 @@ class AppController extends ChangeNotifier {
       if (e.unauthorized) {
         await logout(
           notice: e.code == 'disabled'
-              ? 'Dein Konto wurde gesperrt.'
-              : 'Dieses Gerät wurde abgemeldet (Passwort geändert oder Gerät entfernt). '
-                    'Bitte erneut anmelden.',
+              ? t.accountDisabledNotice
+              : t.deviceSignedOutNotice,
         );
-        throw const UserError('Abgemeldet');
+        throw UserError(t.signedOut);
       }
       if (e.offline) {
-        throw UserError('Keine Verbindung zum Server. ${e.message}.');
+        throw UserError(t.noServerConnection(apiErrorText(e)));
       }
       rethrow;
     }
@@ -779,10 +768,7 @@ class AppController extends ChangeNotifier {
         key,
       );
       if (back.length != entries.length) {
-        throw UserError(
-          'Die geschriebene Sicherung enthält ${back.length} statt '
-          '${entries.length} Konten',
-        );
+        throw UserError(t.backupWrittenMismatch(back.length, entries.length));
       }
       final names = [
         for (final n in await BackupFolder.list(folder))
@@ -799,7 +785,7 @@ class AppController extends ChangeNotifier {
         ..backupError = null;
     } on PlatformException catch (e) {
       settings.backupError = e.message ?? e.code;
-      throw UserError('Sicherung fehlgeschlagen: ${settings.backupError}');
+      throw UserError(t.backupFailed(settings.backupError!));
     } on Object catch (e) {
       settings.backupError = errorText(e);
       rethrow;
@@ -816,10 +802,7 @@ class AppController extends ChangeNotifier {
     final c = cached;
     if (stored == null || keys == null || c == null) return null;
     if (stored['account'] != c.account.id) {
-      throw const UserError(
-        'Die Sicherung wurde für ein anderes Konto eingerichtet. '
-        'Bitte neu einrichten.',
-      );
+      throw UserError(t.backupOtherAccount);
     }
     return BackupKey(
       kdf: KdfParams.fromJson((stored['kdf']! as Map).cast()),
@@ -838,9 +821,7 @@ class AppController extends ChangeNotifier {
     final folder = settings.backupFolder;
     final key = await _backupKey();
     if (folder == null || key == null) {
-      throw const UserError(
-        'Die automatische Sicherung ist nicht eingerichtet',
-      );
+      throw UserError(t.backupNotSetUp);
     }
     try {
       final names = [
@@ -848,7 +829,7 @@ class AppController extends ChangeNotifier {
           if (_backupName.hasMatch(n)) n,
       ]..sort();
       if (names.isEmpty) {
-        throw const UserError('Im Ordner liegt keine Sicherung');
+        throw UserError(t.noBackupInFolder);
       }
       final entries = await SixoraBackup.decryptWithKey(
         await BackupFolder.read(folder, names.last),
@@ -865,7 +846,7 @@ class AppController extends ChangeNotifier {
         missing: missing,
       );
     } on PlatformException catch (e) {
-      throw UserError('Sicherung nicht lesbar: ${e.message ?? e.code}');
+      throw UserError(t.backupUnreadable(e.message ?? e.code));
     }
   }
 
@@ -1046,17 +1027,11 @@ class AppController extends ChangeNotifier {
     } on ApiException catch (e) {
       if (e.code == 'key_changed') {
         await sync();
-        throw const UserError(
-          'Der Schlüssel des Tresors wurde gerade erneuert. '
-          'Bitte erneut versuchen.',
-        );
+        throw UserError(t.vaultKeyRenewed);
       }
       if (e.conflict) {
         await sync();
-        throw const UserError(
-          'Der Eintrag wurde inzwischen auf einem anderen Gerät geändert. '
-          'Die aktuelle Fassung ist geladen, bitte erneut versuchen.',
-        );
+        throw UserError(t.entryChangedElsewhere);
       }
       rethrow;
     }
@@ -1075,7 +1050,7 @@ class AppController extends ChangeNotifier {
     }
     final vault = _vaults[vaultId];
     if (vault == null || !vault.canWrite) {
-      throw const UserError('In diesen Tresor darfst du nicht schreiben');
+      throw UserError(t.vaultReadOnly);
     }
     final id = item?.id ?? VaultCrypto.newId();
     final data = await UnlockedKeys.encryptEntry(vault.key, vaultId, id, entry);
@@ -1286,10 +1261,7 @@ class AppController extends ChangeNotifier {
             remote.data,
           );
         } on CryptoException {
-          throw const SecurityError(
-            'Die gespeicherten Schlüssel deiner Kontakte wurden verändert. '
-            'Zur Sicherheit wurde abgebrochen. Bitte den Server prüfen.',
-          );
+          throw SecurityError(t.trustedKeysTampered);
         }
       }
       String? clash;
@@ -1303,17 +1275,13 @@ class AppController extends ChangeNotifier {
       }
 
       for (final e in stored.entries) {
-        add(e.key, e.value, 'einem Kontakt');
+        add(e.key, e.value, t.aContact);
       }
       for (final u in users) {
         if (u.userId != c.account.id) add(u.userId, u.publicKey, u.username);
       }
       if (clash != null) {
-        throw SecurityError(
-          'Der Schlüssel von „$clash“ ist ein anderer als bisher. Ein '
-          'Benutzerschlüssel ändert sich nie, dieser kommt also nicht von '
-          '„$clash“. Zur Sicherheit wurde abgebrochen. Bitte den Server prüfen.',
-        );
+        throw SecurityError(t.memberKeyChanged(clash!));
       }
       c.trustedKeys
         ..clear()
@@ -1354,7 +1322,7 @@ class AppController extends ChangeNotifier {
     try {
       await UnlockedKeys.unlock(a, keys.kek);
     } on CryptoException {
-      throw const UserError('Aktuelles Master-Passwort ist falsch');
+      throw UserError(t.currentMasterPasswordWrong);
     }
     return keys.authKeyB64;
   }
@@ -1391,7 +1359,7 @@ class AppController extends ChangeNotifier {
   Future<void> deleteAccount(String password) async {
     final authKey = await _currentAuthKey(password);
     await _online((api) => api.deleteAccount(authKey));
-    await logout(notice: 'Dein Konto wurde gelöscht.');
+    await logout(notice: t.accountDeletedNotice);
   }
 
   @override

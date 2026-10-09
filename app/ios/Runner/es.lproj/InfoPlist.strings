@@ -1,0 +1,3 @@
+/* Texts of the system permission prompts. */
+"NSCameraUsageDescription" = "Sixora usa la cámara para escanear los códigos QR de cuentas nuevas.";
+"NSFaceIDUsageDescription" = "Sixora se puede desbloquear con Face ID.";

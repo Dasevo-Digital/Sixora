@@ -10,6 +10,7 @@ import 'package:local_auth_darwin/local_auth_darwin.dart';
 import 'package:local_auth_darwin/types/auth_messages_macos.dart';
 
 import '../environment.dart';
+import '../l10n.dart';
 import 'secret_store.dart';
 
 /// Result of a biometric unlock attempt.
@@ -63,8 +64,8 @@ class BiometricVault {
       requireBiometricsPerOperation: true,
       biometricType: AndroidBiometricType.strongBiometricOnly,
       storageNamespace: 'sixora_biometric_${AppEnv.name}',
-      biometricPromptTitle: 'Sixora entsperren',
-      biometricPromptNegativeButton: 'Master-Passwort',
+      biometricPromptTitle: t.unlockSixora,
+      biometricPromptNegativeButton: t.masterPassword,
     ),
   );
 
@@ -93,8 +94,8 @@ class BiometricVault {
         return null;
       }
       return types.contains(BiometricType.fingerprint)
-          ? 'Fingerabdruck'
-          : 'Biometrie';
+          ? t.fingerprint
+          : t.biometrics;
     } on Object {
       return null;
     }
@@ -108,7 +109,7 @@ class BiometricVault {
       // Reading it back shows the system prompt once: proof that it works.
       return await _bound.read(key: _key) == value;
     }
-    if (await _authenticate('Entsperren mit $kind einrichten') !=
+    if (await _authenticate(t.setUpUnlockWith(kind!)) !=
         BiometricResult.unlocked) {
       return false;
     }
@@ -140,7 +141,7 @@ class BiometricVault {
       }
       if (value == null) return (BiometricResult.invalidated, null);
     } else {
-      final result = await _authenticate('Sixora entsperren');
+      final result = await _authenticate(t.unlockSixora);
       if (result != BiometricResult.unlocked) return (result, null);
       value = _secrets['quickKey'];
       if (value == null) return (BiometricResult.invalidated, null);
@@ -151,18 +152,18 @@ class BiometricVault {
   /// The system dialog offers the Sixora master password as fallback, not
   /// the device password: the master password is the key to the vault, the
   /// device password only unlocks the device.
-  static const _messages = [
+  static List<AuthMessages> get _messages => [
     IOSAuthMessages(
-      localizedFallbackTitle: 'Master-Passwort',
-      cancelButton: 'Abbrechen',
+      localizedFallbackTitle: t.masterPassword,
+      cancelButton: t.cancel,
     ),
     MacOSAuthMessages(
-      localizedFallbackTitle: 'Master-Passwort',
-      cancelButton: 'Abbrechen',
+      localizedFallbackTitle: t.masterPassword,
+      cancelButton: t.cancel,
     ),
     AndroidAuthMessages(
-      signInTitle: 'Sixora entsperren',
-      cancelButton: 'Master-Passwort',
+      signInTitle: t.unlockSixora,
+      cancelButton: t.masterPassword,
     ),
   ];
 

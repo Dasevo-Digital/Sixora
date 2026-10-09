@@ -1,0 +1,1129 @@
+{
+  "@@locale": "de",
+  "appTitle": "Sixora",
+  "signedOut": "Abgemeldet",
+  "cancel": "Abbrechen",
+  "backupPasswordTitle": "Passwort für die Sicherung",
+  "backupPasswordHint": "Mindestens 10 Zeichen. Ohne dieses Passwort lässt sich die Sicherung nicht öffnen.",
+  "password": "Passwort",
+  "continueAction": "Weiter",
+  "passwordTooShort": "Das Passwort braucht mindestens 10 Zeichen",
+  "repeatPassword": "Passwort wiederholen",
+  "passwordsDoNotMatch": "Die Passwörter stimmen nicht überein",
+  "paste": "Einfügen",
+  "selectAll": "Alles auswählen",
+  "clipboardEmpty": "Die Zwischenablage ist leer",
+  "hide": "Verbergen",
+  "show": "Anzeigen",
+  "strengthWeak": "Schwach",
+  "strengthFair": "Mittel",
+  "strengthGood": "Gut",
+  "strengthVeryGood": "Sehr gut",
+  "enterSixoraMasterPassword": "Bitte das Sixora-Master-Passwort eingeben.",
+  "signOutQuestion": "Abmelden?",
+  "signOutLocalCopyMessage": "Die lokale Kopie wird von diesem Gerät entfernt. Deine Codes bleiben auf dem Server und auf deinen anderen Geräten erhalten.",
+  "signOut": "Abmelden",
+  "locked": "Gesperrt",
+  "unlock": "Entsperren",
+  "unlockWith": "Mit {method} entsperren",
+  "@unlockWith": {
+    "placeholders": {
+      "method": {
+        "type": "Object"
+      }
+    }
+  },
+  "notAnInviteCode": "Das ist kein Sixora-Einladungscode",
+  "usernameTooShort": "Benutzername: mindestens 3 Zeichen",
+  "masterPasswordTooShort": "Das Master-Passwort braucht mindestens 10 Zeichen",
+  "enterUsernameAndPassword": "Benutzername und Master-Passwort eingeben",
+  "tagline": "Deine Einmal-Codes, Ende-zu-Ende-verschlüsselt auf deinem eigenen Server.",
+  "serverAddressOrInvite": "Server-Adresse oder Einladungslink",
+  "connect": "Verbinden",
+  "scanInviteQr": "Einladungs-QR-Code scannen",
+  "change": "Ändern",
+  "signIn": "Anmelden",
+  "register": "Registrieren",
+  "forgotten": "Vergessen",
+  "newServerFirstAdmin": "Dieser Server ist neu. Das erste Konto wird Administrator.",
+  "username": "Benutzername",
+  "recoveryKey": "Wiederherstellungsschlüssel",
+  "newMasterPassword": "Neues Master-Passwort",
+  "masterPassword": "Master-Passwort",
+  "strengthLabel": "Stärke: {strength}",
+  "@strengthLabel": {
+    "placeholders": {
+      "strength": {
+        "type": "Object"
+      }
+    }
+  },
+  "repeatMasterPassword": "Master-Passwort wiederholen",
+  "inviteCode": "Einladungscode",
+  "masterPasswordNeverLeaves": "Das Master-Passwort verlässt nie dieses Gerät und kann von niemandem zurückgesetzt werden – auch nicht vom Administrator. Nur mit dem Wiederherstellungsschlüssel kommst du ohne Passwort wieder hinein.",
+  "createAccount": "Konto erstellen",
+  "setNewPassword": "Neues Passwort setzen",
+  "generatingKeys": "Schlüssel werden erzeugt …",
+  "keyInvalidShort": "Schlüssel ungültig",
+  "codeHidden": "Code verborgen",
+  "spokenCode": "Code {digits}",
+  "@spokenCode": {
+    "placeholders": {
+      "digits": {
+        "type": "Object"
+      }
+    }
+  },
+  "secondsLeft": "{seconds, plural, =1{noch 1 Sekunde} other{noch {seconds} Sekunden}}",
+  "@secondsLeft": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "showCode": "Code anzeigen",
+  "copyCode": "Code kopieren",
+  "moreActions": "Weitere Aktionen",
+  "nextCodeLabel": "Nächster: {code}",
+  "@nextCodeLabel": {
+    "placeholders": {
+      "code": {
+        "type": "Object"
+      }
+    }
+  },
+  "keyIsInvalid": "Schlüssel ist ungültig",
+  "nextCode": "Nächster Code",
+  "more": "Mehr",
+  "code": "Code",
+  "copied": "{what} kopiert",
+  "@copied": {
+    "placeholders": {
+      "what": {
+        "type": "Object"
+      }
+    }
+  },
+  "copiedClearsSoon": "{what} kopiert – wird nach 30 s aus der Zwischenablage entfernt",
+  "@copiedClearsSoon": {
+    "placeholders": {
+      "what": {
+        "type": "Object"
+      }
+    }
+  },
+  "serverVersion": "Version {version}",
+  "@serverVersion": {
+    "placeholders": {
+      "version": {
+        "type": "Object"
+      }
+    }
+  },
+  "noHttpsWarning": "Ohne HTTPS – nur im eigenen Netz verwenden!",
+  "settings": "Einstellungen",
+  "sectionSecurity": "Sicherheit",
+  "autoLock": "Automatisch sperren",
+  "quickUnlockHardwareHint": "Statt des Master-Passworts. Der Schlüssel ist an die Biometrie dieses Geräts gebunden; wird ein neuer Finger oder ein neues Gesicht registriert, braucht es wieder das Passwort.",
+  "quickUnlockKeychainHint": "Statt des Master-Passworts. Der Schlüssel liegt dafür im Schlüsselbund dieses Geräts.",
+  "hideCodes": "Codes verbergen",
+  "hideCodesHint": "Erst nach Antippen anzeigen",
+  "clearClipboard": "Zwischenablage leeren",
+  "clearClipboardHint": "Kopierte Codes nach 30 Sekunden entfernen",
+  "allowScreenshots": "Bildschirmfotos erlauben",
+  "allowScreenshotsHint": "Sonst sind Screenshots und Bildschirmaufnahmen gesperrt",
+  "changeMasterPassword": "Master-Passwort ändern",
+  "newRecoveryKey": "Neuer Wiederherstellungsschlüssel",
+  "newRecoveryKeyHint": "Der bisherige wird ungültig",
+  "signedInDevices": "Angemeldete Geräte",
+  "trash": "Papierkorb",
+  "trashHint": "Gelöschte Konten der letzten 30 Tage",
+  "activity": "Aktivitäten",
+  "activityHint": "Anmeldungen und Änderungen am Konto",
+  "sectionDesktop": "Schreibtisch",
+  "keepInMenuBar": "In der Menüleiste weiterlaufen",
+  "keepInTray": "Im Infobereich weiterlaufen",
+  "keepInTrayHint": "Beim Schließen des Fensters bleibt Sixora erreichbar. Über das Symbol lassen sich die Codes der Favoriten kopieren oder alle Konten durchsuchen.",
+  "shortcutTitle": "Tastenkürzel {shortcut}",
+  "@shortcutTitle": {
+    "placeholders": {
+      "shortcut": {
+        "type": "Object"
+      }
+    }
+  },
+  "shortcutHint": "Holt Sixora von überall nach vorn, mit dem Cursor in der Suche.",
+  "sectionDisplay": "Anzeige",
+  "showNextCode": "Nächsten Code anzeigen",
+  "showNextCodeHint": "In den letzten 5 Sekunden eines Codes",
+  "appearance": "Erscheinungsbild",
+  "themeSystem": "System",
+  "themeLight": "Hell",
+  "themeDark": "Dunkel",
+  "sectionVaultsData": "Tresore und Daten",
+  "vaultsAndSharing": "Tresore und Teilen",
+  "importAction": "Importieren",
+  "exportAction": "Exportieren",
+  "exportHint": "Verschlüsselte Sicherung, Textdatei oder QR-Codes",
+  "autoBackup": "Automatische Sicherung",
+  "off": "Aus",
+  "errorWith": "Fehler: {error}",
+  "@errorWith": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "backupFolderLast": "{folder} · zuletzt {time}",
+  "@backupFolderLast": {
+    "placeholders": {
+      "folder": {
+        "type": "Object"
+      },
+      "time": {
+        "type": "Object"
+      }
+    }
+  },
+  "accountCheck": "Kontenprüfung",
+  "accountCheckHint": "Doppelte Konten, schwache Schlüssel, fehlende Logos",
+  "sectionServer": "Server",
+  "administration": "Verwaltung",
+  "administrationHint": "Benutzer, Einladungen, Protokoll",
+  "sectionAccount": "Konto",
+  "signOutHint": "Entfernt die lokale Kopie von diesem Gerät",
+  "signOutMessage": "Deine Codes bleiben auf dem Server. Zum erneuten Anmelden brauchst du Benutzername und Master-Passwort.",
+  "deleteAccount": "Konto löschen",
+  "sectionAbout": "Über",
+  "currentPassword": "Aktuelles Passwort",
+  "newPassword": "Neues Passwort",
+  "newPasswordHint": "Mindestens 10 Zeichen. Andere Geräte werden abgemeldet.",
+  "repeatNewPassword": "Neues Passwort wiederholen",
+  "newPasswordTooShort": "Das neue Passwort braucht mindestens 10 Zeichen",
+  "newPasswordsDoNotMatch": "Die neuen Passwörter stimmen nicht überein",
+  "changingPassword": "Passwort wird geändert …",
+  "masterPasswordChanged": "Master-Passwort geändert. Andere Geräte müssen sich neu anmelden.",
+  "newRecoveryKeyConfirm": "Zur Bestätigung das Master-Passwort eingeben. Der bisherige Schlüssel wird ungültig.",
+  "generate": "Erzeugen",
+  "deleteAccountQuestion": "Konto endgültig löschen?",
+  "deleteAccountMessage": "Alle deine Codes und die Tresore, die dir gehören – auch geteilte –, werden auf dem Server gelöscht. Das lässt sich nicht rückgängig machen. Deaktiviere vorher die Zwei-Faktor-Anmeldung bei den Diensten oder exportiere deine Konten.",
+  "confirmMasterPassword": "Master-Passwort bestätigen",
+  "nothingToExport": "Keine Konten zum Exportieren",
+  "encryptedBackup": "Verschlüsselte Sicherung",
+  "encryptedBackupHint": "Mit eigenem Passwort, lässt sich in Sixora importieren",
+  "googleAuthenticatorQr": "QR-Codes für Google Authenticator",
+  "googleAuthenticatorQrHint": "Zum Übertragen in eine andere App",
+  "plainTextFile": "Unverschlüsselte Textdatei",
+  "plainTextFileHint": "otpauth-Links, für andere Apps – nur mit Vorsicht",
+  "encryptingBackup": "Sicherung wird verschlüsselt …",
+  "exportUnencryptedQuestion": "Unverschlüsselt exportieren?",
+  "exportUnencryptedMessage": "Die Datei enthält alle geheimen Schlüssel im Klartext. Wer sie liest, kann deine Codes erzeugen. Nach dem Import sofort löschen.",
+  "saveAs": "Speichern unter",
+  "saved": "Gespeichert",
+  "openOtpauthLinks": "otpauth-Links mit Sixora öffnen",
+  "otpauthLinksOpenSixora": "Links zum Einrichten von Konten öffnen Sixora.",
+  "notChanged": "Nicht geändert: {reason}",
+  "@notChanged": {
+    "placeholders": {
+      "reason": {
+        "type": "Object"
+      }
+    }
+  },
+  "useSixora": "Sixora verwenden",
+  "administrator": "Administrator",
+  "lastSynced": "Zuletzt synchronisiert: {time}",
+  "@lastSynced": {
+    "placeholders": {
+      "time": {
+        "type": "Object"
+      }
+    }
+  },
+  "aboutText": "Codes werden auf deinen Geräten berechnet. Der Server speichert nur verschlüsselte Daten.",
+  "linksOpenOtherApp": "Zurzeit öffnet sie eine andere App.",
+  "linksOpenApp": "Zurzeit öffnet sie „{app}“.",
+  "@linksOpenApp": {
+    "placeholders": {
+      "app": {
+        "type": "Object"
+      }
+    }
+  },
+  "vaultCount": "{count, plural, =1{1 Tresor} other{{count} Tresore}}",
+  "@vaultCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "language": "Sprache",
+  "languageSystem": "System",
+  "offerBiometricsTitle": "Mit {method} entsperren?",
+  "@offerBiometricsTitle": {
+    "placeholders": {
+      "method": {
+        "type": "Object"
+      }
+    }
+  },
+  "offerBiometricsMessage": "Dann reicht zum Entsperren {method} statt des Master-Passworts. Das Passwort brauchst du weiterhin für Kontoänderungen und auf neuen Geräten.",
+  "@offerBiometricsMessage": {
+    "placeholders": {
+      "method": {
+        "type": "Object"
+      }
+    }
+  },
+  "notNow": "Nicht jetzt",
+  "setUp": "Einrichten",
+  "biometricsEnabled": "Sixora lässt sich jetzt mit {method} entsperren",
+  "@biometricsEnabled": {
+    "placeholders": {
+      "method": {
+        "type": "Object"
+      }
+    }
+  },
+  "setUpLaterInSettings": "Lässt sich später unter Einstellungen einrichten",
+  "codeFor": "Code für {name}",
+  "@codeFor": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "scanQrCode": "QR-Code scannen",
+  "withCamera": "Mit der Kamera",
+  "qrFromImage": "QR-Code aus Bild",
+  "qrFromImageHint": "Screenshot oder Foto auswählen",
+  "linkFromClipboard": "Link aus Zwischenablage",
+  "linkFromClipboardHint": "otpauth://… einfügen",
+  "enterManually": "Manuell eingeben",
+  "enterManuallyHint": "Schlüssel abtippen",
+  "importHint": "Google Authenticator, Aegis, 2FAuth, Sixora …",
+  "chooseQrImages": "Bilder mit QR-Codes auswählen",
+  "searchingQr": "QR-Code wird gesucht …",
+  "searchingQrInImages": "QR-Codes in {count} Bildern werden gesucht …",
+  "@searchingQrInImages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noQrInImage": "Kein QR-Code im Bild gefunden",
+  "noQrInImages": "In den Bildern wurde kein QR-Code gefunden",
+  "linkIncomplete": "Link ist unvollständig: {reason}",
+  "@linkIncomplete": {
+    "placeholders": {
+      "reason": {
+        "type": "Object"
+      }
+    }
+  },
+  "notA2faLink": "Das ist kein 2FA-Code (otpauth://…)",
+  "noWritableVault": "Kein Tresor mit Schreibrecht vorhanden",
+  "alreadyThere": "Schon vorhanden",
+  "alreadyThereMessage": "Dieses Konto ist bereits gespeichert. Trotzdem noch einmal anlegen?",
+  "addAnyway": "Anlegen",
+  "edit": "Bearbeiten",
+  "removeFavorite": "Kein Favorit mehr",
+  "makeFavorite": "Als Favorit",
+  "moveToVault": "In anderen Tresor verschieben",
+  "transferQr": "Übertragen (QR-Code)",
+  "delete": "Löschen",
+  "showSecretQuestion": "Geheimen Schlüssel anzeigen?",
+  "showSecretMessage": "Der QR-Code enthält den geheimen Schlüssel. Wer ihn sieht oder fotografiert, kann deine Codes erzeugen.",
+  "deleteEntryQuestion": "„{name}“ löschen?",
+  "@deleteEntryQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "entryDeleted": "„{name}“ gelöscht",
+  "@entryDeleted": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "undo": "Rückgängig",
+  "moveTo": "Verschieben nach",
+  "synchronize": "Synchronisieren",
+  "lock": "Sperren",
+  "add": "Hinzufügen",
+  "all": "Alle",
+  "favorites": "Favoriten",
+  "syncErrorBanner": "{error}\nDie Codes funktionieren trotzdem; Änderungen brauchen eine Verbindung.",
+  "@syncErrorBanner": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "undecryptableEntries": "{count, plural, =1{1 Eintrag lässt sich nicht entschlüsseln.} other{{count} Einträge lassen sich nicht entschlüsseln.}}",
+  "@undecryptableEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noMatches": "Keine Treffer",
+  "noAccountsYet": "Noch keine Konten",
+  "noAccountsHint": "Aktiviere bei einem Dienst die Zwei-Faktor-Anmeldung und scanne den angezeigten QR-Code – oder importiere deine Konten aus einer anderen App.",
+  "addAccount": "Konto hinzufügen",
+  "search": "Suchen",
+  "clear": "Leeren",
+  "signOutDeviceQuestion": "Gerät abmelden?",
+  "signOutDeviceMessage": "„{device}“ verliert sofort den Zugriff. Warst du das nicht, ändere danach auch dein Master-Passwort: Wer sich anmelden konnte, kennt es.",
+  "@signOutDeviceMessage": {
+    "placeholders": {
+      "device": {
+        "type": "Object"
+      }
+    }
+  },
+  "deviceSignedOut": "Gerät abgemeldet",
+  "newSignIn": "Neue Anmeldung: {device}{platform}, {time}",
+  "@newSignIn": {
+    "placeholders": {
+      "device": {
+        "type": "Object"
+      },
+      "platform": {
+        "type": "Object"
+      },
+      "time": {
+        "type": "Object"
+      }
+    }
+  },
+  "thatWasMe": "Das war ich",
+  "deleteEntryMessage": "Der Eintrag verschwindet auf allen Geräten. 30 Tage lang lässt er sich im Papierkorb (Einstellungen) wiederherstellen.",
+  "deleteEntrySharedMessage": "Der Eintrag verschwindet auf allen Geräten und bei allen, mit denen der Tresor geteilt ist. 30 Tage lang lässt er sich im Papierkorb (Einstellungen) wiederherstellen.",
+  "newVault": "Neuer Tresor",
+  "newVaultMessage": "Ein eigener Tresor lässt sich mit anderen Benutzern dieses Servers teilen, z. B. „Team“ oder „Familie“.",
+  "name": "Name",
+  "vaultsExplanation": "Jeder Tresor hat einen eigenen Schlüssel. Beim Teilen wird er mit dem öffentlichen Schlüssel des Empfängers verschlüsselt – der Server sieht die Codes nie.",
+  "personal": "Persönlich",
+  "ownedBy": "von {owner}",
+  "@ownedBy": {
+    "placeholders": {
+      "owner": {
+        "type": "Object"
+      }
+    }
+  },
+  "roleOwner": "Eigentümer",
+  "roleWrite": "Lesen und Schreiben",
+  "roleRead": "Nur lesen",
+  "accountCount": "{count, plural, =1{1 Konto} other{{count} Konten}}",
+  "@accountCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "memberCount": "{count, plural, =1{1 Mitglied} other{{count} Mitglieder}}",
+  "@memberCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shareWith": "Teilen mit",
+  "thatIsYou": "Das bist du selbst",
+  "shareWithUser": "Mit {user} teilen",
+  "@shareWithUser": {
+    "placeholders": {
+      "user": {
+        "type": "Object"
+      }
+    }
+  },
+  "compareFingerprint": "Vergleicht zur Sicherheit den Schlüssel-Fingerabdruck, z. B. am Telefon. Er steht bei der anderen Person unter „Tresore und Teilen“. Stimmt er nicht, nicht teilen.",
+  "fingerprintOf": "Fingerabdruck von {user}:",
+  "@fingerprintOf": {
+    "placeholders": {
+      "user": {
+        "type": "Object"
+      }
+    }
+  },
+  "roleReadHint": "Codes sehen und kopieren",
+  "roleWriteHint": "Auch Konten hinzufügen, ändern und löschen",
+  "share": "Teilen",
+  "vaultGone": "Tresor nicht mehr verfügbar",
+  "rename": "Umbenennen",
+  "personalVaultNotShared": "Dein persönlicher Tresor kann nicht geteilt werden.",
+  "personalVaultNotSharedHint": "Lege für gemeinsame Konten einen eigenen Tresor an und verschiebe sie dorthin.",
+  "yourFingerprint": "Dein Schlüssel-Fingerabdruck",
+  "members": "Mitglieder",
+  "memberYou": "{user} (du)",
+  "@memberYou": {
+    "placeholders": {
+      "user": {
+        "type": "Object"
+      }
+    }
+  },
+  "remove": "Entfernen",
+  "removeMemberQuestion": "{user} entfernen?",
+  "@removeMemberQuestion": {
+    "placeholders": {
+      "user": {
+        "type": "Object"
+      }
+    }
+  },
+  "removeMemberMessage": "{user} verliert den Zugriff auf diesen Tresor. Sixora erneuert danach den Schlüssel des Tresors, damit der alte nichts mehr öffnet. Schlüssel von Konten, die {user} schon gesehen hat, bleiben aber bekannt – bei Bedarf beim Dienst neu einrichten.",
+  "@removeMemberMessage": {
+    "placeholders": {
+      "user": {
+        "type": "Object"
+      }
+    }
+  },
+  "deleteVault": "Tresor löschen",
+  "deleteVaultHint": "Mit allen Konten darin, für alle Mitglieder",
+  "deleteVaultQuestion": "„{name}“ löschen?",
+  "@deleteVaultQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "deleteVaultMessage": "Alle Konten in diesem Tresor werden für alle Mitglieder gelöscht.",
+  "leaveVault": "Tresor verlassen",
+  "leaveVaultQuestion": "„{name}“ verlassen?",
+  "@leaveVaultQuestion": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "leaveVaultMessage": "Du siehst die Konten darin nicht mehr, bis du erneut eingeladen wirst.",
+  "leave": "Verlassen",
+  "editAccount": "Konto bearbeiten",
+  "save": "Speichern",
+  "newAccount": "Neues Konto",
+  "enterKey": "Schlüssel eingeben …",
+  "service": "Dienst",
+  "serviceExample": "z. B. GitHub",
+  "accountName": "Konto",
+  "accountExample": "z. B. name@example.org",
+  "secretKey": "Geheimer Schlüssel",
+  "secretKeyHint": "Base32, Leerzeichen sind egal",
+  "groupOptional": "Gruppe (optional)",
+  "groupExample": "z. B. Arbeit",
+  "chooseGroup": "Vorhandene Gruppe wählen",
+  "vault": "Tresor",
+  "favorite": "Favorit",
+  "favoriteHint": "Steht oben in der Liste",
+  "icon": "Symbol",
+  "initialLetter": "Anfangsbuchstabe",
+  "iconAutomatic": "{name} (automatisch)",
+  "@iconAutomatic": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "initialLetterNoLogo": "Anfangsbuchstabe (kein passendes Logo gefunden)",
+  "unknown": "Unbekannt",
+  "color": "Farbe",
+  "colorAuto": "Auto",
+  "notesOptional": "Notizen (optional)",
+  "advanced": "Erweitert",
+  "timeBased": "Zeitbasiert",
+  "counter": "Zähler",
+  "algorithm": "Algorithmus",
+  "digits": "Stellen",
+  "periodSeconds": "Intervall (s)",
+  "chooseIcon": "Symbol wählen",
+  "searchServiceExample": "Dienst suchen, z. B. Google",
+  "automatic": "Automatisch",
+  "letter": "Buchstabe",
+  "noLogoFound": "Kein Logo gefunden",
+  "logosCredit": "Logos: Simple Icons {version}. Die Marken gehören ihren Inhabern.",
+  "@logosCredit": {
+    "placeholders": {
+      "version": {
+        "type": "Object"
+      }
+    }
+  },
+  "digitsCount": "{count} Stellen",
+  "@digitsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "unexpectedError": "Unerwarteter Fehler: {error}",
+  "@unexpectedError": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "biometrics": "Biometrie",
+  "enterServerAddress": "Bitte die Server-Adresse eingeben",
+  "invalidAddress": "Ungültige Adresse",
+  "httpOnlyLocal": "Unverschlüsseltes HTTP ist nur im lokalen Netz erlaubt. Bitte https:// verwenden.",
+  "recoveryKeyMismatch": "Wiederherstellungsschlüssel passt nicht",
+  "masterPasswordWrong": "Master-Passwort ist falsch",
+  "biometricsInvalidatedEnrolled": "Entsperren mit {method} ist nicht mehr gültig, z. B. weil ein Finger oder Gesicht neu registriert wurde. Bitte mit dem Master-Passwort entsperren und es danach neu einrichten.",
+  "@biometricsInvalidatedEnrolled": {
+    "placeholders": {
+      "method": {
+        "type": "Object"
+      }
+    }
+  },
+  "biometricsInvalidated": "Entsperren mit {method} ist nicht mehr gültig. Bitte mit dem Master-Passwort entsperren.",
+  "@biometricsInvalidated": {
+    "placeholders": {
+      "method": {
+        "type": "Object"
+      }
+    }
+  },
+  "biometricsSetupFailed": "{method} ließ sich nicht einrichten: {reason}",
+  "@biometricsSetupFailed": {
+    "placeholders": {
+      "method": {
+        "type": "Object"
+      },
+      "reason": {
+        "type": "Object"
+      }
+    }
+  },
+  "noSession": "Keine Sitzung. Bitte sperren und mit Passwort entsperren.",
+  "accountDisabledNotice": "Dein Konto wurde gesperrt.",
+  "deviceSignedOutNotice": "Dieses Gerät wurde abgemeldet (Passwort geändert oder Gerät entfernt). Bitte erneut anmelden.",
+  "noServerConnection": "Keine Verbindung zum Server. {reason}.",
+  "@noServerConnection": {
+    "placeholders": {
+      "reason": {
+        "type": "Object"
+      }
+    }
+  },
+  "backupWrittenMismatch": "Die geschriebene Sicherung enthält {found} statt {expected} Konten",
+  "@backupWrittenMismatch": {
+    "placeholders": {
+      "found": {
+        "type": "Object"
+      },
+      "expected": {
+        "type": "Object"
+      }
+    }
+  },
+  "backupFailed": "Sicherung fehlgeschlagen: {reason}",
+  "@backupFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "Object"
+      }
+    }
+  },
+  "backupOtherAccount": "Die Sicherung wurde für ein anderes Konto eingerichtet. Bitte neu einrichten.",
+  "backupNotSetUp": "Die automatische Sicherung ist nicht eingerichtet",
+  "noBackupInFolder": "Im Ordner liegt keine Sicherung",
+  "backupUnreadable": "Sicherung nicht lesbar: {reason}",
+  "@backupUnreadable": {
+    "placeholders": {
+      "reason": {
+        "type": "Object"
+      }
+    }
+  },
+  "vaultKeyRenewed": "Der Schlüssel des Tresors wurde gerade erneuert. Bitte erneut versuchen.",
+  "entryChangedElsewhere": "Der Eintrag wurde inzwischen auf einem anderen Gerät geändert. Die aktuelle Fassung ist geladen, bitte erneut versuchen.",
+  "vaultReadOnly": "In diesen Tresor darfst du nicht schreiben",
+  "trustedKeysTampered": "Die gespeicherten Schlüssel deiner Kontakte wurden verändert. Zur Sicherheit wurde abgebrochen. Bitte den Server prüfen.",
+  "aContact": "einem Kontakt",
+  "memberKeyChanged": "Der Schlüssel von „{user}“ ist ein anderer als bisher. Ein Benutzerschlüssel ändert sich nie, dieser kommt also nicht von „{user}“. Zur Sicherheit wurde abgebrochen. Bitte den Server prüfen.",
+  "@memberKeyChanged": {
+    "placeholders": {
+      "user": {
+        "type": "Object"
+      }
+    }
+  },
+  "currentMasterPasswordWrong": "Aktuelles Master-Passwort ist falsch",
+  "accountDeletedNotice": "Dein Konto wurde gelöscht.",
+  "unlockSixora": "Sixora entsperren",
+  "fingerprint": "Fingerabdruck",
+  "setUpUnlockWith": "Entsperren mit {method} einrichten",
+  "@setUpUnlockWith": {
+    "placeholders": {
+      "method": {
+        "type": "Object"
+      }
+    }
+  },
+  "autoLockImmediately": "Sofort beim Verlassen",
+  "autoLockMinutes": "{minutes, plural, =1{Nach 1 Minute} other{Nach {minutes} Minuten}}",
+  "@autoLockMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "autoLockOneHour": "Nach 1 Stunde",
+  "autoLockNever": "Nie",
+  "users": "Benutzer",
+  "invites": "Einladungen",
+  "log": "Protokoll",
+  "adminCannotSee": "Als Administrator siehst du keine Codes anderer Benutzer und kannst keine Passwörter zurücksetzen – das verhindert die Verschlüsselung.",
+  "since": "seit {date}",
+  "@since": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "deleteUserQuestion": "{user} löschen?",
+  "@deleteUserQuestion": {
+    "placeholders": {
+      "user": {
+        "type": "Object"
+      }
+    }
+  },
+  "deleteUserMessage": "Das Konto, alle seine Codes und die Tresore, die ihm gehören, werden endgültig gelöscht.",
+  "revokeAdmin": "Administrator entziehen",
+  "makeAdmin": "Zum Administrator machen",
+  "unblock": "Entsperren",
+  "block": "Sperren",
+  "createInvite": "Einladung erstellen",
+  "createInviteHint": "Einmal verwendbar, 7 Tage gültig",
+  "inviteFor": "Für wen? (optional)",
+  "create": "Erstellen",
+  "invite": "Einladung",
+  "inviteInstructions": "In der Sixora-App bei „Einladungs-QR-Code scannen“ scannen oder den Link schicken: Server-Adresse und Code sind dann schon eingetragen. Gültig bis {date}, nur einmal verwendbar. Code und Link werden nur jetzt angezeigt.",
+  "@inviteInstructions": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "copyLink": "Link kopieren",
+  "done": "Fertig",
+  "noOpenInvites": "Keine offenen Einladungen",
+  "inviteDates": "Erstellt {created} · gültig bis {expires}",
+  "@inviteDates": {
+    "placeholders": {
+      "created": {
+        "type": "Object"
+      },
+      "expires": {
+        "type": "Object"
+      }
+    }
+  },
+  "withdraw": "Zurückziehen",
+  "chooseExportFilesOrImages": "Export-Dateien oder Bilder auswählen",
+  "nothingNew": "Nichts Neues gefunden",
+  "backupPassword": "Passwort der Sicherung",
+  "decrypt": "Entschlüsseln",
+  "accountsImported": "{count, plural, =1{1 Konto importiert} other{{count} Konten importiert}}",
+  "@accountsImported": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "supported": "Unterstützt werden:",
+  "supportedFormats": "• Google Authenticator: „Konten übertragen“ → QR-Codes scannen oder Screenshots wählen (alle auf einmal, bei mehreren Codes)\n• Aegis: Export als unverschlüsseltes JSON\n• 2FAuth: Export als JSON\n• Sixora: verschlüsselte Sicherung\n• Alles mit otpauth://-Links, z. B. Exporte von Bitwarden, Ente Auth, andOTP oder Textdateien",
+  "microsoftNoExport": "Microsoft Authenticator bietet keinen Export. Dort jedes Konto beim Dienst neu einrichten oder den QR-Code erneut anzeigen lassen.",
+  "chooseFilesOrImages": "Dateien oder Bilder auswählen",
+  "missingTransferCodes": "Es fehlen noch Code {codes}.",
+  "@missingTransferCodes": {
+    "placeholders": {
+      "codes": {
+        "type": "Object"
+      }
+    }
+  },
+  "missingTransferCodesHint": "Google Authenticator verteilt die Konten auf mehrere QR-Codes. Die fehlenden bitte ebenfalls hinzufügen.",
+  "addMoreFiles": "Weitere Bilder oder Dateien hinzufügen",
+  "alreadyPresent": "schon vorhanden",
+  "groupForUngrouped": "Gruppe für Konten ohne Gruppe",
+  "progressOf": "{done} von {total}",
+  "@progressOf": {
+    "placeholders": {
+      "done": {
+        "type": "Object"
+      },
+      "total": {
+        "type": "Object"
+      }
+    }
+  },
+  "importAccounts": "{count, plural, =1{1 Konto importieren} other{{count} Konten importieren}}",
+  "@importAccounts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tryAgain": "Erneut versuchen",
+  "signedInDevicesHint": "Ein abgemeldetes Gerät verliert sofort den Zugriff auf den Server und löscht beim nächsten Kontakt seine lokale Kopie.",
+  "thisDevice": "{device} (dieses Gerät)",
+  "@thisDevice": {
+    "placeholders": {
+      "device": {
+        "type": "Object"
+      }
+    }
+  },
+  "sessionDates": "Angemeldet {created} · zuletzt aktiv {lastSeen}",
+  "@sessionDates": {
+    "placeholders": {
+      "created": {
+        "type": "Object"
+      },
+      "lastSeen": {
+        "type": "Object"
+      }
+    }
+  },
+  "signOutDeviceNamed": "„{device}“ abmelden?",
+  "@signOutDeviceNamed": {
+    "placeholders": {
+      "device": {
+        "type": "Object"
+      }
+    }
+  },
+  "signOutDeviceHint": "Das Gerät muss sich danach neu anmelden.",
+  "eventRegister": "Konto erstellt",
+  "eventLogin": "Anmeldung",
+  "eventLoginFailed": "Fehlgeschlagene Anmeldung",
+  "eventReauthFailed": "Falsches Passwort bei Kontoänderung",
+  "eventLogout": "Abmeldung",
+  "eventPasswordChanged": "Master-Passwort geändert",
+  "eventRecoveryUsed": "Wiederherstellungsschlüssel benutzt",
+  "eventRecoveryFailed": "Falscher Wiederherstellungsschlüssel",
+  "eventRecoveryKeyChanged": "Neuer Wiederherstellungsschlüssel",
+  "eventSessionRevoked": "Gerät abgemeldet",
+  "eventAccountDeleted": "Konto gelöscht",
+  "eventVaultShared": "Tresor geteilt",
+  "eventVaultUnshared": "Mitglied entfernt",
+  "eventVaultLeft": "Tresor verlassen",
+  "eventVaultDeleted": "Tresor gelöscht",
+  "eventInviteCreated": "Einladung erstellt",
+  "eventInviteDeleted": "Einladung gelöscht",
+  "eventUserUpdated": "Benutzer geändert",
+  "eventUserDeleted": "Benutzer gelöscht",
+  "noEntries": "Keine Einträge",
+  "accountsFound": "{count, plural, =1{1 Konto aus {source} gefunden} other{{count} Konten aus {source} gefunden}}",
+  "@accountsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "source": {
+        "type": "Object"
+      }
+    }
+  },
+  "notReadable": ", {count} nicht lesbar",
+  "@notReadable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "existingDeselected": "Bereits vorhandene sind abgewählt.",
+  "blocked": "gesperrt",
+  "eventVaultKeyRotated": "Tresorschlüssel erneuert",
+  "writingFirstBackup": "Erste Sicherung wird geschrieben …",
+  "autoBackupExplanation": "Sixora schreibt nach Änderungen eine verschlüsselte Sicherung aller Konten in einen Ordner deiner Wahl, zum Beispiel in die iCloud, in Nextcloud oder auf einen USB-Stick. So bleibt eine Kopie, auch wenn Server oder Konto verloren gehen.\n\nPro Tag entsteht eine Datei, die letzten 14 bleiben. Geschrieben wird nur, solange Sixora entsperrt ist. Öffnen lässt sich eine Sicherung mit ihrem Passwort über „Importieren“, auch in einem neuen Konto.",
+  "chooseFolderAndSetUp": "Ordner wählen und einrichten",
+  "folder": "Ordner",
+  "lastBackup": "Letzte Sicherung",
+  "lastBackupFailed": "Letzte Sicherung fehlgeschlagen",
+  "backupErrorDetail": "{error}\nZuletzt erfolgreich: {date}",
+  "@backupErrorDetail": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      },
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "backUpNow": "Jetzt sichern",
+  "backupWritten": "Sicherung geschrieben",
+  "verifyBackup": "Sicherung prüfen",
+  "verifyBackupHint": "Öffnet die neueste Datei wie beim Zurückspielen",
+  "backupOk": "Sicherung in Ordnung",
+  "backupNotCurrent": "Sicherung lesbar, aber nicht aktuell",
+  "otherFolderOrPassword": "Anderen Ordner oder neues Passwort",
+  "turnOff": "Ausschalten",
+  "turnOffHint": "Vorhandene Dateien bleiben im Ordner",
+  "saveRecoveryKey": "Wiederherstellungsschlüssel speichern",
+  "newRecoveryKeyShown": "Dein neuer Wiederherstellungsschlüssel. Der alte gilt nicht mehr.",
+  "writeDownKey": "Schreib dir diesen Schlüssel jetzt auf.",
+  "recoveryKeyExplanation": "Vergisst du dein Master-Passwort, ist er der einzige Weg zurück an deine Codes. Er wird nur dieses eine Mal angezeigt.",
+  "copy": "Kopieren",
+  "copiedRemoveAfterPaste": "Kopiert – bitte nach dem Einfügen aus der Zwischenablage entfernen",
+  "saveAsFile": "Als Datei speichern",
+  "keyStoredSafely": "Ich habe den Schlüssel sicher aufbewahrt.",
+  "trashEmpty": "Der Papierkorb ist leer",
+  "trashExplanation": "Gelöschte Konten bleiben 30 Tage verschlüsselt auf dem Server und lassen sich bis dahin wiederherstellen.",
+  "deletedOn": "gelöscht {date}",
+  "@deletedOn": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "restore": "Wiederherstellen",
+  "restored": "„{name}“ wiederhergestellt",
+  "@restored": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "deleteForGood": "Endgültig löschen",
+  "deleteForGoodQuestion": "Endgültig löschen?",
+  "deleteForGoodMessage": "„{name}“ lässt sich danach nicht mehr wiederherstellen.",
+  "@deleteForGoodMessage": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "transferAccounts": "Konten übertragen",
+  "noneTransferable": "Keines der Konten lässt sich so übertragen.",
+  "previousCode": "Vorheriger Code",
+  "codeOfTotal": "Code {page} von {total}",
+  "@codeOfTotal": {
+    "placeholders": {
+      "page": {
+        "type": "Object"
+      },
+      "total": {
+        "type": "Object"
+      }
+    }
+  },
+  "scanInOtherApp": "In der anderen App „QR-Code scannen“ wählen.",
+  "scanInGoogleAuthenticator": "In Google Authenticator „Konten importieren“ wählen und die Codes nacheinander scannen. Andere Apps wie Aegis lesen dieses Format ebenfalls.",
+  "skippedTransfer": "{count, plural, =1{1 Konto (Steam oder ungewöhnliches Intervall) ist nicht enthalten – bitte einzeln übertragen.} other{{count} Konten (Steam oder ungewöhnliche Intervalle) sind nicht enthalten – bitte einzeln übertragen.}}",
+  "@skippedTransfer": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "switchCamera": "Kamera wechseln",
+  "noCameraAccess": "Kein Zugriff auf die Kamera. Bitte in den Systemeinstellungen erlauben.",
+  "cameraUnavailable": "Kamera nicht verfügbar: {reason}",
+  "@cameraUnavailable": {
+    "placeholders": {
+      "reason": {
+        "type": "Object"
+      }
+    }
+  },
+  "codesCaptured": "{count} von {total} Codes erfasst",
+  "@codesCaptured": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      },
+      "total": {
+        "type": "Object"
+      }
+    }
+  },
+  "nextInGoogleAuthenticator": "In Google Authenticator zum nächsten Code blättern.",
+  "continueWithCaptured": "Mit den erfassten weiter",
+  "scanHint": "Halte die Kamera auf den QR-Code, den der Dienst bei der Einrichtung der Zwei-Faktor-Anmeldung anzeigt.",
+  "shortcutCtrlAltO": "Strg+Alt+O",
+  "openSixora": "Sixora öffnen",
+  "searchWithShortcut": "Suchen … ({shortcut})",
+  "@searchWithShortcut": {
+    "placeholders": {
+      "shortcut": {
+        "type": "Object"
+      }
+    }
+  },
+  "favoritesHint": "Favoriten: Stern bei einem Konto setzen",
+  "unlockEllipsis": "Entsperren …",
+  "quitSixora": "Sixora beenden",
+  "imageNotOpenable": "Das Bild lässt sich nicht öffnen. Bitte als PNG oder JPEG speichern (z. B. einen Screenshot statt eines HEIC-Fotos).",
+  "codeListOfSize": "{list} von {size}",
+  "@codeListOfSize": {
+    "placeholders": {
+      "list": {
+        "type": "Object"
+      },
+      "size": {
+        "type": "Object"
+      }
+    }
+  },
+  "autoBackupFolder": "Ordner für die automatische Sicherung",
+  "listAnd": "{first} und {last}",
+  "@listAnd": {
+    "placeholders": {
+      "first": {
+        "type": "Object"
+      },
+      "last": {
+        "type": "Object"
+      }
+    }
+  },
+  "backupVerified": "{file} lässt sich mit dem Passwort öffnen und enthält {accounts} Konten. Im Ordner liegen {files} Sicherungen.",
+  "@backupVerified": {
+    "placeholders": {
+      "file": {
+        "type": "Object"
+      },
+      "accounts": {
+        "type": "int"
+      },
+      "files": {
+        "type": "int"
+      }
+    }
+  },
+  "backupMissing": "Noch nicht enthalten: {names}. „Jetzt sichern“ nimmt sie auf.",
+  "@backupMissing": {
+    "placeholders": {
+      "names": {
+        "type": "Object"
+      }
+    }
+  },
+  "recoveryKeyFile": "Sixora – Wiederherstellungsschlüssel\n\nBenutzer: {user}\nErstellt: {date}\n\n{key}\n\nDamit lässt sich ein neues Master-Passwort setzen. Sicher aufbewahren (z. B. ausgedruckt oder im Passwort-Manager) und niemandem zeigen.\n",
+  "@recoveryKeyFile": {
+    "placeholders": {
+      "user": {
+        "type": "Object"
+      },
+      "date": {
+        "type": "Object"
+      },
+      "key": {
+        "type": "Object"
+      }
+    }
+  },
+  "checkDuplicate": "Doppelt gespeichert",
+  "checkDuplicateHint": "Gleicher Schlüssel, gleiche Codes. Eine Kopie genügt; die andere kann in den Papierkorb.",
+  "checkWeak": "Kurzer Schlüssel",
+  "checkWeakHint": "Unter 80 Bit. Einen neuen Schlüssel kann nur der Dienst ausstellen: die Zwei-Faktor-Anmeldung dort neu einrichten.",
+  "checkInvalid": "Ungültiger Schlüssel",
+  "checkInvalidHint": "Daraus lässt sich kein Code berechnen. Bitte den Schlüssel prüfen.",
+  "checkUnnamed": "Ohne Namen",
+  "checkUnnamedHint": "Weder Dienst noch Konto: schwer zu erkennen.",
+  "withoutLogo": "Ohne Logo",
+  "withoutLogoHint": "Kein passendes Logo gefunden. Im Editor lässt sich eines auswählen oder der Buchstabe festlegen.",
+  "allGood": "{count, plural, =1{Alles in Ordnung: 1 Konto geprüft} other{Alles in Ordnung: {count} Konten geprüft}}",
+  "@allGood": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errOffline": "Server nicht erreichbar",
+  "errDns": "Adresse „{host}“ nicht gefunden (DNS). Stimmt die Adresse? Nach einer Änderung kann es bis zu einer Stunde dauern.",
+  "@errDns": {
+    "placeholders": {
+      "host": {
+        "type": "Object"
+      }
+    }
+  },
+  "errTls": "Sichere Verbindung fehlgeschlagen (Zertifikat prüfen)",
+  "errBadRequest": "Ungültige Anfrage",
+  "errConflict": "Die Daten wurden inzwischen geändert. Bitte erneut versuchen.",
+  "errDisabled": "Konto ist gesperrt",
+  "errForbidden": "Das darf nur der Eigentümer bzw. ein Administrator",
+  "errInvalidCredentials": "Benutzername oder Passwort ist falsch",
+  "errInvalidInvite": "Einladungscode ist ungültig oder abgelaufen",
+  "errInvalidUsername": "Benutzername: 3–64 Zeichen, Buchstaben, Ziffern und . _ @ + -",
+  "errLastAdmin": "Der letzte Administrator kann nicht entfernt werden. Bitte zuerst einen anderen Benutzer zum Administrator machen.",
+  "errLimit": "Zu viele Einträge",
+  "errNotFound": "Nicht gefunden",
+  "errOwnerCannotLeave": "Der Eigentümer kann den Tresor nicht verlassen, nur löschen",
+  "errPersonalVault": "Der persönliche Tresor kann weder geteilt noch gelöscht werden",
+  "errRateLimited": "Zu viele Versuche. Bitte später erneut versuchen.",
+  "errRegistrationClosed": "Registrierung ist geschlossen",
+  "errSelf": "Das geht nicht mit dem eigenen Konto",
+  "errTooLarge": "Anfrage ist zu groß",
+  "errUnauthorized": "Sitzung ist abgelaufen",
+  "errUsernameTaken": "Benutzername ist vergeben",
+  "errUnexpectedResponse": "Unerwartete Antwort (Fehler {status}) – ist das ein Sixora-Server?",
+  "@errUnexpectedResponse": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "errServiceOrAccount": "Dienst oder Konto angeben",
+  "errBackupOtherPassword": "Diese Sicherung wurde mit einem anderen Passwort erstellt",
+  "errDecryptionFailed": "Entschlüsselung fehlgeschlagen",
+  "errExportDamaged": "Export-Daten sind beschädigt",
+  "errPeriodRange": "Intervall muss zwischen 5 und 600 s liegen",
+  "errNotGoogleExport": "Kein Google-Authenticator-Export",
+  "errNotOtpauth": "Kein otpauth-Link",
+  "errNoAccountsInFile": "Keine Konten in der Datei gefunden",
+  "errEmptyKey": "Leerer Schlüssel",
+  "errBackupPasswordWrong": "Passwort der Sicherung ist falsch",
+  "errKeyMissing": "Schlüssel fehlt",
+  "errKeyTooShort": "Schlüssel ist zu kurz",
+  "errDigitsRange": "Stellen müssen zwischen 4 und 10 liegen",
+  "errTypeUnsupported": "Typ nicht unterstützt",
+  "errUnknownFormat": "Unbekanntes Format",
+  "errUnknownBackupFormat": "Unbekanntes Sicherungsformat",
+  "errInvalidKeyCharacter": "Ungültiges Zeichen im Schlüssel",
+  "errInvalidKeyParameters": "Unzulässige Schlüsselparameter",
+  "errRecoveryKeyInvalid": "Wiederherstellungsschlüssel ist ungültig",
+  "errCounterNegative": "Zähler ist negativ",
+  "errAegisEncrypted": "Verschlüsselte Aegis-Sicherung: bitte in Aegis unverschlüsselt exportieren",
+  "choose": "Auswählen"
+}

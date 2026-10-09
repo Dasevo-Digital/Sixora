@@ -8,11 +8,12 @@ import 'package:sixora_core/sixora_core.dart';
 
 import '../data/biometric_vault.dart';
 import '../data/local_store.dart';
-import '../widgets/common.dart';
+import '../l10n.dart';
 import '../platform/desktop_shell.dart';
 import '../platform/link_inbox.dart';
-import 'account_screens.dart';
+import '../widgets/common.dart';
 import 'account_check_screen.dart';
+import 'account_screens.dart';
 import 'admin_screen.dart';
 import 'auto_backup_screen.dart';
 import 'entry_qr_screen.dart';
@@ -33,7 +34,7 @@ class SettingsScreen extends StatelessWidget {
     final s = c.settings;
     final account = c.account!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Einstellungen')),
+      appBar: AppBar(title: Text(t.settings)),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
@@ -46,21 +47,21 @@ class SettingsScreen extends StatelessWidget {
                 title: Text(account.username),
                 subtitle: Text(
                   '${c.cached!.serverName} · ${c.cached!.server.host}'
-                  '${account.isAdmin ? ' · Administrator' : ''}\n'
-                  'Zuletzt synchronisiert: ${formatDate(c.cached!.lastSync)}',
+                  '${account.isAdmin ? ' · ${t.administrator}' : ''}\n'
+                  '${t.lastSynced(formatDate(c.cached!.lastSync))}',
                 ),
                 isThreeLine: true,
               ),
-              const SectionTitle('Sicherheit'),
+              SectionTitle(t.sectionSecurity),
               ListTile(
                 leading: const Icon(Icons.timer_outlined),
-                title: const Text('Automatisch sperren'),
+                title: Text(t.autoLock),
                 subtitle: Text(s.autoLock.label),
                 onTap: () async {
                   final value = await showDialog<AutoLock>(
                     context: context,
                     builder: (context) => SimpleDialog(
-                      title: const Text('Automatisch sperren'),
+                      title: Text(t.autoLock),
                       children: [
                         RadioGroup<AutoLock>(
                           groupValue: s.autoLock,
@@ -87,15 +88,11 @@ class SettingsScreen extends StatelessWidget {
               if (c.biometricsAvailable)
                 SwitchListTile(
                   secondary: Icon(biometricIcon(c.biometricLabel)),
-                  title: Text('Mit ${c.biometricLabel} entsperren'),
+                  title: Text(t.unlockWith(c.biometricLabel)),
                   subtitle: Text(
                     BiometricVault.hardwareBound
-                        ? 'Statt des Master-Passworts. Der Schlüssel ist an die '
-                              'Biometrie dieses Geräts gebunden; wird ein neuer Finger '
-                              'oder ein neues Gesicht registriert, braucht es wieder das '
-                              'Passwort.'
-                        : 'Statt des Master-Passworts. Der Schlüssel liegt dafür im '
-                              'Schlüsselbund dieses Geräts.',
+                        ? t.quickUnlockHardwareHint
+                        : t.quickUnlockKeychainHint,
                   ),
                   value: c.quickUnlockReady,
                   onChanged: (v) async {
@@ -108,8 +105,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
               SwitchListTile(
                 secondary: const Icon(Icons.visibility_off_outlined),
-                title: const Text('Codes verbergen'),
-                subtitle: const Text('Erst nach Antippen anzeigen'),
+                title: Text(t.hideCodes),
+                subtitle: Text(t.hideCodesHint),
                 value: s.hideCodes,
                 onChanged: (v) {
                   s.hideCodes = v;
@@ -118,10 +115,8 @@ class SettingsScreen extends StatelessWidget {
               ),
               SwitchListTile(
                 secondary: const Icon(Icons.content_paste_off),
-                title: const Text('Zwischenablage leeren'),
-                subtitle: const Text(
-                  'Kopierte Codes nach 30 Sekunden entfernen',
-                ),
+                title: Text(t.clearClipboard),
+                subtitle: Text(t.clearClipboardHint),
                 value: s.clearClipboard,
                 onChanged: (v) {
                   s.clearClipboard = v;
@@ -131,10 +126,8 @@ class SettingsScreen extends StatelessWidget {
               if (Theme.of(context).platform == TargetPlatform.android)
                 SwitchListTile(
                   secondary: const Icon(Icons.screenshot_outlined),
-                  title: const Text('Bildschirmfotos erlauben'),
-                  subtitle: const Text(
-                    'Sonst sind Screenshots und Bildschirmaufnahmen gesperrt',
-                  ),
+                  title: Text(t.allowScreenshots),
+                  subtitle: Text(t.allowScreenshotsHint),
                   value: s.allowScreenshots,
                   onChanged: (v) {
                     s.allowScreenshots = v;
@@ -143,46 +136,42 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ListTile(
                 leading: const Icon(Icons.password),
-                title: const Text('Master-Passwort ändern'),
+                title: Text(t.changeMasterPassword),
                 onTap: () => _changePassword(context),
               ),
               ListTile(
                 leading: const Icon(Icons.health_and_safety_outlined),
-                title: const Text('Neuer Wiederherstellungsschlüssel'),
-                subtitle: const Text('Der bisherige wird ungültig'),
+                title: Text(t.newRecoveryKey),
+                subtitle: Text(t.newRecoveryKeyHint),
                 onTap: () => _renewRecovery(context),
               ),
               ListTile(
                 leading: const Icon(Icons.devices_outlined),
-                title: const Text('Angemeldete Geräte'),
+                title: Text(t.signedInDevices),
                 onTap: () => _open(context, const SessionsScreen()),
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
-                title: const Text('Papierkorb'),
-                subtitle: const Text('Gelöschte Konten der letzten 30 Tage'),
+                title: Text(t.trash),
+                subtitle: Text(t.trashHint),
                 onTap: () => _open(context, const TrashScreen()),
               ),
               ListTile(
                 leading: const Icon(Icons.history),
-                title: const Text('Aktivitäten'),
-                subtitle: const Text('Anmeldungen und Änderungen am Konto'),
+                title: Text(t.activity),
+                subtitle: Text(t.activityHint),
                 onTap: () => _open(context, const AuditScreen()),
               ),
               if (DesktopShell.supported) ...[
-                const SectionTitle('Schreibtisch'),
+                SectionTitle(t.sectionDesktop),
                 SwitchListTile(
                   secondary: const Icon(Icons.menu_open),
                   title: Text(
                     Theme.of(context).platform == TargetPlatform.macOS
-                        ? 'In der Menüleiste weiterlaufen'
-                        : 'Im Infobereich weiterlaufen',
+                        ? t.keepInMenuBar
+                        : t.keepInTray,
                   ),
-                  subtitle: const Text(
-                    'Beim Schließen des Fensters bleibt Sixora erreichbar. '
-                    'Über das Symbol lassen sich die Codes der Favoriten '
-                    'kopieren oder alle Konten durchsuchen.',
-                  ),
+                  subtitle: Text(t.keepInTrayHint),
                   value: s.keepInTray,
                   onChanged: (v) async {
                     s.keepInTray = v;
@@ -192,10 +181,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 SwitchListTile(
                   secondary: const Icon(Icons.keyboard_command_key),
-                  title: Text('Tastenkürzel ${DesktopShell.shortcutLabel}'),
-                  subtitle: const Text(
-                    'Holt Sixora von überall nach vorn, mit dem Cursor in der Suche.',
-                  ),
+                  title: Text(t.shortcutTitle(DesktopShell.shortcutLabel)),
+                  subtitle: Text(t.shortcutHint),
                   value: s.globalHotkey,
                   onChanged: (v) async {
                     s.globalHotkey = v;
@@ -205,11 +192,11 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const _LinkHandlerTile(),
               ],
-              const SectionTitle('Anzeige'),
+              SectionTitle(t.sectionDisplay),
               SwitchListTile(
                 secondary: const Icon(Icons.update),
-                title: const Text('Nächsten Code anzeigen'),
-                subtitle: const Text('In den letzten 5 Sekunden eines Codes'),
+                title: Text(t.showNextCode),
+                subtitle: Text(t.showNextCodeHint),
                 value: s.showNextCode,
                 onChanged: (v) {
                   s.showNextCode = v;
@@ -218,13 +205,13 @@ class SettingsScreen extends StatelessWidget {
               ),
               ListTile(
                 leading: const Icon(Icons.dark_mode_outlined),
-                title: const Text('Erscheinungsbild'),
+                title: Text(t.appearance),
                 trailing: SegmentedButton<String>(
                   showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: 'system', label: Text('System')),
-                    ButtonSegment(value: 'light', label: Text('Hell')),
-                    ButtonSegment(value: 'dark', label: Text('Dunkel')),
+                  segments: [
+                    ButtonSegment(value: 'system', label: Text(t.themeSystem)),
+                    ButtonSegment(value: 'light', label: Text(t.themeLight)),
+                    ButtonSegment(value: 'dark', label: Text(t.themeDark)),
                   ],
                   selected: {s.themeMode},
                   onSelectionChanged: (v) {
@@ -233,37 +220,62 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
               ),
-              const SectionTitle('Tresore und Daten'),
+              ListTile(
+                leading: const Icon(Icons.language),
+                title: Text(t.language),
+                trailing: DropdownButton<String>(
+                  value: s.language,
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'system',
+                      child: Text(t.languageSystem),
+                    ),
+                    // Each language under its own name.
+                    for (final (code, name) in const [
+                      ('de', 'Deutsch'),
+                      ('en', 'English'),
+                      ('es', 'Español'),
+                    ])
+                      DropdownMenuItem(value: code, child: Text(name)),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    s.language = v;
+                    c.saveSettings();
+                  },
+                ),
+              ),
+              SectionTitle(t.sectionVaultsData),
               ListTile(
                 leading: const Icon(Icons.group_outlined),
-                title: const Text('Tresore und Teilen'),
-                subtitle: Text(
-                  '${c.vaults.length} ${c.vaults.length == 1 ? 'Tresor' : 'Tresore'}',
-                ),
+                title: Text(t.vaultsAndSharing),
+                subtitle: Text(t.vaultCount(c.vaults.length)),
                 onTap: () => _open(context, const VaultsScreen()),
               ),
               ListTile(
                 leading: const Icon(Icons.file_download_outlined),
-                title: const Text('Importieren'),
+                title: Text(t.importAction),
                 onTap: () => _open(context, const ImportScreen()),
               ),
               ListTile(
                 leading: const Icon(Icons.file_upload_outlined),
-                title: const Text('Exportieren'),
-                subtitle: const Text(
-                  'Verschlüsselte Sicherung, Textdatei oder QR-Codes',
-                ),
+                title: Text(t.exportAction),
+                subtitle: Text(t.exportHint),
                 onTap: () => _export(context),
               ),
               ListTile(
                 leading: const Icon(Icons.backup_outlined),
-                title: const Text('Automatische Sicherung'),
+                title: Text(t.autoBackup),
                 subtitle: Text(
                   !c.autoBackup
-                      ? 'Aus'
+                      ? t.off
                       : s.backupError != null
-                      ? 'Fehler: ${s.backupError}'
-                      : '${s.backupFolderLabel} · zuletzt ${formatDate(s.lastBackup)}',
+                      ? t.errorWith(s.backupError!)
+                      : t.backupFolderLast(
+                          s.backupFolderLabel,
+                          formatDate(s.lastBackup),
+                        ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -271,36 +283,30 @@ class SettingsScreen extends StatelessWidget {
               ),
               ListTile(
                 leading: const Icon(Icons.health_and_safety_outlined),
-                title: const Text('Kontenprüfung'),
-                subtitle: const Text(
-                  'Doppelte Konten, schwache Schlüssel, fehlende Logos',
-                ),
+                title: Text(t.accountCheck),
+                subtitle: Text(t.accountCheckHint),
                 onTap: () => _open(context, const AccountCheckScreen()),
               ),
               if (account.isAdmin) ...[
-                const SectionTitle('Server'),
+                SectionTitle(t.sectionServer),
                 ListTile(
                   leading: const Icon(Icons.admin_panel_settings_outlined),
-                  title: const Text('Verwaltung'),
-                  subtitle: const Text('Benutzer, Einladungen, Protokoll'),
+                  title: Text(t.administration),
+                  subtitle: Text(t.administrationHint),
                   onTap: () => _open(context, const AdminScreen()),
                 ),
               ],
-              const SectionTitle('Konto'),
+              SectionTitle(t.sectionAccount),
               ListTile(
                 leading: const Icon(Icons.logout),
-                title: const Text('Abmelden'),
-                subtitle: const Text(
-                  'Entfernt die lokale Kopie von diesem Gerät',
-                ),
+                title: Text(t.signOut),
+                subtitle: Text(t.signOutHint),
                 onTap: () async {
                   final ok = await confirm(
                     context,
-                    title: 'Abmelden?',
-                    message:
-                        'Deine Codes bleiben auf dem Server. Zum erneuten Anmelden '
-                        'brauchst du Benutzername und Master-Passwort.',
-                    action: 'Abmelden',
+                    title: t.signOutQuestion,
+                    message: t.signOutMessage,
+                    action: t.signOut,
                   );
                   if (ok) await c.logout();
                 },
@@ -311,21 +317,20 @@ class SettingsScreen extends StatelessWidget {
                   color: Theme.of(context).colorScheme.error,
                 ),
                 title: Text(
-                  'Konto löschen',
+                  t.deleteAccount,
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
                 onTap: () => _deleteAccount(context),
               ),
-              const SectionTitle('Über'),
+              SectionTitle(t.sectionAbout),
               FutureBuilder<PackageInfo>(
                 future: PackageInfo.fromPlatform(),
                 builder: (context, snap) => ListTile(
                   leading: const Icon(Icons.info_outline),
                   title: const Text('Sixora'),
                   subtitle: Text(
-                    'Version ${snap.data?.version ?? '…'}\n'
-                    'Codes werden auf deinen Geräten berechnet. Der Server '
-                    'speichert nur verschlüsselte Daten.',
+                    '${t.serverVersion(snap.data?.version ?? '…')}\n'
+                    '${t.aboutText}',
                   ),
                   isThreeLine: true,
                   onTap: () => showLicensePage(
@@ -351,7 +356,7 @@ class SettingsScreen extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Master-Passwort ändern'),
+        title: Text(t.changeMasterPassword),
         content: SizedBox(
           width: 400,
           child: Column(
@@ -359,21 +364,20 @@ class SettingsScreen extends StatelessWidget {
             children: [
               PasswordField(
                 controller: current,
-                label: 'Aktuelles Passwort',
+                label: t.currentPassword,
                 autofocus: true,
               ),
               const SizedBox(height: 12),
               PasswordField(
                 controller: next,
-                label: 'Neues Passwort',
+                label: t.newPassword,
                 autofillHints: const [AutofillHints.newPassword],
-                helper:
-                    'Mindestens 10 Zeichen. Andere Geräte werden abgemeldet.',
+                helper: t.newPasswordHint,
               ),
               const SizedBox(height: 12),
               PasswordField(
                 controller: repeat,
-                label: 'Neues Passwort wiederholen',
+                label: t.repeatNewPassword,
                 autofillHints: const [AutofillHints.newPassword],
               ),
             ],
@@ -382,33 +386,30 @@ class SettingsScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Abbrechen'),
+            child: Text(t.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Ändern'),
+            child: Text(t.change),
           ),
         ],
       ),
     );
     if (ok != true || !context.mounted) return;
     if (next.text.length < 10) {
-      showMessage(context, 'Das neue Passwort braucht mindestens 10 Zeichen');
+      showMessage(context, t.newPasswordTooShort);
       return;
     }
     if (next.text != repeat.text) {
-      showMessage(context, 'Die neuen Passwörter stimmen nicht überein');
+      showMessage(context, t.newPasswordsDoNotMatch);
       return;
     }
     final done = await runBusy(context, () async {
       await c.changePassword(current.text, next.text);
       return true;
-    }, message: 'Passwort wird geändert …');
+    }, message: t.changingPassword);
     if (done == true && context.mounted) {
-      showMessage(
-        context,
-        'Master-Passwort geändert. Andere Geräte müssen sich neu anmelden.',
-      );
+      showMessage(context, t.masterPasswordChanged);
     }
   }
 
@@ -416,12 +417,11 @@ class SettingsScreen extends StatelessWidget {
     final c = AppScope.read(context);
     final password = await askText(
       context,
-      title: 'Neuer Wiederherstellungsschlüssel',
-      message:
-          'Zur Bestätigung das Master-Passwort eingeben. Der bisherige Schlüssel wird ungültig.',
-      label: 'Master-Passwort',
+      title: t.newRecoveryKey,
+      message: t.newRecoveryKeyConfirm,
+      label: t.masterPassword,
       password: true,
-      action: 'Erzeugen',
+      action: t.generate,
     );
     if (password == null || !context.mounted) return;
     final key = await runBusy(context, () => c.renewRecoveryKey(password));
@@ -444,22 +444,18 @@ class SettingsScreen extends StatelessWidget {
     final c = AppScope.read(context);
     final ok = await confirm(
       context,
-      title: 'Konto endgültig löschen?',
-      message:
-          'Alle deine Codes und die Tresore, die dir gehören – auch geteilte –, '
-          'werden auf dem Server gelöscht. Das lässt sich nicht rückgängig machen. '
-          'Deaktiviere vorher die Zwei-Faktor-Anmeldung bei den Diensten oder '
-          'exportiere deine Konten.',
-      action: 'Weiter',
+      title: t.deleteAccountQuestion,
+      message: t.deleteAccountMessage,
+      action: t.continueAction,
       destructive: true,
     );
     if (!ok || !context.mounted) return;
     final password = await askText(
       context,
-      title: 'Master-Passwort bestätigen',
-      label: 'Master-Passwort',
+      title: t.confirmMasterPassword,
+      label: t.masterPassword,
       password: true,
-      action: 'Konto löschen',
+      action: t.deleteAccount,
     );
     if (password == null || !context.mounted) return;
     await runBusy(context, () => c.deleteAccount(password));
@@ -469,7 +465,7 @@ class SettingsScreen extends StatelessWidget {
     final c = AppScope.read(context);
     final entries = [for (final i in c.items) i.entry];
     if (entries.isEmpty) {
-      showMessage(context, 'Keine Konten zum Exportieren');
+      showMessage(context, t.nothingToExport);
       return;
     }
     final choice = await showModalBottomSheet<String>(
@@ -481,16 +477,14 @@ class SettingsScreen extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.lock_outline),
-              title: const Text('Verschlüsselte Sicherung'),
-              subtitle: const Text(
-                'Mit eigenem Passwort, lässt sich in Sixora importieren',
-              ),
+              title: Text(t.encryptedBackup),
+              subtitle: Text(t.encryptedBackupHint),
               onTap: () => Navigator.pop(context, 'backup'),
             ),
             ListTile(
               leading: const Icon(Icons.qr_code_2),
-              title: const Text('QR-Codes für Google Authenticator'),
-              subtitle: const Text('Zum Übertragen in eine andere App'),
+              title: Text(t.googleAuthenticatorQr),
+              subtitle: Text(t.googleAuthenticatorQrHint),
               onTap: () => Navigator.pop(context, 'qr'),
             ),
             ListTile(
@@ -498,10 +492,8 @@ class SettingsScreen extends StatelessWidget {
                 Icons.warning_amber,
                 color: Theme.of(context).colorScheme.error,
               ),
-              title: const Text('Unverschlüsselte Textdatei'),
-              subtitle: const Text(
-                'otpauth-Links, für andere Apps – nur mit Vorsicht',
-              ),
+              title: Text(t.plainTextFile),
+              subtitle: Text(t.plainTextFileHint),
               onTap: () => Navigator.pop(context, 'plain'),
             ),
           ],
@@ -517,7 +509,7 @@ class SettingsScreen extends StatelessWidget {
         final text = await runBusy(
           context,
           () => SixoraBackup.encrypt(entries, pw),
-          message: 'Sicherung wird verschlüsselt …',
+          message: t.encryptingBackup,
         );
         if (text == null || !context.mounted) return;
         await _save(
@@ -534,11 +526,9 @@ class SettingsScreen extends StatelessWidget {
       case 'plain':
         final ok = await confirm(
           context,
-          title: 'Unverschlüsselt exportieren?',
-          message:
-              'Die Datei enthält alle geheimen Schlüssel im Klartext. Wer sie '
-              'liest, kann deine Codes erzeugen. Nach dem Import sofort löschen.',
-          action: 'Exportieren',
+          title: t.exportUnencryptedQuestion,
+          message: t.exportUnencryptedMessage,
+          action: t.exportAction,
           destructive: true,
         );
         if (!ok || !context.mounted) return;
@@ -559,12 +549,12 @@ class SettingsScreen extends StatelessWidget {
   ) async {
     try {
       final uri = await FilePicker.saveFile(
-        dialogTitle: 'Speichern unter',
+        dialogTitle: t.saveAs,
         fileName: name,
         bytes: Uint8List.fromList(utf8.encode(text)),
         mimeType: mime,
       );
-      if (uri != null && context.mounted) showMessage(context, 'Gespeichert');
+      if (uri != null && context.mounted) showMessage(context, t.saved);
     } catch (e) {
       if (context.mounted) showError(context, e);
     }
@@ -600,11 +590,13 @@ class _LinkHandlerTileState extends State<_LinkHandlerTile> {
     if (state == null) return const SizedBox.shrink();
     return ListTile(
       leading: const Icon(Icons.link),
-      title: const Text('otpauth-Links mit Sixora öffnen'),
+      title: Text(t.openOtpauthLinks),
       subtitle: Text(
         state.isDefault
-            ? 'Links zum Einrichten von Konten öffnen Sixora.'
-            : 'Zurzeit öffnet sie ${state.app.isEmpty ? 'eine andere App' : '„${state.app}“'}.',
+            ? t.otpauthLinksOpenSixora
+            : state.app.isEmpty
+            ? t.linksOpenOtherApp
+            : t.linksOpenApp(state.app),
       ),
       trailing: state.isDefault
           ? Icon(
@@ -619,13 +611,15 @@ class _LinkHandlerTileState extends State<_LinkHandlerTile> {
                   if (context.mounted) {
                     showMessage(
                       context,
-                      'Nicht geändert: ${e is PlatformException ? e.message : e}',
+                      t.notChanged(
+                        e is PlatformException ? e.message ?? e.code : e,
+                      ),
                     );
                   }
                 }
                 await _load();
               },
-              child: const Text('Sixora verwenden'),
+              child: Text(t.useSixora),
             ),
     );
   }

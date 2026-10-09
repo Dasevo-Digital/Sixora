@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:sixora_core/sixora_core.dart';
 
+import '../l10n.dart';
 import '../platform/qr_image.dart';
 import '../widgets/common.dart';
 import '../widgets/otp_tile.dart';
@@ -61,7 +62,7 @@ class _ImportScreenState extends State<ImportScreen> {
 
   Future<void> _pickFiles() async {
     final files = await FilePicker.pickFiles(
-      dialogTitle: 'Export-Dateien oder Bilder auswählen',
+      dialogTitle: t.chooseExportFilesOrImages,
     );
     if (files.isEmpty || !mounted) return;
     final images = [
@@ -79,16 +80,14 @@ class _ImportScreenState extends State<ImportScreen> {
         context,
         () => readQrCodes(images),
         message: images.length == 1
-            ? 'QR-Code wird gesucht …'
-            : 'QR-Codes in ${images.length} Bildern werden gesucht …',
+            ? t.searchingQr
+            : t.searchingQrInImages(images.length),
       );
       if (codes == null || !mounted) return;
       if (codes.isEmpty && texts.isEmpty) {
         showMessage(
           context,
-          images.length == 1
-              ? 'Kein QR-Code im Bild gefunden'
-              : 'In den Bildern wurde kein QR-Code gefunden',
+          images.length == 1 ? t.noQrInImage : t.noQrInImages,
         );
         return;
       }
@@ -99,11 +98,11 @@ class _ImportScreenState extends State<ImportScreen> {
 
   Future<void> _add(List<String> texts) async {
     final fresh = [
-      for (final t in texts.map((t) => t.trim()))
-        if (t.isNotEmpty && !_texts.contains(t)) t,
+      for (final text in texts.map((x) => x.trim()))
+        if (text.isNotEmpty && !_texts.contains(text)) text,
     ];
     if (fresh.isEmpty) {
-      if (_result != null) showMessage(context, 'Nichts Neues gefunden');
+      if (_result != null) showMessage(context, t.nothingNew);
       return;
     }
     final before = _texts.length;
@@ -148,10 +147,10 @@ class _ImportScreenState extends State<ImportScreen> {
       if (!mounted) return false;
       password = await askText(
         context,
-        title: 'Passwort der Sicherung',
-        label: 'Passwort',
+        title: t.backupPassword,
+        label: t.password,
         password: true,
-        action: 'Entschlüsseln',
+        action: t.decrypt,
       );
       if (password == null) return false;
     }
@@ -178,7 +177,7 @@ class _ImportScreenState extends State<ImportScreen> {
         progress: (n) => setState(() => _done = n),
       );
       if (!mounted) return;
-      showMessage(context, '${entries.length} Konten importiert');
+      showMessage(context, t.accountsImported(entries.length));
       Navigator.pop(context);
     } catch (e) {
       if (mounted) showError(context, e);
@@ -193,7 +192,7 @@ class _ImportScreenState extends State<ImportScreen> {
     final theme = Theme.of(context);
     final result = _result;
     return Scaffold(
-      appBar: AppBar(title: const Text('Importieren')),
+      appBar: AppBar(title: Text(t.importAction)),
       body: result == null
           ? FormPage(
               children: [
@@ -203,22 +202,11 @@ class _ImportScreenState extends State<ImportScreen> {
                   color: theme.colorScheme.primary,
                 ),
                 const SizedBox(height: 16),
-                Text('Unterstützt werden:', style: theme.textTheme.titleMedium),
+                Text(t.supported, style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
-                const Text(
-                  '• Google Authenticator: „Konten übertragen“ → QR-Codes scannen oder '
-                  'Screenshots wählen (alle auf einmal, bei mehreren Codes)\n'
-                  '• Aegis: Export als unverschlüsseltes JSON\n'
-                  '• 2FAuth: Export als JSON\n'
-                  '• Sixora: verschlüsselte Sicherung\n'
-                  '• Alles mit otpauth://-Links, z. B. Exporte von Bitwarden, Ente Auth, andOTP oder Textdateien',
-                ),
+                Text(t.supportedFormats),
                 const SizedBox(height: 12),
-                Text(
-                  'Microsoft Authenticator bietet keinen Export. Dort jedes Konto beim '
-                  'Dienst neu einrichten oder den QR-Code erneut anzeigen lassen.',
-                  style: theme.textTheme.bodySmall,
-                ),
+                Text(t.microsoftNoExport, style: theme.textTheme.bodySmall),
                 const SizedBox(height: 24),
                 if (_loading) ...[
                   const LinearProgressIndicator(),
@@ -227,7 +215,7 @@ class _ImportScreenState extends State<ImportScreen> {
                 FilledButton.icon(
                   onPressed: _loading ? null : _pickFiles,
                   icon: const Icon(Icons.folder_open),
-                  label: const Text('Dateien oder Bilder auswählen'),
+                  label: Text(t.chooseFilesOrImages),
                 ),
               ],
             )
@@ -236,9 +224,9 @@ class _ImportScreenState extends State<ImportScreen> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
-                    '${result.entries.length} Konten aus ${result.source} gefunden'
-                    '${result.skipped > 0 ? ', ${result.skipped} nicht lesbar' : ''}. '
-                    'Bereits vorhandene sind abgewählt.',
+                    '${t.accountsFound(result.entries.length, result.source)}'
+                    '${result.skipped > 0 ? t.notReadable(result.skipped) : ''}. '
+                    '${t.existingDeselected}',
                   ),
                 ),
                 if (_missing case final missing?)
@@ -247,18 +235,15 @@ class _ImportScreenState extends State<ImportScreen> {
                     color: theme.colorScheme.tertiaryContainer,
                     child: ListTile(
                       leading: const Icon(Icons.qr_code_2),
-                      title: Text('Es fehlen noch Code $missing.'),
-                      subtitle: const Text(
-                        'Google Authenticator verteilt die Konten auf mehrere '
-                        'QR-Codes. Die fehlenden bitte ebenfalls hinzufügen.',
-                      ),
+                      title: Text(t.missingTransferCodes(missing)),
+                      subtitle: Text(t.missingTransferCodesHint),
                     ),
                   ),
                 if (!_running)
                   TextButton.icon(
                     onPressed: _loading ? null : _pickFiles,
                     icon: const Icon(Icons.add_photo_alternate_outlined),
-                    label: const Text('Weitere Bilder oder Dateien hinzufügen'),
+                    label: Text(t.addMoreFiles),
                   ),
                 Expanded(
                   child: ListView(
@@ -281,7 +266,7 @@ class _ImportScreenState extends State<ImportScreen> {
                               if (result.entries[i].group.isNotEmpty)
                                 result.entries[i].group,
                               if (c.isDuplicate(result.entries[i]))
-                                'schon vorhanden',
+                                t.alreadyPresent,
                             ].where((s) => s.isNotEmpty).join(' · '),
                           ),
                         ),
@@ -299,8 +284,8 @@ class _ImportScreenState extends State<ImportScreen> {
                               Expanded(
                                 child: DropdownButtonFormField<String>(
                                   initialValue: _vaultId,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Tresor',
+                                  decoration: InputDecoration(
+                                    labelText: t.vault,
                                   ),
                                   items: [
                                     for (final v in c.writableVaults)
@@ -320,8 +305,8 @@ class _ImportScreenState extends State<ImportScreen> {
                               child: TextField(
                                 controller: _group,
                                 enabled: !_running,
-                                decoration: const InputDecoration(
-                                  labelText: 'Gruppe für Konten ohne Gruppe',
+                                decoration: InputDecoration(
+                                  labelText: t.groupForUngrouped,
                                 ),
                               ),
                             ),
@@ -335,7 +320,7 @@ class _ImportScreenState extends State<ImportScreen> {
                                 : _done / _selected.length,
                           ),
                           const SizedBox(height: 8),
-                          Text('$_done von ${_selected.length}'),
+                          Text(t.progressOf(_done, _selected.length)),
                         ] else
                           SizedBox(
                             width: double.infinity,
@@ -343,9 +328,7 @@ class _ImportScreenState extends State<ImportScreen> {
                               onPressed: _selected.isEmpty || _vaultId == null
                                   ? null
                                   : _import,
-                              child: Text(
-                                '${_selected.length} Konten importieren',
-                              ),
+                              child: Text(t.importAccounts(_selected.length)),
                             ),
                           ),
                       ],

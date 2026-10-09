@@ -75,6 +75,8 @@ void main() {
       reason: 'nur mit --dart-define=SIXORA_ENV=test',
     );
     final controller = await AppController.create();
+    // The texts below are German.
+    controller.settings.language = 'de';
     if (controller.cached != null) await controller.logout(notice: '');
     controller.notice = null;
     await tester.pumpWidget(SixoraApp(controller: controller));

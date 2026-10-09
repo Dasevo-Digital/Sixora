@@ -9,6 +9,7 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../data/app_controller.dart';
+import '../l10n.dart';
 import 'secure_clipboard.dart';
 
 /// Menu bar (macOS) and notification area (Windows, Linux) icon with a
@@ -34,7 +35,19 @@ class DesktopShell with TrayListener, WindowListener {
   String _menuState = '';
   HotKey? _hotKey;
 
-  static String get shortcutLabel => Platform.isMacOS ? '⌥⌘O' : 'Strg+Alt+O';
+  static String? _menuLanguage;
+
+  /// macOS: the app menu (MainMenu.xib, German) follows the app language.
+  static void setMenuLanguage(String code) {
+    if (!Platform.isMacOS || code == _menuLanguage) return;
+    _menuLanguage = code;
+    const MethodChannel(
+      'sixora/menu',
+    ).invokeMethod<void>('setLanguage', code).catchError((_) {});
+  }
+
+  static String get shortcutLabel =>
+      Platform.isMacOS ? '⌥⌘O' : t.shortcutCtrlAltO;
 
   static Future<void> start(AppController c) async {
     if (!supported || instance != null) return;
@@ -110,7 +123,7 @@ class DesktopShell with TrayListener, WindowListener {
   void _changed() {
     // Rebuild the menu only when what it shows changes.
     final state =
-        '${c.phase}|${[for (final i in _quick) '${i.id}:${i.entry.displayName}'].join(',')}';
+        '${t.localeName}|${c.phase}|${[for (final i in _quick) '${i.id}:${i.entry.displayName}'].join(',')}';
     if (state == _menuState) return;
     _menuState = state;
     unawaited(_updateMenu());
@@ -122,17 +135,14 @@ class DesktopShell with TrayListener, WindowListener {
     await trayManager.setContextMenu(
       Menu(
         items: [
-          MenuItem(key: 'open', label: 'Sixora öffnen'),
+          MenuItem(key: 'open', label: t.openSixora),
           if (unlocked) ...[
-            MenuItem(key: 'search', label: 'Suchen … ($shortcutLabel)'),
+            MenuItem(key: 'search', label: t.searchWithShortcut(shortcutLabel)),
             MenuItem.separator(),
             if (quick.isEmpty)
-              MenuItem(
-                label: 'Favoriten: Stern bei einem Konto setzen',
-                disabled: true,
-              )
+              MenuItem(label: t.favoritesHint, disabled: true)
             else ...[
-              MenuItem(label: 'Code kopieren', disabled: true),
+              MenuItem(label: t.copyCode, disabled: true),
               for (final item in quick)
                 MenuItem(
                   key: 'copy:${item.id}',
@@ -142,11 +152,11 @@ class DesktopShell with TrayListener, WindowListener {
                 ),
             ],
             MenuItem.separator(),
-            MenuItem(key: 'lock', label: 'Sperren'),
+            MenuItem(key: 'lock', label: t.lock),
           ] else if (c.phase == Phase.locked)
-            MenuItem(key: 'open', label: 'Entsperren …'),
+            MenuItem(key: 'open', label: t.unlockEllipsis),
           MenuItem.separator(),
-          MenuItem(key: 'quit', label: 'Sixora beenden'),
+          MenuItem(key: 'quit', label: t.quitSixora),
         ],
       ),
     );

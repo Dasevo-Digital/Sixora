@@ -6,6 +6,12 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.19 – 09.10.2026
+- Sixora spricht Deutsch, Englisch und Spanisch. Die Sprache folgt dem
+  System (sonst Englisch) und lässt sich unter Einstellungen → Sprache
+  festlegen. Übersetzt sind auch Fehlermeldungen von Server und Import,
+  die Berechtigungsfragen von iOS und macOS sowie das macOS-Menü.
+
 ### 0.1.18 – 09.10.2026
 - Bildschirmleser (VoiceOver, TalkBack): Jedes Konto wird mit Name, Konto,
   dem Code Ziffer für Ziffer und der Restzeit vorgelesen; verborgene Codes

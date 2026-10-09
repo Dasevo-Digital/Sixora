@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_controller.dart';
 import '../data/biometric_vault.dart';
+import '../l10n.dart';
 import '../widgets/brand.dart';
 import '../widgets/common.dart';
 
@@ -92,7 +93,7 @@ class _LockScreenState extends State<LockScreen> {
     // Cancelled or "Master-Passwort" chosen: on to the password field.
     _passwordFocus.requestFocus();
     if (notUnlocked == BiometricResult.password) {
-      setState(() => _error = 'Bitte das Sixora-Master-Passwort eingeben.');
+      setState(() => _error = t.enterSixoraMasterPassword);
     }
   });
 
@@ -100,11 +101,9 @@ class _LockScreenState extends State<LockScreen> {
     final c = AppScope.read(context);
     final ok = await confirm(
       context,
-      title: 'Abmelden?',
-      message:
-          'Die lokale Kopie wird von diesem Gerät entfernt. Deine Codes bleiben '
-          'auf dem Server und auf deinen anderen Geräten erhalten.',
-      action: 'Abmelden',
+      title: t.signOutQuestion,
+      message: t.signOutLocalCopyMessage,
+      action: t.signOut,
       destructive: true,
     );
     if (ok) await c.logout();
@@ -124,7 +123,7 @@ class _LockScreenState extends State<LockScreen> {
             const Center(child: BrandMark(size: 72)),
             const SizedBox(height: 20),
             Text(
-              'Gesperrt',
+              t.locked,
               textAlign: TextAlign.center,
               style: theme.textTheme.headlineSmall,
             ),
@@ -156,20 +155,20 @@ class _LockScreenState extends State<LockScreen> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Entsperren'),
+                  : Text(t.unlock),
             ),
             if (quick) ...[
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 icon: Icon(biometricIcon(c.biometricLabel)),
-                label: Text('Mit ${c.biometricLabel} entsperren'),
+                label: Text(t.unlockWith(c.biometricLabel)),
                 onPressed: _busy ? null : _biometric,
               ),
             ],
             const SizedBox(height: 24),
             TextButton(
               onPressed: _busy ? null : _logout,
-              child: const Text('Abmelden'),
+              child: Text(t.signOut),
             ),
           ],
         ),

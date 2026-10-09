@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:sixora_core/sixora_core.dart';
 
+import '../l10n.dart';
+
 /// What this device keeps between starts: the account's wrapped key
 /// material and the vaults and entries exactly as the server sends them,
 /// i.e. encrypted. Unlocking always needs the master password (or the
@@ -77,16 +79,24 @@ class CachedAccount {
 }
 
 enum AutoLock {
-  immediately(0, 'Sofort beim Verlassen'),
-  oneMinute(1, 'Nach 1 Minute'),
-  fiveMinutes(5, 'Nach 5 Minuten'),
-  fifteenMinutes(15, 'Nach 15 Minuten'),
-  oneHour(60, 'Nach 1 Stunde'),
-  never(-1, 'Nie');
+  immediately(0),
+  oneMinute(1),
+  fiveMinutes(5),
+  fifteenMinutes(15),
+  oneHour(60),
+  never(-1);
 
-  const AutoLock(this.minutes, this.label);
+  const AutoLock(this.minutes);
   final int minutes;
-  final String label;
+
+  String get label => switch (this) {
+    immediately => t.autoLockImmediately,
+    oneMinute => t.autoLockMinutes(1),
+    fiveMinutes => t.autoLockMinutes(5),
+    fifteenMinutes => t.autoLockMinutes(15),
+    oneHour => t.autoLockOneHour,
+    never => t.autoLockNever,
+  };
 
   static AutoLock parse(Object? v) =>
       values.firstWhere((a) => a.name == v, orElse: () => fiveMinutes);
@@ -109,6 +119,9 @@ class AppSettings {
   bool showNextCode = true;
   bool allowScreenshots = false;
   String themeMode = 'system';
+
+  /// `system` or a language code (see `appLanguages`).
+  String language = 'system';
 
   /// Automatic backup: the folder (see `BackupFolder`) and its name.
   String? backupFolder;
@@ -135,6 +148,7 @@ class AppSettings {
     'showNextCode': showNextCode,
     'allowScreenshots': allowScreenshots,
     'themeMode': themeMode,
+    'language': language,
     'backupFolder': backupFolder,
     'backupFolderLabel': backupFolderLabel,
     'backupKey': backupKey,
@@ -155,6 +169,7 @@ class AppSettings {
     ..showNextCode = j['showNextCode'] as bool? ?? true
     ..allowScreenshots = j['allowScreenshots'] as bool? ?? false
     ..themeMode = j['themeMode'] as String? ?? 'system'
+    ..language = j['language'] as String? ?? 'system'
     ..backupFolder = j['backupFolder'] as String?
     ..backupFolderLabel = j['backupFolderLabel'] as String? ?? ''
     ..backupKey = (j['backupKey'] as Map?)?.cast()

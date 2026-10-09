@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
+import '../l10n.dart';
 import '../widgets/common.dart';
 import 'account_screens.dart';
 
@@ -12,19 +13,17 @@ class VaultsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Tresore und Teilen')),
+      appBar: AppBar(title: Text(t.vaultsAndSharing)),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
-        label: const Text('Neuer Tresor'),
+        label: Text(t.newVault),
         onPressed: () async {
           final name = await askText(
             context,
-            title: 'Neuer Tresor',
-            message:
-                'Ein eigener Tresor lässt sich mit anderen Benutzern dieses Servers teilen, '
-                'z. B. „Team“ oder „Familie“.',
-            label: 'Name',
-            action: 'Anlegen',
+            title: t.newVault,
+            message: t.newVaultMessage,
+            label: t.name,
+            action: t.addAnyway,
           );
           if (name == null || name.trim().isEmpty || !context.mounted) return;
           await runBusy(context, () => c.createVault(name));
@@ -33,13 +32,9 @@ class VaultsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 96),
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.all(16),
-            child: Text(
-              'Jeder Tresor hat einen eigenen Schlüssel. Beim Teilen wird er mit dem '
-              'öffentlichen Schlüssel des Empfängers verschlüsselt – der Server '
-              'sieht die Codes nie.',
-            ),
+            child: Text(t.vaultsExplanation),
           ),
           for (final v in c.vaults)
             ListTile(
@@ -49,15 +44,17 @@ class VaultsScreen extends StatelessWidget {
               title: Text(v.name),
               subtitle: Text(
                 [
-                  if (v.personal) 'Persönlich',
-                  if (v.dto.role != VaultRole.owner) 'von ${v.dto.ownerName}',
+                  if (v.personal) t.personal,
+                  if (v.dto.role != VaultRole.owner) t.ownedBy(v.dto.ownerName),
                   switch (v.dto.role) {
-                    VaultRole.owner => 'Eigentümer',
-                    VaultRole.write => 'Lesen und Schreiben',
-                    VaultRole.read => 'Nur lesen',
+                    VaultRole.owner => t.roleOwner,
+                    VaultRole.write => t.roleWrite,
+                    VaultRole.read => t.roleRead,
                   },
-                  '${c.items.where((i) => i.vaultId == v.id).length} Konten',
-                  if (v.dto.memberCount > 1) '${v.dto.memberCount} Mitglieder',
+                  t.accountCount(
+                    c.items.where((i) => i.vaultId == v.id).length,
+                  ),
+                  if (v.dto.memberCount > 1) t.memberCount(v.dto.memberCount),
                 ].join(' · '),
               ),
               trailing: const Icon(Icons.chevron_right),
@@ -89,15 +86,15 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     final c = AppScope.read(context);
     final name = await askText(
       context,
-      title: 'Teilen mit',
-      label: 'Benutzername',
-      action: 'Suchen',
+      title: t.shareWith,
+      label: t.username,
+      action: t.search,
     );
     if (name == null || name.trim().isEmpty || !mounted) return;
     final user = await runBusy(context, () => c.lookupUser(name));
     if (user == null || !mounted) return;
     if (user.id == c.account!.id) {
-      showMessage(context, 'Das bist du selbst');
+      showMessage(context, t.thatIsYou);
       return;
     }
     var role = VaultRole.read;
@@ -105,21 +102,17 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialog) => AlertDialog(
-          title: Text('Mit ${user.username} teilen'),
+          title: Text(t.shareWithUser(user.username)),
           content: SizedBox(
             width: 420,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Vergleicht zur Sicherheit den Schlüssel-Fingerabdruck, z. B. am '
-                  'Telefon. Er steht bei der anderen Person unter „Tresore und Teilen“. '
-                  'Stimmt er nicht, nicht teilen.',
-                ),
+                Text(t.compareFingerprint),
                 const SizedBox(height: 12),
                 Text(
-                  'Fingerabdruck von ${user.username}:',
+                  t.fingerprintOf(user.username),
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
                 SelectableText(
@@ -134,21 +127,19 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                 RadioGroup<VaultRole>(
                   groupValue: role,
                   onChanged: (v) => setDialog(() => role = v!),
-                  child: const Column(
+                  child: Column(
                     children: [
                       RadioListTile<VaultRole>(
                         contentPadding: EdgeInsets.zero,
                         value: VaultRole.read,
-                        title: Text('Nur lesen'),
-                        subtitle: Text('Codes sehen und kopieren'),
+                        title: Text(t.roleRead),
+                        subtitle: Text(t.roleReadHint),
                       ),
                       RadioListTile<VaultRole>(
                         contentPadding: EdgeInsets.zero,
                         value: VaultRole.write,
-                        title: Text('Lesen und Schreiben'),
-                        subtitle: Text(
-                          'Auch Konten hinzufügen, ändern und löschen',
-                        ),
+                        title: Text(t.roleWrite),
+                        subtitle: Text(t.roleWriteHint),
                       ),
                     ],
                   ),
@@ -159,11 +150,11 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Abbrechen'),
+              child: Text(t.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Teilen'),
+              child: Text(t.share),
             ),
           ],
         ),
@@ -181,7 +172,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
     if (vault == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const Center(child: Text('Tresor nicht mehr verfügbar')),
+        body: Center(child: Text(t.vaultGone)),
       );
     }
     final owner = vault.dto.role == VaultRole.owner;
@@ -192,13 +183,13 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         actions: [
           if (owner)
             IconButton(
-              tooltip: 'Umbenennen',
+              tooltip: t.rename,
               icon: const Icon(Icons.edit_outlined),
               onPressed: () async {
                 final name = await askText(
                   context,
-                  title: 'Umbenennen',
-                  label: 'Name',
+                  title: t.rename,
+                  label: t.name,
                   initial: vault.name,
                 );
                 if (name == null || name.trim().isEmpty || !context.mounted) {
@@ -212,7 +203,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
       floatingActionButton: owner && !vault.personal
           ? FloatingActionButton.extended(
               icon: const Icon(Icons.person_add_alt),
-              label: const Text('Teilen'),
+              label: Text(t.share),
               onPressed: () => _share(vault),
             )
           : null,
@@ -220,18 +211,14 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
         padding: const EdgeInsets.only(bottom: 96),
         children: [
           if (vault.personal)
-            const ListTile(
+            ListTile(
               leading: Icon(Icons.info_outline),
-              title: Text(
-                'Dein persönlicher Tresor kann nicht geteilt werden.',
-              ),
-              subtitle: Text(
-                'Lege für gemeinsame Konten einen eigenen Tresor an und verschiebe sie dorthin.',
-              ),
+              title: Text(t.personalVaultNotShared),
+              subtitle: Text(t.personalVaultNotSharedHint),
             ),
           ListTile(
             leading: const Icon(Icons.fingerprint),
-            title: const Text('Dein Schlüssel-Fingerabdruck'),
+            title: Text(t.yourFingerprint),
             subtitle: SelectableText(
               c.myFingerprint,
               style: const TextStyle(
@@ -241,7 +228,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             ),
           ),
           if (!vault.personal) ...[
-            const SectionTitle('Mitglieder'),
+            SectionTitle(t.members),
             SizedBox(
               height: 400,
               child: Loader<List<MemberDto>>(
@@ -258,29 +245,24 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                         ),
                         title: Text(
                           m.userId == c.account!.id
-                              ? '${m.username} (du)'
+                              ? t.memberYou(m.username)
                               : m.username,
                         ),
                         subtitle: Text(switch (m.role) {
-                          VaultRole.owner => 'Eigentümer',
-                          VaultRole.write => 'Lesen und Schreiben',
-                          VaultRole.read => 'Nur lesen',
+                          VaultRole.owner => t.roleOwner,
+                          VaultRole.write => t.roleWrite,
+                          VaultRole.read => t.roleRead,
                         }),
                         trailing: owner && m.role != VaultRole.owner
                             ? IconButton(
-                                tooltip: 'Entfernen',
+                                tooltip: t.remove,
                                 icon: const Icon(Icons.person_remove_outlined),
                                 onPressed: () async {
                                   final ok = await confirm(
                                     context,
-                                    title: '${m.username} entfernen?',
-                                    message:
-                                        '${m.username} verliert den Zugriff auf diesen Tresor. '
-                                        'Sixora erneuert danach den Schlüssel des Tresors, damit '
-                                        'der alte nichts mehr öffnet. Schlüssel von Konten, die '
-                                        '${m.username} schon gesehen hat, bleiben aber bekannt – '
-                                        'bei Bedarf beim Dienst neu einrichten.',
-                                    action: 'Entfernen',
+                                    title: t.removeMemberQuestion(m.username),
+                                    message: t.removeMemberMessage(m.username),
+                                    action: t.remove,
                                     destructive: true,
                                   );
                                   if (!ok || !context.mounted) return;
@@ -306,19 +288,16 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
                 color: theme.colorScheme.error,
               ),
               title: Text(
-                'Tresor löschen',
+                t.deleteVault,
                 style: TextStyle(color: theme.colorScheme.error),
               ),
-              subtitle: const Text(
-                'Mit allen Konten darin, für alle Mitglieder',
-              ),
+              subtitle: Text(t.deleteVaultHint),
               onTap: () async {
                 final ok = await confirm(
                   context,
-                  title: '„${vault.name}“ löschen?',
-                  message:
-                      'Alle Konten in diesem Tresor werden für alle Mitglieder gelöscht.',
-                  action: 'Löschen',
+                  title: t.deleteVaultQuestion(vault.name),
+                  message: t.deleteVaultMessage,
+                  action: t.delete,
                   destructive: true,
                 );
                 if (!ok || !context.mounted) return;
@@ -331,16 +310,15 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             ListTile(
               leading: Icon(Icons.exit_to_app, color: theme.colorScheme.error),
               title: Text(
-                'Tresor verlassen',
+                t.leaveVault,
                 style: TextStyle(color: theme.colorScheme.error),
               ),
               onTap: () async {
                 final ok = await confirm(
                   context,
-                  title: '„${vault.name}“ verlassen?',
-                  message:
-                      'Du siehst die Konten darin nicht mehr, bis du erneut eingeladen wirst.',
-                  action: 'Verlassen',
+                  title: t.leaveVaultQuestion(vault.name),
+                  message: t.leaveVaultMessage,
+                  action: t.leave,
                   destructive: true,
                 );
                 if (!ok || !context.mounted) return;

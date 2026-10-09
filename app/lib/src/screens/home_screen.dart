@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
+import '../data/error_texts.dart';
+import '../l10n.dart';
 import '../platform/desktop_shell.dart';
 import '../platform/link_inbox.dart';
 import '../platform/qr_image.dart';
@@ -74,20 +76,16 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         icon: Icon(biometricIcon(label), size: 40),
-        title: Text('Mit $label entsperren?'),
-        content: Text(
-          'Dann reicht zum Entsperren $label statt des Master-Passworts. '
-          'Das Passwort brauchst du weiterhin für Kontoänderungen und auf '
-          'neuen Geräten.',
-        ),
+        title: Text(t.offerBiometricsTitle(label)),
+        content: Text(t.offerBiometricsMessage(label)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Nicht jetzt'),
+            child: Text(t.notNow),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Einrichten'),
+            child: Text(t.setUp),
           ),
         ],
       ),
@@ -96,16 +94,13 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       if (yes == true) {
         if (await c.setQuickUnlock(true) && mounted) {
-          showMessage(context, 'Sixora lässt sich jetzt mit $label entsperren');
+          showMessage(context, t.biometricsEnabled(label));
         }
       } else {
         c.settings.biometricsOffered = true;
         await c.saveSettings();
         if (mounted) {
-          showMessage(
-            context,
-            'Lässt sich später unter Einstellungen einrichten',
-          );
+          showMessage(context, t.setUpLaterInSettings);
         }
       }
     } catch (e) {
@@ -149,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
       copySecret(
         context,
         list.first.entry.code(),
-        what: 'Code für ${list.first.entry.displayName}',
+        what: t.codeFor(list.first.entry.displayName),
       );
     } on FormatException {
       // invalid secret, nothing to copy
@@ -172,34 +167,32 @@ class _HomeScreenState extends State<HomeScreen> {
             if (_hasCamera)
               ListTile(
                 leading: const Icon(Icons.qr_code_scanner),
-                title: const Text('QR-Code scannen'),
-                subtitle: const Text('Mit der Kamera'),
+                title: Text(t.scanQrCode),
+                subtitle: Text(t.withCamera),
                 onTap: () => Navigator.pop(context, 'scan'),
               ),
             ListTile(
               leading: const Icon(Icons.image_outlined),
-              title: const Text('QR-Code aus Bild'),
-              subtitle: const Text('Screenshot oder Foto auswählen'),
+              title: Text(t.qrFromImage),
+              subtitle: Text(t.qrFromImageHint),
               onTap: () => Navigator.pop(context, 'image'),
             ),
             ListTile(
               leading: const Icon(Icons.content_paste),
-              title: const Text('Link aus Zwischenablage'),
-              subtitle: const Text('otpauth://… einfügen'),
+              title: Text(t.linkFromClipboard),
+              subtitle: Text(t.linkFromClipboardHint),
               onTap: () => Navigator.pop(context, 'paste'),
             ),
             ListTile(
               leading: const Icon(Icons.keyboard_outlined),
-              title: const Text('Manuell eingeben'),
-              subtitle: const Text('Schlüssel abtippen'),
+              title: Text(t.enterManually),
+              subtitle: Text(t.enterManuallyHint),
               onTap: () => Navigator.pop(context, 'manual'),
             ),
             ListTile(
               leading: const Icon(Icons.file_download_outlined),
-              title: const Text('Importieren'),
-              subtitle: const Text(
-                'Google Authenticator, Aegis, 2FAuth, Sixora …',
-              ),
+              title: Text(t.importAction),
+              subtitle: Text(t.importHint),
               onTap: () => Navigator.pop(context, 'import'),
             ),
           ],
@@ -231,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fromImage() async {
     final files = await FilePicker.pickFiles(
-      dialogTitle: 'Bilder mit QR-Codes auswählen',
+      dialogTitle: t.chooseQrImages,
       type: FileType.image,
     );
     if (files.isEmpty || !mounted) return;
@@ -239,17 +232,12 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       () => readQrCodes(files),
       message: files.length == 1
-          ? 'QR-Code wird gesucht …'
-          : 'QR-Codes in ${files.length} Bildern werden gesucht …',
+          ? t.searchingQr
+          : t.searchingQrInImages(files.length),
     );
     if (codes == null || !mounted) return;
     if (codes.isEmpty) {
-      showMessage(
-        context,
-        files.length == 1
-            ? 'Kein QR-Code im Bild gefunden'
-            : 'In den Bildern wurde kein QR-Code gefunden',
-      );
+      showMessage(context, files.length == 1 ? t.noQrInImage : t.noQrInImages);
       return;
     }
     await _handleCode(codes.join('\n'));
@@ -257,40 +245,39 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Text from a QR code or the clipboard.
   Future<void> _handleCode(String text) async {
-    final t = text.trim();
+    final input = text.trim();
     // Several codes (transfer series, several screenshots) go to the import.
-    if (GoogleMigration.looksLike(t) || t.contains('\n')) {
+    if (GoogleMigration.looksLike(input) || input.contains('\n')) {
       await Navigator.push<void>(
         context,
-        MaterialPageRoute(builder: (_) => ImportScreen(initialText: t)),
+        MaterialPageRoute(builder: (_) => ImportScreen(initialText: input)),
       );
-    } else if (OtpAuthUri.looksLike(t)) {
+    } else if (OtpAuthUri.looksLike(input)) {
       final OtpEntry entry;
       try {
-        entry = OtpAuthUri.parse(t);
+        entry = OtpAuthUri.parse(input);
       } on FormatException catch (e) {
-        showMessage(context, 'Link ist unvollständig: ${e.message}');
+        showMessage(context, t.linkIncomplete(coreErrorText(e.message)));
         return;
       }
       await _openEditor(initial: entry);
     } else {
-      showMessage(context, 'Das ist kein 2FA-Code (otpauth://…)');
+      showMessage(context, t.notA2faLink);
     }
   }
 
   Future<void> _openEditor({OtpEntry? initial, Item? item}) async {
     final c = AppScope.read(context);
     if (c.writableVaults.isEmpty) {
-      showMessage(context, 'Kein Tresor mit Schreibrecht vorhanden');
+      showMessage(context, t.noWritableVault);
       return;
     }
     if (initial != null && item == null && c.isDuplicate(initial)) {
       final go = await confirm(
         context,
-        title: 'Schon vorhanden',
-        message:
-            'Dieses Konto ist bereits gespeichert. Trotzdem noch einmal anlegen?',
-        action: 'Anlegen',
+        title: t.alreadyThere,
+        message: t.alreadyThereMessage,
+        action: t.addAnyway,
       );
       if (!go || !mounted) return;
     }
@@ -314,22 +301,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final vault = c.vault(item.vaultId);
     final canWrite = vault?.canWrite ?? false;
     final actions = <(String, IconData, String)>[
-      ('copy', Icons.copy, 'Code kopieren'),
-      if (canWrite) ('edit', Icons.edit_outlined, 'Bearbeiten'),
+      ('copy', Icons.copy, t.copyCode),
+      if (canWrite) ('edit', Icons.edit_outlined, t.edit),
       if (canWrite)
         (
           'favorite',
           item.entry.favorite ? Icons.star_outline : Icons.star_rounded,
-          item.entry.favorite ? 'Kein Favorit mehr' : 'Als Favorit',
+          item.entry.favorite ? t.removeFavorite : t.makeFavorite,
         ),
       if (canWrite && c.writableVaults.length > 1)
-        (
-          'move',
-          Icons.drive_file_move_outline,
-          'In anderen Tresor verschieben',
-        ),
-      ('qr', Icons.qr_code_2, 'Übertragen (QR-Code)'),
-      if (canWrite) ('delete', Icons.delete_outline, 'Löschen'),
+        ('move', Icons.drive_file_move_outline, t.moveToVault),
+      ('qr', Icons.qr_code_2, t.transferQr),
+      if (canWrite) ('delete', Icons.delete_outline, t.delete),
     ];
     String? choice;
     if (position != null) {
@@ -396,11 +379,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'qr':
         final ok = await confirm(
           context,
-          title: 'Geheimen Schlüssel anzeigen?',
-          message:
-              'Der QR-Code enthält den geheimen Schlüssel. Wer ihn sieht oder '
-              'fotografiert, kann deine Codes erzeugen.',
-          action: 'Anzeigen',
+          title: t.showSecretQuestion,
+          message: t.showSecretMessage,
+          action: t.show,
         );
         if (ok && mounted) {
           await Navigator.push<void>(
@@ -413,13 +394,11 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'delete':
         final ok = await confirm(
           context,
-          title: '„${item.entry.displayName}“ löschen?',
-          message:
-              'Der Eintrag verschwindet auf allen Geräten'
-              '${vault?.shared == true ? ' und bei allen, mit denen der Tresor geteilt ist' : ''}. '
-              '30 Tage lang lässt er sich im Papierkorb (Einstellungen) '
-              'wiederherstellen.',
-          action: 'Löschen',
+          title: t.deleteEntryQuestion(item.entry.displayName),
+          message: vault?.shared == true
+              ? t.deleteEntrySharedMessage
+              : t.deleteEntryMessage,
+          action: t.delete,
           destructive: true,
         );
         if (ok && mounted) {
@@ -436,12 +415,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   // With an action, Flutter keeps it until tapped otherwise.
                   persist: false,
                   duration: const Duration(seconds: 6),
-                  content: Text('„${item.entry.displayName}“ gelöscht'),
+                  content: Text(t.entryDeleted(item.entry.displayName)),
                   action: SnackBarAction(
-                    label: 'Rückgängig',
+                    label: t.undo,
                     onPressed: () => runBusy(context, () async {
                       final trash = await c.trash();
-                      final hit = trash.where((t) => t.item.id == item.id);
+                      final hit = trash.where((x) => x.item.id == item.id);
                       if (hit.isNotEmpty) await c.restore(hit.first);
                     }),
                   ),
@@ -457,7 +436,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final target = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Verschieben nach'),
+        title: Text(t.moveTo),
         children: [
           for (final v in c.writableVaults)
             if (v.id != item.vaultId)
@@ -525,19 +504,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 )
               else
                 IconButton(
-                  tooltip: 'Synchronisieren',
+                  tooltip: t.synchronize,
                   icon: Icon(
                     c.syncError == null ? Icons.sync : Icons.sync_problem,
                   ),
                   onPressed: c.sync,
                 ),
               IconButton(
-                tooltip: 'Sperren',
+                tooltip: t.lock,
                 icon: const Icon(Icons.lock_outline),
                 onPressed: c.lock,
               ),
               IconButton(
-                tooltip: 'Einstellungen',
+                tooltip: t.settings,
                 icon: const Icon(Icons.settings_outlined),
                 onPressed: () => Navigator.push<void>(
                   context,
@@ -549,7 +528,7 @@ class _HomeScreenState extends State<HomeScreen> {
           floatingActionButton: FloatingActionButton.extended(
             onPressed: _add,
             icon: const Icon(Icons.add),
-            label: const Text('Hinzufügen'),
+            label: Text(t.add),
           ),
           body: Center(
             child: ConstrainedBox(
@@ -569,10 +548,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           vertical: 8,
                         ),
                         children: [
-                          _chip('Alle', _Filter.all, null),
+                          _chip(t.all, _Filter.all, null),
                           if (c.items.any((i) => i.entry.favorite))
                             _chip(
-                              'Favoriten',
+                              t.favorites,
                               _Filter.favorites,
                               null,
                               icon: Icons.star_rounded,
@@ -604,14 +583,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (c.syncError != null)
                     _Banner(
                       icon: Icons.cloud_off,
-                      text:
-                          '${c.syncError}\nDie Codes funktionieren trotzdem; Änderungen brauchen eine Verbindung.',
+                      text: t.syncErrorBanner(c.syncError!),
                     ),
                   if (c.undecryptable > 0)
                     _Banner(
                       icon: Icons.warning_amber,
-                      text:
-                          '${c.undecryptable} Einträge lassen sich nicht entschlüsseln.',
+                      text: t.undecryptableEntries(c.undecryptable),
                     ),
                   Expanded(
                     child: RefreshIndicator(
@@ -620,9 +597,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ? _empty(theme)
                           : visible.isEmpty
                           ? ListView(
-                              children: const [
+                              children: [
                                 SizedBox(height: 80),
-                                Center(child: Text('Keine Treffer')),
+                                Center(child: Text(t.noMatches)),
                               ],
                             )
                           : ListView.builder(
@@ -681,14 +658,13 @@ class _HomeScreenState extends State<HomeScreen> {
       Icon(Icons.qr_code_2, size: 72, color: theme.colorScheme.primary),
       const SizedBox(height: 16),
       Text(
-        'Noch keine Konten',
+        t.noAccountsYet,
         textAlign: TextAlign.center,
         style: theme.textTheme.titleLarge,
       ),
       const SizedBox(height: 8),
       Text(
-        'Aktiviere bei einem Dienst die Zwei-Faktor-Anmeldung und scanne den '
-        'angezeigten QR-Code – oder importiere deine Konten aus einer anderen App.',
+        t.noAccountsHint,
         textAlign: TextAlign.center,
         style: theme.textTheme.bodyMedium,
       ),
@@ -697,7 +673,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: FilledButton.icon(
           onPressed: _add,
           icon: const Icon(Icons.add),
-          label: const Text('Konto hinzufügen'),
+          label: Text(t.addAccount),
         ),
       ),
     ],
@@ -723,12 +699,12 @@ class _SearchField extends StatelessWidget {
       onSubmitted: onSubmitted,
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
-        hintText: 'Suchen',
+        hintText: t.search,
         prefixIcon: const Icon(Icons.search),
         suffixIcon: controller.text.isEmpty
             ? null
             : IconButton(
-                tooltip: 'Leeren',
+                tooltip: t.clear,
                 icon: const Icon(Icons.close),
                 onPressed: controller.clear,
               ),
@@ -760,19 +736,16 @@ class _SignInNoticeState extends State<_SignInNotice> {
     final c = AppScope.read(context);
     final ok = await confirm(
       context,
-      title: 'Gerät abmelden?',
-      message:
-          '„${widget.session.deviceName}“ verliert sofort den Zugriff. '
-          'Warst du das nicht, ändere danach auch dein Master-Passwort: '
-          'Wer sich anmelden konnte, kennt es.',
-      action: 'Abmelden',
+      title: t.signOutDeviceQuestion,
+      message: t.signOutDeviceMessage(widget.session.deviceName),
+      action: t.signOut,
       destructive: true,
     );
     if (!ok || !mounted) return;
     setState(() => _busy = true);
     try {
       await c.revokeSession(widget.session.id);
-      if (mounted) showMessage(context, 'Gerät abgemeldet');
+      if (mounted) showMessage(context, t.deviceSignedOut);
     } on Object catch (e) {
       if (mounted) showError(context, e);
     } finally {
@@ -799,8 +772,11 @@ class _SignInNoticeState extends State<_SignInNotice> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Neue Anmeldung: ${s.deviceName}$platform, '
-                    '${formatDate(s.createdAt)}',
+                    t.newSignIn(
+                      s.deviceName,
+                      platform,
+                      formatDate(s.createdAt),
+                    ),
                     style: TextStyle(
                       color: scheme.onTertiaryContainer,
                       fontWeight: FontWeight.w600,
@@ -818,11 +794,11 @@ class _SignInNoticeState extends State<_SignInNotice> {
                     onPressed: _busy
                         ? null
                         : () => AppScope.read(context).acknowledgeSession(s.id),
-                    child: const Text('Das war ich'),
+                    child: Text(t.thatWasMe),
                   ),
                   TextButton(
                     onPressed: _busy ? null : _signOut,
-                    child: const Text('Abmelden'),
+                    child: Text(t.signOut),
                   ),
                 ],
               ),

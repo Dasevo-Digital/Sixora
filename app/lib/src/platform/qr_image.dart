@@ -8,6 +8,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sixora_core/sixora_core.dart';
 import 'package:zxing2/qrcode.dart' hide BarcodeFormat;
 
+import '../l10n.dart';
+
 /// Reads the QR codes in image files (screenshots, photos, saved codes).
 ///
 /// On iOS, Android and macOS the system's barcode detection (Vision, ML Kit)
@@ -40,10 +42,7 @@ Future<List<String>> readQrImages(
     }
   }
   if (codes.isEmpty && unreadable == images.length && images.isNotEmpty) {
-    throw const FormatException(
-      'Das Bild lässt sich nicht öffnen. Bitte als PNG oder JPEG speichern '
-      '(z. B. einen Screenshot statt eines HEIC-Fotos).',
-    );
+    throw FormatException(t.imageNotOpenable);
   }
   return codes.toList();
 }
@@ -156,8 +155,11 @@ String? missingTransferCodes(Iterable<String> codes) {
     if (missing.isEmpty) continue;
     final list = missing.length == 1
         ? missing.single
-        : '${missing.sublist(0, missing.length - 1).join(', ')} und ${missing.last}';
-    parts.add('$list von $size');
+        : t.listAnd(
+            missing.sublist(0, missing.length - 1).join(', '),
+            missing.last,
+          );
+    parts.add(t.codeListOfSize(list, size));
   }
   return parts.isEmpty ? null : parts.join('; ');
 }

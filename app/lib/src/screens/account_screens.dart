@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
+import '../l10n.dart';
 import '../widgets/common.dart';
 
 /// Loads data from the server and shows it, with retry on errors.
@@ -33,10 +34,7 @@ class _LoaderState<T> extends State<Loader<T>> {
               children: [
                 Text(errorText(snap.error!), textAlign: TextAlign.center),
                 const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: _reload,
-                  child: const Text('Erneut versuchen'),
-                ),
+                OutlinedButton(onPressed: _reload, child: Text(t.tryAgain)),
               ],
             ),
           ),
@@ -66,38 +64,38 @@ class SessionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = AppScope.read(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Angemeldete Geräte')),
+      appBar: AppBar(title: Text(t.signedInDevices)),
       body: Loader<List<SessionDto>>(
         load: () => c.online((api) => api.sessions()),
         builder: (context, sessions, reload) => ListView(
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
-              child: Text(
-                'Ein abgemeldetes Gerät verliert sofort den Zugriff auf den Server '
-                'und löscht beim nächsten Kontakt seine lokale Kopie.',
-              ),
+              child: Text(t.signedInDevicesHint),
             ),
             for (final s in sessions)
               ListTile(
                 leading: Icon(platformIcon(s.platform)),
                 title: Text(
-                  s.current ? '${s.deviceName} (dieses Gerät)' : s.deviceName,
+                  s.current ? t.thisDevice(s.deviceName) : s.deviceName,
                 ),
                 subtitle: Text(
-                  'Angemeldet ${formatDate(s.createdAt)} · zuletzt aktiv ${formatDate(s.lastSeenAt)}',
+                  t.sessionDates(
+                    formatDate(s.createdAt),
+                    formatDate(s.lastSeenAt),
+                  ),
                 ),
                 trailing: s.current
                     ? null
                     : IconButton(
-                        tooltip: 'Abmelden',
+                        tooltip: t.signOut,
                         icon: const Icon(Icons.logout),
                         onPressed: () async {
                           final ok = await confirm(
                             context,
-                            title: '„${s.deviceName}“ abmelden?',
-                            message: 'Das Gerät muss sich danach neu anmelden.',
-                            action: 'Abmelden',
+                            title: t.signOutDeviceNamed(s.deviceName),
+                            message: t.signOutDeviceHint,
+                            action: t.signOut,
                             destructive: true,
                           );
                           if (!ok || !context.mounted) return;
@@ -117,25 +115,26 @@ class SessionsScreen extends StatelessWidget {
 }
 
 String auditLabel(String event) => switch (event) {
-  'register' => 'Konto erstellt',
-  'login' => 'Anmeldung',
-  'login_failed' => 'Fehlgeschlagene Anmeldung',
-  'reauth_failed' => 'Falsches Passwort bei Kontoänderung',
-  'logout' => 'Abmeldung',
-  'password_changed' => 'Master-Passwort geändert',
-  'recovery_used' => 'Wiederherstellungsschlüssel benutzt',
-  'recovery_failed' => 'Falscher Wiederherstellungsschlüssel',
-  'recovery_key_changed' => 'Neuer Wiederherstellungsschlüssel',
-  'session_revoked' => 'Gerät abgemeldet',
-  'account_deleted' => 'Konto gelöscht',
-  'vault_shared' => 'Tresor geteilt',
-  'vault_unshared' => 'Mitglied entfernt',
-  'vault_left' => 'Tresor verlassen',
-  'vault_deleted' => 'Tresor gelöscht',
-  'invite_created' => 'Einladung erstellt',
-  'invite_deleted' => 'Einladung gelöscht',
-  'admin_user_updated' => 'Benutzer geändert',
-  'admin_user_deleted' => 'Benutzer gelöscht',
+  'register' => t.eventRegister,
+  'login' => t.eventLogin,
+  'login_failed' => t.eventLoginFailed,
+  'reauth_failed' => t.eventReauthFailed,
+  'logout' => t.eventLogout,
+  'password_changed' => t.eventPasswordChanged,
+  'recovery_used' => t.eventRecoveryUsed,
+  'recovery_failed' => t.eventRecoveryFailed,
+  'recovery_key_changed' => t.eventRecoveryKeyChanged,
+  'session_revoked' => t.eventSessionRevoked,
+  'account_deleted' => t.eventAccountDeleted,
+  'vault_shared' => t.eventVaultShared,
+  'vault_unshared' => t.eventVaultUnshared,
+  'vault_left' => t.eventVaultLeft,
+  'vault_deleted' => t.eventVaultDeleted,
+  'invite_created' => t.eventInviteCreated,
+  'invite_deleted' => t.eventInviteDeleted,
+  'admin_user_updated' => t.eventUserUpdated,
+  'admin_user_deleted' => t.eventUserDeleted,
+  'vault_key_rotated' => t.eventVaultKeyRotated,
   _ => event,
 };
 
@@ -158,9 +157,9 @@ class AuditList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (events.isEmpty) {
       return ListView(
-        children: const [
+        children: [
           SizedBox(height: 80),
-          Center(child: Text('Keine Einträge')),
+          Center(child: Text(t.noEntries)),
         ],
       );
     }
@@ -194,7 +193,7 @@ class AuditScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = AppScope.read(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Aktivitäten')),
+      appBar: AppBar(title: Text(t.activity)),
       body: Loader<List<AuditDto>>(
         load: () => c.online((api) => api.accountAudit()),
         builder: (context, events, _) => AuditList(events: events),

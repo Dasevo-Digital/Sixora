@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sixora_core/sixora_core.dart';
 
+import '../l10n.dart';
+
 /// Shows QR codes to move accounts into another authenticator app:
 /// a single account as otpauth link, several as Google Authenticator
 /// transfer codes.
@@ -39,7 +41,7 @@ class _EntryQrScreenState extends State<EntryQrScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          single ? widget.entries.single.displayName : 'Konten übertragen',
+          single ? widget.entries.single.displayName : t.transferAccounts,
         ),
       ),
       body: Center(
@@ -50,7 +52,7 @@ class _EntryQrScreenState extends State<EntryQrScreen> {
             child: Column(
               children: [
                 if (_codes.isEmpty)
-                  const Text('Keines der Konten lässt sich so übertragen.')
+                  Text(t.noneTransferable)
                 else ...[
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -70,15 +72,15 @@ class _EntryQrScreenState extends State<EntryQrScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(
-                          tooltip: 'Vorheriger Code',
+                          tooltip: t.previousCode,
                           onPressed: _page > 0
                               ? () => setState(() => _page--)
                               : null,
                           icon: const Icon(Icons.chevron_left),
                         ),
-                        Text('Code ${_page + 1} von ${_codes.length}'),
+                        Text(t.codeOfTotal(_page + 1, _codes.length)),
                         IconButton(
-                          tooltip: 'Nächster Code',
+                          tooltip: t.nextCode,
                           onPressed: _page < _codes.length - 1
                               ? () => setState(() => _page++)
                               : null,
@@ -87,18 +89,13 @@ class _EntryQrScreenState extends State<EntryQrScreen> {
                       ],
                     ),
                   Text(
-                    single
-                        ? 'In der anderen App „QR-Code scannen“ wählen.'
-                        : 'In Google Authenticator „Konten importieren“ wählen und die '
-                              'Codes nacheinander scannen. Andere Apps wie Aegis lesen '
-                              'dieses Format ebenfalls.',
+                    single ? t.scanInOtherApp : t.scanInGoogleAuthenticator,
                     textAlign: TextAlign.center,
                   ),
                   if (_skipped > 0) ...[
                     const SizedBox(height: 12),
                     Text(
-                      '$_skipped Konten (Steam oder ungewöhnliche Intervalle) sind nicht '
-                      'enthalten – bitte einzeln übertragen.',
+                      t.skippedTransfer(_skipped),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: theme.colorScheme.error),
                     ),

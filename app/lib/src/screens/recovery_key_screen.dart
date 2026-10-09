@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n.dart';
 import '../widgets/common.dart';
 
 /// Shows a new recovery key once. The user has to confirm that it is
@@ -27,17 +28,14 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
   bool _stored = false;
 
   Future<void> _save() async {
-    final text =
-        'Sixora – Wiederherstellungsschlüssel\n\n'
-        'Benutzer: ${widget.username}\n'
-        'Erstellt: ${formatDate(DateTime.now())}\n\n'
-        '${widget.recoveryKey}\n\n'
-        'Damit lässt sich ein neues Master-Passwort setzen. '
-        'Sicher aufbewahren (z. B. ausgedruckt oder im Passwort-Manager) '
-        'und niemandem zeigen.\n';
+    final text = t.recoveryKeyFile(
+      widget.username,
+      formatDate(DateTime.now()),
+      widget.recoveryKey,
+    );
     try {
       await FilePicker.saveFile(
-        dialogTitle: 'Wiederherstellungsschlüssel speichern',
+        dialogTitle: t.saveRecoveryKey,
         fileName: 'Sixora-Wiederherstellung-${widget.username}.txt',
         bytes: Uint8List.fromList(utf8.encode(text)),
         mimeType: 'text/plain',
@@ -54,7 +52,7 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
       canPop: _stored,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Wiederherstellungsschlüssel'),
+          title: Text(t.recoveryKey),
           automaticallyImplyLeading: false,
         ),
         body: FormPage(
@@ -67,18 +65,12 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              widget.renewed
-                  ? 'Dein neuer Wiederherstellungsschlüssel. Der alte gilt nicht mehr.'
-                  : 'Schreib dir diesen Schlüssel jetzt auf.',
+              widget.renewed ? t.newRecoveryKeyShown : t.writeDownKey,
               style: theme.textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            Text(
-              'Vergisst du dein Master-Passwort, ist er der einzige Weg zurück an '
-              'deine Codes. Er wird nur dieses eine Mal angezeigt.',
-              textAlign: TextAlign.center,
-            ),
+            Text(t.recoveryKeyExplanation, textAlign: TextAlign.center),
             const SizedBox(height: 20),
             Card(
               color: theme.colorScheme.surfaceContainerHighest,
@@ -103,18 +95,15 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
               children: [
                 OutlinedButton.icon(
                   icon: const Icon(Icons.copy),
-                  label: const Text('Kopieren'),
+                  label: Text(t.copy),
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: widget.recoveryKey));
-                    showMessage(
-                      context,
-                      'Kopiert – bitte nach dem Einfügen aus der Zwischenablage entfernen',
-                    );
+                    showMessage(context, t.copiedRemoveAfterPaste);
                   },
                 ),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.save_alt),
-                  label: const Text('Als Datei speichern'),
+                  label: Text(t.saveAsFile),
                   onPressed: _save,
                 ),
               ],
@@ -123,13 +112,13 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
             CheckboxListTile(
               value: _stored,
               onChanged: (v) => setState(() => _stored = v ?? false),
-              title: const Text('Ich habe den Schlüssel sicher aufbewahrt.'),
+              title: Text(t.keyStoredSafely),
               controlAffinity: ListTileControlAffinity.leading,
             ),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: _stored ? () => Navigator.pop(context) : null,
-              child: const Text('Weiter'),
+              child: Text(t.continueAction),
             ),
           ],
         ),

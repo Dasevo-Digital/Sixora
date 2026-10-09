@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sixora_core/sixora_core.dart';
 
+import '../l10n.dart';
+
 /// Camera scanner; returns the text of the first QR code found. Google
 /// Authenticator transfers with several codes ("1 von 8") are collected
 /// until all are there; then all of them are returned, one per line.
@@ -66,12 +68,12 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
     appBar: AppBar(
-      title: const Text('QR-Code scannen'),
+      title: Text(t.scanQrCode),
       backgroundColor: Colors.black,
       foregroundColor: Colors.white,
       actions: [
         IconButton(
-          tooltip: 'Kamera wechseln',
+          tooltip: t.switchCamera,
           icon: const Icon(Icons.cameraswitch_outlined),
           onPressed: _controller.switchCamera,
         ),
@@ -88,8 +90,10 @@ class _ScanScreenState extends State<ScanScreen> {
               padding: const EdgeInsets.all(32),
               child: Text(
                 error.errorCode == MobileScannerErrorCode.permissionDenied
-                    ? 'Kein Zugriff auf die Kamera. Bitte in den Systemeinstellungen erlauben.'
-                    : 'Kamera nicht verfügbar: ${error.errorDetails?.message ?? error.errorCode.name}',
+                    ? t.noCameraAccess
+                    : t.cameraUnavailable(
+                        error.errorDetails?.message ?? error.errorCode.name,
+                      ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white),
               ),
@@ -118,7 +122,7 @@ class _ScanScreenState extends State<ScanScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      '${_series.length} von $_seriesSize Codes erfasst',
+                      t.codesCaptured(_series.length, _seriesSize),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
@@ -126,26 +130,25 @@ class _ScanScreenState extends State<ScanScreen> {
                       value: _series.length / _seriesSize,
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'In Google Authenticator zum nächsten Code blättern.',
+                    Text(
+                      t.nextInGoogleAuthenticator,
                       textAlign: TextAlign.center,
                     ),
                     TextButton(
                       onPressed: () => _finish(_collected),
-                      child: const Text('Mit den erfassten weiter'),
+                      child: Text(t.continueWithCaptured),
                     ),
                   ],
                 ),
               ),
             ),
           ),
-        const Positioned(
+        Positioned(
           left: 24,
           right: 24,
           bottom: 48,
           child: Text(
-            'Halte die Kamera auf den QR-Code, den der Dienst bei der Einrichtung '
-            'der Zwei-Faktor-Anmeldung anzeigt.',
+            t.scanHint,
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white),
           ),

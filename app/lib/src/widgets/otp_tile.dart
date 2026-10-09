@@ -5,6 +5,7 @@ import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
 import '../data/service_icons.dart';
+import '../l10n.dart';
 import 'common.dart';
 
 /// Colour of an entry's avatar: chosen by the user or derived from the
@@ -191,11 +192,11 @@ class _OtpTileState extends State<OtpTile> {
           if (e.issuer.isNotEmpty && e.account.isNotEmpty) e.account,
           ?widget.vaultName,
           invalid
-              ? 'Schlüssel ungültig'
+              ? t.keyInvalidShort
               : hidden
-              ? 'Code verborgen'
-              : 'Code ${code.split('').join(' ')}',
-          if (!hotp && !hidden && !invalid) 'noch $remaining Sekunden',
+              ? t.codeHidden
+              : t.spokenCode(code.split('').join(' ')),
+          if (!hotp && !hidden && !invalid) t.secondsLeft(remaining),
         ].join(', ');
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -204,8 +205,8 @@ class _OtpTileState extends State<OtpTile> {
             container: true,
             button: !invalid,
             label: spoken,
-            onTapHint: hidden ? 'Code anzeigen' : 'Code kopieren',
-            onLongPressHint: 'Weitere Aktionen',
+            onTapHint: hidden ? t.showCode : t.copyCode,
+            onLongPressHint: t.moreActions,
             child: InkWell(
               onTap: invalid
                   ? null
@@ -288,14 +289,14 @@ class _OtpTileState extends State<OtpTile> {
                             ),
                             if (next != null && !hidden)
                               Text(
-                                'Nächster: ${groupCode(next)}',
+                                t.nextCodeLabel(groupCode(next)),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             if (invalid)
                               Text(
-                                'Schlüssel ist ungültig',
+                                t.keyIsInvalid,
                                 style: TextStyle(
                                   color: theme.colorScheme.error,
                                 ),
@@ -306,7 +307,7 @@ class _OtpTileState extends State<OtpTile> {
                     ),
                     if (hotp)
                       IconButton(
-                        tooltip: 'Nächster Code',
+                        tooltip: t.nextCode,
                         icon: const Icon(Icons.refresh),
                         onPressed: () =>
                             runBusy(context, () => c.nextHotp(widget.item)),
@@ -320,7 +321,7 @@ class _OtpTileState extends State<OtpTile> {
                         ),
                       ),
                     IconButton(
-                      tooltip: 'Mehr',
+                      tooltip: t.more,
                       icon: const Icon(Icons.more_vert),
                       onPressed: () => widget.onMenu(null),
                     ),

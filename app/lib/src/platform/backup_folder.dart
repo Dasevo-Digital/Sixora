@@ -4,6 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
+import '../l10n.dart';
+
 /// A folder the user picked once, for automatic backups. It must stay
 /// writable across restarts:
 ///
@@ -29,12 +31,15 @@ abstract final class BackupFolder {
 
   static Future<FolderRef?> pick() async {
     if (_nativePick) {
-      final r = await _channel.invokeMapMethod<String, Object?>('pick');
+      final r = await _channel.invokeMapMethod<String, Object?>('pick', {
+        'prompt': t.choose,
+        'message': t.autoBackupFolder,
+      });
       if (r == null) return null;
       return FolderRef(r['ref']! as String, r['label'] as String? ?? '');
     }
     final path = await FilePicker.getDirectoryPath(
-      dialogTitle: 'Ordner für die automatische Sicherung',
+      dialogTitle: t.autoBackupFolder,
     );
     return path == null ? null : FolderRef(path, path);
   }
