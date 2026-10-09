@@ -18,17 +18,36 @@ class _LockScreenState extends State<LockScreen> {
   bool _busy = false;
   String? _error;
 
+  /// Face ID & co. start by themselves once, as soon as the app is active.
+  bool _autoPending = false;
+  AppLifecycleListener? _lifecycle;
+
   @override
   void initState() {
     super.initState();
     final c = AppScope.read(context);
     if (c.quickUnlockReady) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _biometric());
+      _autoPending = true;
+      _lifecycle = AppLifecycleListener(onResume: _autoBiometric);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _autoBiometric());
     }
+  }
+
+  /// iOS cancels a prompt that starts while the app is still coming to the
+  /// front (cold start, or locked in the background) and shows it again:
+  /// two scans. So the prompt waits until the app is really active.
+  void _autoBiometric() {
+    if (!_autoPending || !mounted) return;
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      return;
+    }
+    _autoPending = false;
+    _biometric();
   }
 
   @override
   void dispose() {
+    _lifecycle?.dispose();
     _password.dispose();
     _passwordFocus.dispose();
     super.dispose();
@@ -55,7 +74,13 @@ class _LockScreenState extends State<LockScreen> {
     _password.clear();
   }
 
-  Future<void> _biometric() => _run(() async {
+  Future<void> _biometric() async {
+    // One prompt at a time, whatever asks for it.
+    if (_busy) return;
+    await _runBiometric();
+  }
+
+  Future<void> _runBiometric() => _run(() async {
     final notUnlocked = await AppScope.read(context).unlockWithBiometrics();
     if (notUnlocked == null || !mounted) return;
     // Cancelled or "Master-Passwort" chosen: on to the password field.
