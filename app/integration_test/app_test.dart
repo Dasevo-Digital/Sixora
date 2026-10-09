@@ -160,6 +160,24 @@ void main() {
     await controller.restore(trash.single);
     expect(controller.items.single.entry.issuer, 'GitHub');
     expect(await controller.trash(), isEmpty);
+    await _pumpUntil(tester, find.byType(OtpTile));
+
+    // Another device deletes it: the list follows on its own, without
+    // pressing sync.
+    final other = SixoraApi(
+      Uri.parse(_server),
+      token: controller.secrets['token'],
+    );
+    final restored = controller.items.single;
+    await other.deleteEntry(restored.id, baseRevision: restored.revision);
+    other.close();
+    await _pumpUntil(
+      tester,
+      find.text('Noch keine Konten'),
+      timeout: const Duration(seconds: 5),
+    );
+    await controller.restore((await controller.trash()).single);
+    await _pumpUntil(tester, find.byType(OtpTile));
 
     // Copying marks the code as concealed; the text arrives as usual.
     await SecureClipboard.copy('123456', expiresIn: Duration.zero);

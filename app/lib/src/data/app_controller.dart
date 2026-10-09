@@ -482,10 +482,9 @@ class AppController extends ChangeNotifier {
         );
         if (!current()) return;
         await _apply(result);
-        if (syncError != null) {
-          syncError = null;
-          notifyListeners();
-        }
+        if (!current()) return;
+        syncError = null;
+        notifyListeners();
         backoff = const Duration(seconds: 5);
         // A server without long poll answers at once: then poll gently.
         if (result.cursor == since &&
