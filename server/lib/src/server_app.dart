@@ -8,9 +8,10 @@ import 'package:shelf_router/shelf_router.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import 'config.dart';
+import 'landing_page.dart';
 import 'security.dart';
 
-const serverVersion = '0.1.1';
+const serverVersion = '0.1.2';
 const apiVersion = 1;
 
 /// Error answered as `{"error": code, "message": text}`.
@@ -62,6 +63,7 @@ class SixoraServerApp {
   static const maxEntriesPerVault = 5000;
   static const maxVaultsPerUser = 100;
   static const sessionIdleDays = 180;
+  static const maxSessionsPerUser = 50;
   static const auditKeepDays = 365;
 
   final _userFailures = FailureLimiter(
@@ -92,6 +94,7 @@ class SixoraServerApp {
       notFoundHandler: (_) => _error(404, 'not_found', 'Nicht gefunden'),
     );
     r.get('/', _root);
+    r.get('/robots.txt', _robots);
     r.get('/api/v1/info', _info);
     r.post('/api/v1/auth/prelogin', _prelogin);
     r.post('/api/v1/auth/register', _register);
@@ -180,7 +183,15 @@ class SixoraServerApp {
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',
         'Referrer-Policy': 'no-referrer',
-        'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+        // The landing page brings its own, slightly wider policy.
+        'Content-Security-Policy':
+            response.headers['content-security-policy'] ??
+            "default-src 'none'; frame-ancestors 'none'",
+        'Permissions-Policy':
+            'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Resource-Policy': 'same-origin',
+        'X-Robots-Tag': 'noindex, nofollow',
         if (tls) 'Strict-Transport-Security': 'max-age=31536000',
       },
     );
@@ -407,6 +418,13 @@ class SixoraServerApp {
         _ip(request),
       ],
     );
+    // Bounded per account: the oldest sessions give way.
+    db.execute(
+      'DELETE FROM sessions WHERE user_id = ? AND id NOT IN '
+      '(SELECT id FROM sessions WHERE user_id = ? '
+      'ORDER BY last_seen_at DESC, created_at DESC LIMIT ?)',
+      [userId, userId, maxSessionsPerUser],
+    );
     return token;
   }
 
@@ -464,6 +482,13 @@ class SixoraServerApp {
           username: user['username'] as String,
           ip: ip,
         );
+      } else {
+        // Shows up in the admin log: guessing of user names.
+        _audit(
+          failEvent,
+          detail: 'unbekannter Benutzer „${_clip(username, 64)}“',
+          ip: ip,
+        );
       }
       throw const ApiError(
         401,
@@ -489,8 +514,28 @@ class SixoraServerApp {
 
   // --- Public endpoints ----------------------------------------------------
 
-  Response _root(Request request) => Response.ok(
-    'Sixora-Server $serverVersion läuft. Bitte mit der Sixora-App verbinden.\n',
+  late final _landing = LandingPage(serverName);
+
+  Response _root(Request request) {
+    final uri = request.requestedUri;
+    final proto = trustProxy
+        ? request.headers['x-forwarded-proto']?.split(',').first.trim()
+        : null;
+    final scheme = proto == 'https' || tls ? 'https' : uri.scheme;
+    final defaultPort =
+        uri.port == (scheme == 'https' ? 443 : 80) || proto != null;
+    final address = '$scheme://${uri.host}${defaultPort ? '' : ':${uri.port}'}';
+    return Response.ok(
+      _landing.render(address: address),
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Security-Policy': LandingPage.contentSecurityPolicy,
+      },
+    );
+  }
+
+  Response _robots(Request request) => Response.ok(
+    'User-agent: *\nDisallow: /\n',
     headers: {'Content-Type': 'text/plain; charset=utf-8'},
   );
 

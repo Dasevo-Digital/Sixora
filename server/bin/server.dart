@@ -48,16 +48,18 @@ Future<void> main(List<String> args) async {
       address,
       config.port,
       securityContext: context,
+      // No "X-Powered-By": it only tells attackers what runs here.
+      poweredByHeader: null,
     );
   } else {
-    server = await io.serve(app.handler, address, config.port);
+    server = await io.serve(
+      app.handler,
+      address,
+      config.port,
+      poweredByHeader: null,
+    );
   }
   server.autoCompress = true;
-  // No "X-Powered-By": it only tells attackers what runs here.
-  server.defaultResponseHeaders.remove(
-    'x-powered-by',
-    'Dart with package:shelf',
-  );
   app.startMaintenance();
   stdout.writeln(
     'Sixora-Server $serverVersion auf ${config.tls ? 'https' : 'http'}://'

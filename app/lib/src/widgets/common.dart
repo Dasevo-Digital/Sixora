@@ -238,6 +238,7 @@ class PasswordField extends StatefulWidget {
     required this.controller,
     this.label = 'Master-Passwort',
     this.autofocus = false,
+    this.focusNode,
     this.onSubmitted,
     this.autofillHints = const [AutofillHints.password],
     this.helper,
@@ -245,6 +246,7 @@ class PasswordField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
   final bool autofocus;
+  final FocusNode? focusNode;
   final ValueChanged<String>? onSubmitted;
   final Iterable<String> autofillHints;
   final String? helper;
@@ -259,6 +261,7 @@ class _PasswordFieldState extends State<PasswordField> {
   @override
   Widget build(BuildContext context) => TextField(
     controller: widget.controller,
+    focusNode: widget.focusNode,
     autofocus: widget.autofocus,
     obscureText: !_visible,
     autocorrect: false,

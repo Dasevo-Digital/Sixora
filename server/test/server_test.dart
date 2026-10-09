@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:sixora_core/sixora_core.dart';
 import 'package:sixora_server/sixora_server.dart';
@@ -17,13 +18,20 @@ class _Harness {
   Future<void> start({
     Registration registration = Registration.invite,
     bool trustProxy = false,
+    String serverName = 'Sixora',
   }) async {
     app = SixoraServerApp(
       db: openSixoraDatabase(':memory:'),
       registration: registration,
       trustProxy: trustProxy,
+      serverName: serverName,
     );
-    server = await io.serve(app.handler, InternetAddress.loopbackIPv4, 0);
+    server = await io.serve(
+      app.handler,
+      InternetAddress.loopbackIPv4,
+      0,
+      poweredByHeader: null,
+    );
     url = Uri.parse('http://127.0.0.1:${server.port}/');
   }
 
@@ -494,5 +502,115 @@ void main() {
         ),
       ),
     );
+  });
+
+  group('landing page and headers', () {
+    Future<HttpClientResponse> get(
+      String path, {
+      Map<String, String>? headers,
+    }) async {
+      final client = HttpClient();
+      final request = await client.getUrl(h.url.resolve(path));
+      headers?.forEach(request.headers.set);
+      final response = await request.close();
+      client.close();
+      return response;
+    }
+
+    test('serves an escaped page whose style matches the policy', () async {
+      await h.stop();
+      h = _Harness();
+      await h.start(serverName: '<b>Firma & Co</b>', trustProxy: true);
+      final response = await get(
+        '/',
+        headers: {'X-Forwarded-Proto': 'https', 'Host': 'otp.example.org'},
+      );
+      final html = await utf8.decodeStream(response);
+      expect(response.statusCode, 200);
+      expect(response.headers.contentType?.mimeType, 'text/html');
+      expect(html, contains('&lt;b&gt;Firma &amp; Co&lt;'));
+      expect(html, isNot(contains('<b>Firma')));
+      // The address is escaped too ("/" → "&#47;"), browsers show it plainly.
+      expect(html, contains('<code>https:&#47;&#47;otp.example.org</code>'));
+      expect(html, isNot(contains('<script')));
+      final style = RegExp(
+        r'<style>(.*?)</style>',
+        dotAll: true,
+      ).firstMatch(html)!.group(1)!;
+      final hash = base64.encode(sha256.convert(utf8.encode(style)).bytes);
+      final csp = response.headers.value('content-security-policy')!;
+      expect(csp, contains("style-src 'sha256-$hash'"));
+      expect(csp, contains("default-src 'none'"));
+      expect(csp, contains("frame-ancestors 'none'"));
+    });
+
+    test('security headers everywhere, nothing about the technology', () async {
+      for (final path in ['/', '/api/v1/info', '/nope']) {
+        final r = await get(path);
+        await r.drain<void>();
+        expect(r.headers.value('x-powered-by'), isNull, reason: path);
+        expect(r.headers.value('x-content-type-options'), 'nosniff');
+        expect(r.headers.value('x-frame-options'), 'DENY');
+        expect(r.headers.value('cache-control'), 'no-store');
+        expect(r.headers.value('cross-origin-opener-policy'), 'same-origin');
+        expect(r.headers.value('x-robots-tag'), contains('noindex'));
+        expect(r.headers.value('permissions-policy'), contains('camera=()'));
+      }
+      final api = await get('/api/v1/info');
+      await api.drain<void>();
+      expect(
+        api.headers.value('content-security-policy'),
+        "default-src 'none'; frame-ancestors 'none'",
+      );
+      final robots = await get('/robots.txt');
+      expect(await utf8.decodeStream(robots), contains('Disallow: /'));
+    });
+
+    test('sessions per account are bounded', () async {
+      final alice = await _User.register(h, 'alice');
+      final pre = await h.api().prelogin('alice');
+      final keys = VaultCrypto.derivePasswordKeys(
+        alice.password,
+        pre.salt,
+        _kdf,
+      );
+      late SixoraApi newest;
+      for (var i = 0; i < SixoraServerApp.maxSessionsPerUser + 3; i++) {
+        newest = h.api();
+        await newest.login(
+          username: 'alice',
+          authKey: keys.authKeyB64,
+          device: DeviceInfo(name: 'Gerät $i', platform: 'test'),
+        );
+      }
+      expect(
+        await newest.sessions(),
+        hasLength(SixoraServerApp.maxSessionsPerUser),
+      );
+      // The oldest session (the registration) gave way.
+      await expectLater(
+        alice.api.sessions(),
+        throwsA(isA<ApiException>().having((e) => e.unauthorized, '401', true)),
+      );
+    });
+
+    test('failed logins with unknown user names are logged', () async {
+      final alice = await _User.register(h, 'alice');
+      await expectLater(
+        h.api().login(
+          username: 'mallory',
+          authKey: base64.encode(List.filled(32, 2)),
+          device: _device,
+        ),
+        throwsA(isA<ApiException>()),
+      );
+      final events = await alice.api.adminAudit();
+      expect(
+        events.any(
+          (e) => e.event == 'login_failed' && e.detail.contains('mallory'),
+        ),
+        isTrue,
+      );
+    });
   });
 }

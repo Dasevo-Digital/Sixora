@@ -363,11 +363,14 @@ class AppController extends ChangeNotifier {
     await _afterUnlock();
   }
 
-  Future<void> unlockWithBiometrics() async {
+  /// Null when unlocked; otherwise why not ([BiometricResult.cancelled] or
+  /// [BiometricResult.password]), so the lock screen can turn to the master
+  /// password.
+  Future<BiometricResult?> unlockWithBiometrics() async {
     final (result, userKey) = await biometrics.unlock();
     switch (result) {
-      case BiometricResult.cancelled:
-        return;
+      case BiometricResult.cancelled || BiometricResult.password:
+        return result;
       case BiometricResult.invalidated:
         await _forgetBiometrics();
         throw UserError(
@@ -388,6 +391,7 @@ class AppController extends ChangeNotifier {
       );
     }
     await _afterUnlock();
+    return null;
   }
 
   /// Turns unlocking with biometrics on or off; false if the user did not

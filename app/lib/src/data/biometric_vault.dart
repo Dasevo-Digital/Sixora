@@ -5,12 +5,23 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:local_auth_android/local_auth_android.dart';
+import 'package:local_auth_darwin/local_auth_darwin.dart';
+import 'package:local_auth_darwin/types/auth_messages_macos.dart';
 
 import '../environment.dart';
 import 'secret_store.dart';
 
 /// Result of a biometric unlock attempt.
-enum BiometricResult { unlocked, cancelled, invalidated }
+enum BiometricResult {
+  unlocked,
+  cancelled,
+  invalidated,
+
+  /// "Master-Passwort" in the system dialog: the user wants to type the
+  /// Sixora master password instead.
+  password,
+}
 
 /// Keeps the user key for unlocking with Face ID, Touch ID, a fingerprint
 /// or Windows Hello.
@@ -53,7 +64,7 @@ class BiometricVault {
       biometricType: AndroidBiometricType.strongBiometricOnly,
       storageNamespace: 'sixora_biometric_${AppEnv.name}',
       biometricPromptTitle: 'Sixora entsperren',
-      biometricPromptNegativeButton: 'Abbrechen',
+      biometricPromptNegativeButton: 'Master-Passwort',
     ),
   );
 
@@ -97,7 +108,10 @@ class BiometricVault {
       // Reading it back shows the system prompt once: proof that it works.
       return await _bound.read(key: _key) == value;
     }
-    if (!await _authenticate('Entsperren mit $kind einrichten')) return false;
+    if (await _authenticate('Entsperren mit $kind einrichten') !=
+        BiometricResult.unlocked) {
+      return false;
+    }
     await _secrets.set('quickKey', value);
     return true;
   }
@@ -126,24 +140,47 @@ class BiometricVault {
       }
       if (value == null) return (BiometricResult.invalidated, null);
     } else {
-      if (!await _authenticate('Sixora entsperren')) {
-        return (BiometricResult.cancelled, null);
-      }
+      final result = await _authenticate('Sixora entsperren');
+      if (result != BiometricResult.unlocked) return (result, null);
       value = _secrets['quickKey'];
       if (value == null) return (BiometricResult.invalidated, null);
     }
     return (BiometricResult.unlocked, base64.decode(value));
   }
 
-  Future<bool> _authenticate(String reason) async {
+  /// The system dialog offers the Sixora master password as fallback, not
+  /// the device password: the master password is the key to the vault, the
+  /// device password only unlocks the device.
+  static const _messages = [
+    IOSAuthMessages(
+      localizedFallbackTitle: 'Master-Passwort',
+      cancelButton: 'Abbrechen',
+    ),
+    MacOSAuthMessages(
+      localizedFallbackTitle: 'Master-Passwort',
+      cancelButton: 'Abbrechen',
+    ),
+    AndroidAuthMessages(
+      signInTitle: 'Sixora entsperren',
+      cancelButton: 'Master-Passwort',
+    ),
+  ];
+
+  Future<BiometricResult> _authenticate(String reason) async {
     try {
-      return await _auth.authenticate(
+      final ok = await _auth.authenticate(
         localizedReason: reason,
+        authMessages: _messages,
         biometricOnly: !Platform.isWindows,
         persistAcrossBackgrounding: true,
       );
+      return ok ? BiometricResult.unlocked : BiometricResult.cancelled;
+    } on LocalAuthException catch (e) {
+      return e.code == LocalAuthExceptionCode.userRequestedFallback
+          ? BiometricResult.password
+          : BiometricResult.cancelled;
     } on PlatformException {
-      return false;
+      return BiometricResult.cancelled;
     }
   }
 

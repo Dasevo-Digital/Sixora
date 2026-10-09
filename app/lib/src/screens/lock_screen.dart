@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/app_controller.dart';
+import '../data/biometric_vault.dart';
 import '../widgets/brand.dart';
 import '../widgets/common.dart';
 
@@ -13,6 +14,7 @@ class LockScreen extends StatefulWidget {
 
 class _LockScreenState extends State<LockScreen> {
   final _password = TextEditingController();
+  final _passwordFocus = FocusNode();
   bool _busy = false;
   String? _error;
 
@@ -28,6 +30,7 @@ class _LockScreenState extends State<LockScreen> {
   @override
   void dispose() {
     _password.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
@@ -52,8 +55,15 @@ class _LockScreenState extends State<LockScreen> {
     _password.clear();
   }
 
-  Future<void> _biometric() =>
-      _run(AppScope.read(context).unlockWithBiometrics);
+  Future<void> _biometric() => _run(() async {
+    final notUnlocked = await AppScope.read(context).unlockWithBiometrics();
+    if (notUnlocked == null || !mounted) return;
+    // Cancelled or "Master-Passwort" chosen: on to the password field.
+    _passwordFocus.requestFocus();
+    if (notUnlocked == BiometricResult.password) {
+      setState(() => _error = 'Bitte das Sixora-Master-Passwort eingeben.');
+    }
+  });
 
   Future<void> _logout() async {
     final c = AppScope.read(context);
@@ -98,6 +108,7 @@ class _LockScreenState extends State<LockScreen> {
             const SizedBox(height: 28),
             PasswordField(
               controller: _password,
+              focusNode: _passwordFocus,
               autofocus: !quick,
               onSubmitted: (_) => _unlock(),
             ),
