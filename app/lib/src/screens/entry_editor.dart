@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
+import '../data/service_icons.dart';
 import '../widgets/common.dart';
 import '../widgets/otp_tile.dart';
 
@@ -36,6 +37,7 @@ class _EntryEditorState extends State<EntryEditor> {
   late OtpAlgorithm _algorithm = _start.algorithm;
   late bool _favorite = _start.favorite;
   late int? _color = _start.color;
+  late String? _icon = _start.icon;
   late String _vaultId;
   bool _showSecret = false;
   late bool _advanced =
@@ -103,6 +105,7 @@ class _EntryEditorState extends State<EntryEditor> {
     favorite: _favorite,
     color: _color,
     notes: _notes.text.trim(),
+    icon: _icon,
   );
 
   String? _preview() {
@@ -112,6 +115,14 @@ class _EntryEditorState extends State<EntryEditor> {
     } on FormatException {
       return null;
     }
+  }
+
+  Future<void> _pickIcon(ServiceIcons icons, OtpEntry entry) async {
+    final picked = await showDialog<_IconChoice>(
+      context: context,
+      builder: (_) => _IconPicker(icons: icons, initial: entry.displayName),
+    );
+    if (picked != null) setState(() => _icon = picked.value);
   }
 
   Future<void> _save() async {
@@ -263,6 +274,30 @@ class _EntryEditorState extends State<EntryEditor> {
             onChanged: (v) => setState(() => _favorite = v),
           ),
           const SizedBox(height: 4),
+          ValueListenableBuilder<ServiceIcons?>(
+            valueListenable: ServiceIcons.loaded,
+            builder: (context, icons, _) {
+              final icon = icons?.forEntry(entry);
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: EntryAvatar(entry, size: 40),
+                title: const Text('Symbol'),
+                subtitle: Text(switch (_icon) {
+                  OtpEntry.noIcon => 'Anfangsbuchstabe',
+                  null when icon != null => '${icon.title} (automatisch)',
+                  null => 'Anfangsbuchstabe (kein passendes Logo gefunden)',
+                  _ => icon?.title ?? 'Unbekannt',
+                }),
+                trailing: TextButton(
+                  onPressed: icons == null
+                      ? null
+                      : () => _pickIcon(icons, entry),
+                  child: const Text('Ändern'),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
           Text('Farbe', style: theme.textTheme.labelLarge),
           const SizedBox(height: 8),
           Wrap(
@@ -270,7 +305,10 @@ class _EntryEditorState extends State<EntryEditor> {
             runSpacing: 8,
             children: [
               _ColorDot(
-                color: avatarColor(entry.copyWith(color: () => null)),
+                // With a logo, "Auto" is the brand colour.
+                color:
+                    ServiceIcons.loaded.value?.forEntry(entry)?.color ??
+                    avatarColor(entry.copyWith(color: () => null)),
                 selected: _color == null,
                 label: 'Auto',
                 onTap: () => setState(() => _color = null),
@@ -423,4 +461,135 @@ class _ColorDot extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Result of the icon picker: null = automatic, [OtpEntry.noIcon] = letter,
+/// otherwise a slug.
+class _IconChoice {
+  const _IconChoice(this.value);
+  final String? value;
+}
+
+class _IconPicker extends StatefulWidget {
+  const _IconPicker({required this.icons, required this.initial});
+  final ServiceIcons icons;
+  final String initial;
+
+  @override
+  State<_IconPicker> createState() => _IconPickerState();
+}
+
+class _IconPickerState extends State<_IconPicker> {
+  late final _query = TextEditingController(text: widget.initial);
+
+  @override
+  void initState() {
+    super.initState();
+    _query.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final results = widget.icons.search(_query.text).take(120).toList();
+    return AlertDialog(
+      title: const Text('Symbol wählen'),
+      contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      content: SizedBox(
+        width: 460,
+        height: 460,
+        child: Column(
+          children: [
+            TextField(
+              controller: _query,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Dienst suchen, z. B. Google',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _query.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Leeren',
+                        icon: const Icon(Icons.close),
+                        onPressed: _query.clear,
+                      ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.auto_awesome_outlined),
+                  label: const Text('Automatisch'),
+                  onPressed: () =>
+                      Navigator.pop(context, const _IconChoice(null)),
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.text_fields),
+                  label: const Text('Buchstabe'),
+                  onPressed: () => Navigator.pop(
+                    context,
+                    const _IconChoice(OtpEntry.noIcon),
+                  ),
+                ),
+              ],
+            ),
+            Expanded(
+              child: results.isEmpty
+                  ? const Center(child: Text('Kein Logo gefunden'))
+                  : GridView.extent(
+                      maxCrossAxisExtent: 96,
+                      childAspectRatio: 0.85,
+                      children: [
+                        for (final icon in results)
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () =>
+                                Navigator.pop(context, _IconChoice(icon.slug)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Column(
+                                children: [
+                                  ServiceIconTile(icon: icon, size: 44),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    icon.title,
+                                    maxLines: 2,
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Logos: Simple Icons ${widget.icons.version}. Die Marken gehören '
+                'ihren Inhabern.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Abbrechen'),
+        ),
+      ],
+    );
+  }
 }

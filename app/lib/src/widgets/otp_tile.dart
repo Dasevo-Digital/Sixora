@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
+import '../data/service_icons.dart';
 import 'common.dart';
 
 /// Colour of an entry's avatar: chosen by the user or derived from the
@@ -23,33 +24,102 @@ const avatarPalette = [
   0xFF00897B, 0xFF6D4C41, 0xFF3949AB, 0xFFD81B60, 0xFF546E7A,
 ];
 
+/// Avatar of an entry: the service's logo on its brand colour, or the first
+/// letter of the name.
 class EntryAvatar extends StatelessWidget {
   const EntryAvatar(this.entry, {super.key, this.size = 44});
   final OtpEntry entry;
   final double size;
 
   @override
+  Widget build(BuildContext context) => ValueListenableBuilder<ServiceIcons?>(
+    valueListenable: ServiceIcons.loaded,
+    builder: (context, icons, _) {
+      final icon = icons?.forEntry(entry);
+      if (icon != null) {
+        return ServiceIconTile(
+          icon: icon,
+          size: size,
+          color: entry.color == null ? null : Color(entry.color!),
+        );
+      }
+      final name = entry.displayName.trim();
+      final letter = name.isEmpty ? '?' : name.characters.first.toUpperCase();
+      return Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: avatarColor(entry),
+          borderRadius: BorderRadius.circular(size * 0.3),
+        ),
+        child: Text(
+          letter,
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: size * 0.45,
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// A service logo, white (or black on light colours) on the brand colour.
+class ServiceIconTile extends StatelessWidget {
+  const ServiceIconTile({
+    super.key,
+    required this.icon,
+    this.size = 44,
+    this.color,
+  });
+  final ServiceIcon icon;
+  final double size;
+
+  /// Background instead of the brand colour.
+  final Color? color;
+
+  @override
   Widget build(BuildContext context) {
-    final name = entry.displayName.trim();
-    final letter = name.isEmpty ? '?' : name.characters.first.toUpperCase();
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: avatarColor(entry),
-        borderRadius: BorderRadius.circular(size * 0.3),
-      ),
-      child: Text(
-        letter,
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-          fontSize: size * 0.45,
+    final background = color ?? icon.color;
+    final light = background.computeLuminance() > 0.6;
+    return Tooltip(
+      message: icon.title,
+      excludeFromSemantics: true,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(size * 0.3),
+          border: light
+              ? Border.all(color: Colors.black.withValues(alpha: 0.12))
+              : null,
+        ),
+        padding: EdgeInsets.all(size * 0.2),
+        child: CustomPaint(
+          painter: _IconPainter(icon, light ? Colors.black : Colors.white),
         ),
       ),
     );
   }
+}
+
+class _IconPainter extends CustomPainter {
+  _IconPainter(this.icon, this.color);
+  final ServiceIcon icon;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 24, size.height / 24);
+    canvas.drawPath(icon.shape, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_IconPainter old) =>
+      old.icon != icon || old.color != color;
 }
 
 /// "123 456", "1234 5678", Steam stays in one block.

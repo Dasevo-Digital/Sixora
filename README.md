@@ -20,6 +20,12 @@ Nutzung sind ohne gesonderte schriftliche Genehmigung nicht gestattet.
 - **Hinzufügen:** QR-Code mit der Kamera (Android, iOS, macOS), QR-Code aus
   einem Bild oder Screenshot (alle Plattformen), `otpauth://`-Link aus der
   Zwischenablage oder Eingabe von Hand.
+- **Logos:** Bekannte Dienste zeigen ihr Logo, erkannt am Namen; eigenes
+  Logo oder Anfangsbuchstabe lassen sich wählen. Die rund 3.300 Logos aus
+  [Simple Icons](https://simpleicons.org) sind in die App eingebaut, es gibt
+  keine Abrufe bei Dritten (`app/tool/update_service_icons.py`). Einige
+  Marken, etwa Microsoft oder Amazon, haben ihre Logos dort entfernen
+  lassen; sie zeigen den Anfangsbuchstaben.
 - **Ordnen:** Suche, Favoriten, Gruppen, Farben, Notizen. Am Desktop:
   ⌘/Strg+F sucht, Enter kopiert den ersten Treffer, ⌘/Strg+N fügt hinzu,
   ⌘/Strg+L sperrt.

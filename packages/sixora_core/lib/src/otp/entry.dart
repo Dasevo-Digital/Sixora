@@ -17,6 +17,7 @@ class OtpEntry {
     this.favorite = false,
     this.color,
     this.notes = '',
+    this.icon,
   });
 
   final String issuer;
@@ -37,6 +38,11 @@ class OtpEntry {
   /// ARGB colour of the avatar; null picks one from the issuer.
   final int? color;
   final String notes;
+
+  /// Service icon: null picks one from the issuer, [noIcon] shows the
+  /// letter, anything else is the slug of a bundled icon.
+  final String? icon;
+  static const noIcon = 'none';
 
   String get displayName => issuer.isNotEmpty ? issuer : account;
 
@@ -83,6 +89,7 @@ class OtpEntry {
     bool? favorite,
     int? Function()? color,
     String? notes,
+    String? Function()? icon,
   }) => OtpEntry(
     issuer: issuer ?? this.issuer,
     account: account ?? this.account,
@@ -96,6 +103,7 @@ class OtpEntry {
     favorite: favorite ?? this.favorite,
     color: color != null ? color() : this.color,
     notes: notes ?? this.notes,
+    icon: icon != null ? icon() : this.icon,
   );
 
   Map<String, Object?> toJson() => {
@@ -112,6 +120,7 @@ class OtpEntry {
     if (favorite) 'favorite': true,
     'color': ?color,
     if (notes.isNotEmpty) 'notes': notes,
+    'icon': ?icon,
   };
 
   factory OtpEntry.fromJson(Map<String, Object?> json) => OtpEntry(
@@ -127,6 +136,7 @@ class OtpEntry {
     favorite: json['favorite'] as bool? ?? false,
     color: (json['color'] as num?)?.toInt(),
     notes: json['notes'] as String? ?? '',
+    icon: json['icon'] as String?,
   );
 
   /// True when both describe the same secret for the same account; used to
