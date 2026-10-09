@@ -6,6 +6,9 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.17 – 09.10.2026
+- macOS: Das App-Menü ist deutsch.
+
 ### 0.1.16 – 09.10.2026
 - Touch ID und Windows Hello starten auf dem Schreibtisch erst auf
   Knopfdruck, nicht mehr von selbst beim Sperren.
