@@ -597,6 +597,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     ),
+                  if (c.securityWarning != null)
+                    _Banner(icon: Icons.gpp_bad, text: c.securityWarning!),
                   for (final session in c.unknownSessions)
                     _SignInNotice(session: session),
                   if (c.syncError != null)

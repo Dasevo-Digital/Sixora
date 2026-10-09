@@ -244,6 +244,16 @@ void main() {
     );
     final bob = await controller.lookupUser(bobName);
     await controller.share(team, bob, VaultRole.write);
+    // Bob's key is remembered, also on the server (encrypted).
+    expect(controller.cached!.trustedKeys[bob.id], bob.publicKey);
+    expect((await controller.online((api) => api.contacts())).revision, 1);
+    // A different key for Bob (as a hostile server would send) aborts.
+    controller.cached!.trustedKeys[bob.id] = controller.account!.publicKey;
+    await expectLater(
+      controller.share(team, bob, VaultRole.read),
+      throwsA(isA<SecurityError>()),
+    );
+    controller.cached!.trustedKeys[bob.id] = bob.publicKey;
     expect(controller.vault(team.id)!.dto.keyVersion, 1);
     await controller.removeMember(controller.vault(team.id)!, bob.id);
     await _waitFor(
@@ -279,6 +289,11 @@ void main() {
       'Teamkonto',
     });
     expect(controller.settings.backupError, isNull);
+    // Reading it back like a restore finds every account.
+    final verified = await controller.verifyBackup();
+    expect(verified.accounts, controller.items.length);
+    expect(verified.missing, isEmpty);
+    expect(verified.files, 1);
     await controller.disableAutoBackup();
     folder.deleteSync(recursive: true);
 

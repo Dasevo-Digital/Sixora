@@ -65,6 +65,16 @@ abstract final class BackupFolder {
     ];
   }
 
+  static Future<String> read(String ref, String name) async {
+    if (_native(ref)) {
+      return (await _channel.invokeMethod<String>('read', {
+        'ref': ref,
+        'name': name,
+      }))!;
+    }
+    return File(p.join(ref, name)).readAsString();
+  }
+
   static Future<void> delete(String ref, String name) async {
     if (_native(ref)) {
       await _channel.invokeMethod<void>('delete', {'ref': ref, 'name': name});

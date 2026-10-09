@@ -82,6 +82,9 @@ class ServerConfig {
         ..writeln('  admin <Name>            Benutzer zum Administrator machen')
         ..writeln('  disable <Name>          Benutzer sperren')
         ..writeln('  enable <Name>           Benutzer entsperren')
+        ..writeln(
+          '  verify-backup [Datei]   Sicherung prüfen (Standard: neueste)',
+        )
         ..writeln()
         ..writeln(parser.usage);
       exit(0);

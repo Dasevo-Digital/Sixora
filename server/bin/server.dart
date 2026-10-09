@@ -152,6 +152,31 @@ int _command(SixoraServerApp app, Database db, List<String> command) {
       }
       stdout.writeln('Erledigt.');
       return 0;
+    case 'verify-backup':
+      // The given file or the newest daily copy, compared with now.
+      final path = arg(1).isNotEmpty
+          ? arg(1)
+          : BackupCheck.newest(p.join(app.dataDir ?? 'data', 'backups'));
+      if (path == null) {
+        stderr.writeln('Keine Sicherung gefunden.');
+        return 1;
+      }
+      final check = BackupCheck.inspect(path);
+      stdout
+        ..writeln('Sicherung: $path')
+        ..writeln('Ergebnis:  ${check.ok ? 'in Ordnung' : 'FEHLER'}')
+        ..writeln('Inhalt:    ${check.describe()}')
+        ..writeln(
+          'Jetzt:     ${BackupCheck.describeCounts(BackupCheck.countsOf(db))}',
+        );
+      if (check.ok) {
+        stdout
+          ..writeln()
+          ..writeln('Zurückspielen: Dienst anhalten, Datei als sixora.db ins')
+          ..writeln('Datenverzeichnis kopieren (vorher die alte sichern),')
+          ..writeln('Dienst starten.');
+      }
+      return check.ok ? 0 : 1;
     default:
       stderr.writeln('Unbekannter Befehl „${command.first}“ (siehe --help).');
       return 64;

@@ -271,6 +271,25 @@ class SixoraApi {
   Future<void> revokeSession(String id) =>
       _send('DELETE', 'account/sessions/$id');
 
+  /// The encrypted trusted keys (see `TrustedKeys`); empty data at first.
+  Future<({String data, int revision})> contacts() async {
+    final m = await _map('GET', 'account/contacts');
+    return (
+      data: m['data'] as String? ?? '',
+      revision: (m['revision'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// Returns the new revision; a 409 means another device was faster.
+  Future<int> putContacts(String data, {required int baseRevision}) async =>
+      ((await _map(
+                'PUT',
+                'account/contacts',
+                body: {'data': data, 'baseRevision': baseRevision},
+              ))['revision']
+              as num)
+          .toInt();
+
   Future<List<AuditDto>> accountAudit() async => [
     for (final a in await _list('account/audit', 'events'))
       AuditDto.fromJson(a),

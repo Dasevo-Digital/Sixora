@@ -91,7 +91,8 @@ die Prüfsummen aller Dateien.
   Möglichkeit, es abzumelden.
 - **Automatische Sicherung:** täglich eine verschlüsselte Sicherung in einen
   Ordner nach Wahl (z. B. iCloud Drive, Nextcloud, USB-Stick), unabhängig
-  vom Server; die letzten 14 bleiben.
+  vom Server; die letzten 14 bleiben. Jede Datei wird nach dem Schreiben
+  wieder geöffnet, „Sicherung prüfen“ zeigt, was sie enthält.
 - **Kontenprüfung:** findet doppelte Konten, zu kurze oder ungültige
   Schlüssel, Konten ohne Namen und ohne Logo.
 - **Offline:** Die Codes funktionieren ohne Verbindung. Nur Änderungen
@@ -215,7 +216,12 @@ Adresse, die der Proxy selbst gesehen hat.
 **Sicherung:** Das Verzeichnis `./data` (SQLite-Datenbank `sixora.db`) reicht
 für eine Sicherung. Sie enthält nur verschlüsselte Einträge, aber auch die
 Kontodaten. Der Container sollte dafür kurz gestoppt sein, oder man nimmt
-`sqlite3 sixora.db ".backup sicherung.db"`.
+`sqlite3 sixora.db ".backup sicherung.db"`. Zusätzlich legt der Server
+täglich eine Kopie in `./data/backups` an (`SIXORA_BACKUP_DAYS`, Standard
+14), öffnet sie gleich danach wieder und verwirft sie, wenn sie nicht
+stimmt. `server verify-backup [Datei]` prüft eine Kopie von Hand und zeigt
+ihren Inhalt neben dem aktuellen Stand. Zurückspielen: Dienst anhalten,
+die Kopie als `sixora.db` ins Datenverzeichnis legen, Dienst starten.
 
 ## Entwicklung
 

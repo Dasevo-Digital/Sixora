@@ -101,7 +101,7 @@ class MainActivity : FlutterFragmentActivity() {
             return
         }
         val ref = call.argument<String>("ref")
-        if (ref == null || method !in setOf("write", "list", "delete")) {
+        if (ref == null || method !in setOf("write", "list", "delete", "read")) {
             result.notImplemented()
             return
         }
@@ -144,6 +144,10 @@ class MainActivity : FlutterFragmentActivity() {
             "delete" -> {
                 children(tree)[name]?.let { DocumentsContract.deleteDocument(contentResolver, it) }
                 return null
+            }
+            "read" -> {
+                val file = children(tree)[name] ?: throw IllegalStateException("Datei fehlt")
+                return contentResolver.openInputStream(file)!!.use { it.readBytes().decodeToString() }
             }
         }
         val target = children(tree)[name] ?: DocumentsContract.createDocument(

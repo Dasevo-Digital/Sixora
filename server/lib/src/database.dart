@@ -1,6 +1,6 @@
 import 'package:sqlite3/sqlite3.dart';
 
-const _schemaVersion = 3;
+const _schemaVersion = 4;
 
 /// Opens (and migrates) the server database.
 ///
@@ -127,6 +127,15 @@ void _migrate(Database db) {
     db.execute('''
       ALTER TABLE vaults ADD COLUMN key_version INTEGER NOT NULL DEFAULT 1;
       ALTER TABLE vaults ADD COLUMN rotate_pending INTEGER NOT NULL DEFAULT 0;
+    ''');
+  }
+  if (version < 4) {
+    // Public keys of other users this account trusts (encrypted by the
+    // client): a server cannot slip a key of its own in when vaults are
+    // shared or get a new key.
+    db.execute('''
+      ALTER TABLE users ADD COLUMN contacts TEXT NOT NULL DEFAULT '';
+      ALTER TABLE users ADD COLUMN contacts_revision INTEGER NOT NULL DEFAULT 0;
     ''');
   }
   db.execute('PRAGMA user_version = $_schemaVersion');

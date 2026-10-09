@@ -215,20 +215,47 @@ abstract final class SixoraBackup {
     });
   }
 
-  static Future<List<OtpEntry>> decrypt(String text, String password) async {
+  static Map<String, Object?> _header(String text) {
     final json = (jsonDecode(text) as Map).cast<String, Object?>();
     if (json['format'] != format || json['version'] != 1) {
       throw const FormatException('Unbekanntes Sicherungsformat');
     }
+    return json;
+  }
+
+  static Future<List<OtpEntry>> decrypt(String text, String password) async {
+    final json = _header(text);
     final keys = await derivePasswordKeysAsync(
       password,
       json['salt'] as String,
       KdfParams.fromJson((json['kdf'] as Map).cast()),
     );
+    return _open(json, keys.kek);
+  }
+
+  /// Opens a file written with [key] (automatic backups check their own
+  /// files this way, without asking for the password).
+  static Future<List<OtpEntry>> decryptWithKey(
+    String text,
+    BackupKey key,
+  ) async {
+    final json = _header(text);
+    if (json['salt'] != key.salt) {
+      throw const CryptoException(
+        'Diese Sicherung wurde mit einem anderen Passwort erstellt',
+      );
+    }
+    return _open(json, key.key);
+  }
+
+  static Future<List<OtpEntry>> _open(
+    Map<String, Object?> json,
+    List<int> key,
+  ) async {
     final String clear;
     try {
       clear = await VaultCrypto.decryptString(
-        keys.kek,
+        key,
         json['data'] as String,
         aad: _aad,
       );

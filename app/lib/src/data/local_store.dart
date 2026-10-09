@@ -18,8 +18,10 @@ class CachedAccount {
     Map<String, EntryDto>? entries,
     this.lastSync,
     this.knownSessions,
+    Map<String, String>? trustedKeys,
   }) : vaults = vaults ?? {},
-       entries = entries ?? {};
+       entries = entries ?? {},
+       trustedKeys = trustedKeys ?? {};
 
   final Uri server;
   String serverName;
@@ -32,6 +34,10 @@ class CachedAccount {
   /// Sign-ins this device has seen or the user confirmed; null until the
   /// first sync with a server that reports them.
   Set<String>? knownSessions;
+
+  /// Public keys of other users by id, as first seen on any of the
+  /// account's devices. Only ever grows; see `TrustedKeys`.
+  final Map<String, String> trustedKeys;
 
   /// The account's devices as of the last sync (not stored).
   List<SessionDto> sessions = const [];
@@ -46,6 +52,7 @@ class CachedAccount {
     'entries': [for (final e in entries.values) e.toJson()],
     'lastSync': lastSync?.toUtc().toIso8601String(),
     if (knownSessions != null) 'knownSessions': knownSessions!.toList(),
+    'trustedKeys': trustedKeys,
   };
 
   factory CachedAccount.fromJson(Map<String, Object?> j) => CachedAccount(
@@ -65,6 +72,7 @@ class CachedAccount {
     knownSessions: j['knownSessions'] is List
         ? {...(j['knownSessions'] as List).cast<String>()}
         : null,
+    trustedKeys: (j['trustedKeys'] as Map?)?.cast<String, String>(),
   );
 }
 

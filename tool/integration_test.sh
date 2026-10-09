@@ -19,6 +19,8 @@ for _ in $(seq 1 60); do
 done
 
 cd app
-flutter test integration_test -d "$device" \
+# Only the functional test: screenshots_test.dart has its own script, and
+# every extra file means one more app start.
+flutter test integration_test/app_test.dart -d "$device" \
   --dart-define=SIXORA_ENV=test \
   --dart-define=SIXORA_TEST_SERVER="http://127.0.0.1:$port"

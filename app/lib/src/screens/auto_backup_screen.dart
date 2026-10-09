@@ -99,6 +99,44 @@ class AutoBackupScreen extends StatelessWidget {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.fact_check_outlined),
+              title: const Text('Sicherung prüfen'),
+              subtitle: const Text(
+                'Öffnet die neueste Datei wie beim Zurückspielen',
+              ),
+              onTap: () async {
+                final r = await runBusy(context, c.verifyBackup);
+                if (r == null || !context.mounted) return;
+                await showDialog<void>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    icon: Icon(
+                      r.missing.isEmpty
+                          ? Icons.verified_outlined
+                          : Icons.info_outline,
+                    ),
+                    title: Text(
+                      r.missing.isEmpty
+                          ? 'Sicherung in Ordnung'
+                          : 'Sicherung lesbar, aber nicht aktuell',
+                    ),
+                    content: Text(
+                      '${r.file} lässt sich mit dem Passwort öffnen und '
+                      'enthält ${r.accounts} Konten. Im Ordner liegen '
+                      '${r.files} Sicherungen.'
+                      '${r.missing.isEmpty ? '' : '\n\nNoch nicht enthalten: ${r.missing.join(', ')}. „Jetzt sichern“ nimmt sie auf.'}',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.drive_file_move_outline),
               title: const Text('Anderen Ordner oder neues Passwort'),
               onTap: () => _setUp(context),

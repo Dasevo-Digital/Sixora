@@ -732,6 +732,37 @@ void main() {
       app.db.close();
     });
 
+    test('a backup is read back; broken copies are reported', () async {
+      final dir = await Directory.systemTemp.createTemp('sixora-verify');
+      addTearDown(() => dir.delete(recursive: true));
+      final app = SixoraServerApp(
+        db: openSixoraDatabase('${dir.path}/sixora.db'),
+        registration: Registration.open,
+        dataDir: dir.path,
+      );
+      app.db.execute(
+        "INSERT INTO users (id, username, kdf, salt, auth_hash, wrapped_user_key, "
+        "public_key, encrypted_private_key, recovery_wrapped_user_key, "
+        "recovery_auth_hash, created_at, updated_at) VALUES "
+        "('u1', 'alice', '{}', 's', 'a', 'w', 'p', 'e', 'r', 'h', 'now', 'now')",
+      );
+      final path = app.backup()!;
+      final check = BackupCheck.inspect(path);
+      expect(check.ok, isTrue, reason: check.problem);
+      expect(check.schema, 4);
+      expect(check.counts['users'], 1);
+      expect(BackupCheck.newest('${dir.path}/backups'), path);
+
+      // A damaged copy is not "in Ordnung".
+      final broken = File('${dir.path}/backups/sixora-2000-01-01.db')
+        ..writeAsBytesSync(List.filled(4096, 7));
+      final bad = BackupCheck.inspect(broken.path);
+      expect(bad.ok, isFalse);
+      expect(bad.problem, isNotEmpty);
+      expect(BackupCheck.inspect('${dir.path}/fehlt.db').ok, isFalse);
+      app.db.close();
+    });
+
     test('a waiting sync returns as soon as something changes', () async {
       final alice = await _User.register(h, 'alice');
       final first = await alice.sync();
@@ -769,7 +800,11 @@ void main() {
         db.select('PRAGMA table_info(vaults)').map((r) => r['name']),
         containsAll(['key_version', 'rotate_pending']),
       );
-      expect(db.select('PRAGMA user_version').first.columnAt(0), 3);
+      expect(
+        db.select('PRAGMA table_info(users)').map((r) => r['name']),
+        containsAll(['contacts', 'contacts_revision']),
+      );
+      expect(db.select('PRAGMA user_version').first.columnAt(0), 4);
       db.close();
     });
   });
@@ -982,4 +1017,40 @@ void main() {
       );
     });
   });
+
+  test(
+    'trusted keys: per account, versioned, never readable by others',
+    () async {
+      final alice = await _User.register(h, 'alice');
+      final invite = await alice.api.adminCreateInvite();
+      final bob = await _User.register(h, 'bob', invite: invite.code);
+      final empty = await alice.api.contacts();
+      expect(empty.data, isEmpty);
+      expect(empty.revision, 0);
+
+      final data = await TrustedKeys.encrypt(
+        alice.keys.userKey,
+        alice.account.id,
+        {bob.account.id: bob.account.publicKey},
+      );
+      expect(await alice.api.putContacts(data, baseRevision: 0), 1);
+      // A second device with the old revision has to merge first.
+      await expectLater(
+        alice.api.putContacts(data, baseRevision: 0),
+        throwsA(isA<ApiException>().having((e) => e.code, 'code', 'conflict')),
+      );
+      final stored = await alice.api.contacts();
+      expect(stored.revision, 1);
+      expect(
+        await TrustedKeys.decrypt(
+          alice.keys.userKey,
+          alice.account.id,
+          stored.data,
+        ),
+        {bob.account.id: bob.account.publicKey},
+      );
+      // Bob sees only his own (empty) list.
+      expect((await bob.api.contacts()).data, isEmpty);
+    },
+  );
 }

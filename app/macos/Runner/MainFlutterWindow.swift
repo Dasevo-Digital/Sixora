@@ -96,7 +96,7 @@ enum BackupFolder {
           let data = try url.bookmarkData(
             options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
           result(["ref": data.base64EncodedString(), "label": url.path])
-        case "write", "list", "delete":
+        case "write", "list", "delete", "read":
           guard let ref = args["ref"] as? String, let data = Data(base64Encoded: ref) else {
             result(FlutterError(code: "bad_args", message: nil, details: nil))
             return
@@ -131,6 +131,9 @@ private func folderCall(_ method: String, _ url: URL, _ args: [String: Any]) thr
     return nil
   case "list":
     return try fm.contentsOfDirectory(atPath: url.path)
+  case "read":
+    let name = args["name"] as? String ?? ""
+    return try String(contentsOf: url.appendingPathComponent(name), encoding: .utf8)
   default:
     let name = args["name"] as? String ?? ""
     try fm.removeItem(at: url.appendingPathComponent(name))

@@ -60,7 +60,7 @@ final class BackupFolder: NSObject, UIDocumentPickerDelegate {
       switch call.method {
       case "pick":
         self.pick(result)
-      case "write", "list", "delete":
+      case "write", "list", "delete", "read":
         guard let ref = args["ref"] as? String, let data = Data(base64Encoded: ref) else {
           result(FlutterError(code: "bad_args", message: nil, details: nil))
           return
@@ -134,6 +134,12 @@ final class BackupFolder: NSObject, UIDocumentPickerDelegate {
         do {
           output = try FileManager.default.contentsOfDirectory(atPath: target.path)
         } catch { failure = error }
+      }
+    case "read":
+      coordinator.coordinate(
+        readingItemAt: url.appendingPathComponent(name), options: [], error: &coordError
+      ) { target in
+        do { output = try String(contentsOf: target, encoding: .utf8) } catch { failure = error }
       }
     default:
       coordinator.coordinate(

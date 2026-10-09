@@ -111,6 +111,42 @@ class UnlockedKeys {
   ) => VaultCrypto.decryptString(vaultKey, data, aad: _vaultNameAad(vaultId));
 }
 
+/// Public keys of other users this account has accepted, by user id. The
+/// server keeps them encrypted with the user key, so it can neither read
+/// nor change them – it could only hand out an older version, which the
+/// apps catch by never forgetting a key they have seen.
+abstract final class TrustedKeys {
+  static String _aad(String accountId) => 'sixora-contacts|$accountId';
+
+  static Future<String> encrypt(
+    Uint8List userKey,
+    String accountId,
+    Map<String, String> keys,
+  ) => VaultCrypto.encryptString(
+    userKey,
+    jsonEncode({'version': 1, 'keys': keys}),
+    aad: _aad(accountId),
+  );
+
+  static Future<Map<String, String>> decrypt(
+    Uint8List userKey,
+    String accountId,
+    String data,
+  ) async {
+    if (data.isEmpty) return {};
+    final json =
+        jsonDecode(
+              await VaultCrypto.decryptString(
+                userKey,
+                data,
+                aad: _aad(accountId),
+              ),
+            )
+            as Map;
+    return (json['keys'] as Map? ?? const {}).cast<String, String>();
+  }
+}
+
 /// A vault under a fresh key, ready for `POST vaults/<id>/rotate`.
 ///
 /// Entries are re-encrypted as they are, without being parsed, so fields a

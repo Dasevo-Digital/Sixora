@@ -10,11 +10,12 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import 'backup_check.dart';
 import 'config.dart';
 import 'landing_page.dart';
 import 'security.dart';
 
-const serverVersion = '0.1.4';
+const serverVersion = '0.1.5';
 const apiVersion = 1;
 
 /// Error answered as `{"error": code, "message": text}`.
@@ -74,6 +75,7 @@ class SixoraServerApp {
   /// A key rotation carries every entry of a vault at once.
   static const maxRotateBytes = 24 * 1024 * 1024;
   static const maxEntryBytes = 16 * 1024;
+  static const maxContactsBytes = 128 * 1024;
   static const maxEntriesPerVault = 5000;
   static const maxVaultsPerUser = 100;
   static const sessionIdleDays = 180;
@@ -127,6 +129,8 @@ class SixoraServerApp {
     r.get('/api/v1/account/sessions', _sessions);
     r.delete('/api/v1/account/sessions/<id>', _revokeSession);
     r.get('/api/v1/account/audit', _accountAudit);
+    r.get('/api/v1/account/contacts', _contacts);
+    r.put('/api/v1/account/contacts', _putContacts);
     r.get('/api/v1/sync', _sync);
     r.put('/api/v1/entries/<id>', _putEntry);
     r.delete('/api/v1/entries/<id>', _deleteEntry);
@@ -197,11 +201,23 @@ class SixoraServerApp {
     if (!file.existsSync()) {
       try {
         db.execute('VACUUM INTO ?', [file.path]);
-        _log('Sicherung: ${file.path}');
       } on SqliteException catch (e) {
         _log('Sicherung fehlgeschlagen: ${e.message}');
         return null;
       }
+      // Read it back right away: a copy nobody can open is no backup.
+      final check = BackupCheck.inspect(file.path);
+      final live = BackupCheck.countsOf(db);
+      if (!check.ok ||
+          live.entries.any((e) => check.counts[e.key] != e.value)) {
+        _log(
+          'Sicherung fehlerhaft, verworfen: ${file.path} (${check.describe()}, '
+          'erwartet $live)',
+        );
+        file.deleteSync();
+        return null;
+      }
+      _log('Sicherung: ${file.path} geprüft (${check.describe()})');
     }
     final keepFrom = now.subtract(Duration(days: backupDays));
     for (final old in folder.listSync().whereType<File>()) {
@@ -979,6 +995,47 @@ class SixoraServerApp {
             'Bitte zuerst einen anderen Benutzer zum Administrator machen.',
       );
     }
+  }
+
+  /// The account's trusted public keys of other users, encrypted by the
+  /// client. The server only keeps the newest version.
+  Response _contacts(Request request) {
+    final s = _auth(request);
+    final u = db.select(
+      'SELECT contacts, contacts_revision FROM users WHERE id = ?',
+      [s.userId],
+    ).first;
+    return _json({'data': u['contacts'], 'revision': u['contacts_revision']});
+  }
+
+  Future<Response> _putContacts(Request request) async {
+    final s = _auth(request);
+    final body = await _body(request);
+    final data = _b64(body, 'data', min: 41, max: maxContactsBytes);
+    final base = body['baseRevision'];
+    if (base is! int || base < 0) {
+      throw const FormatException('baseRevision fehlt');
+    }
+    final revision = _transaction(() {
+      final current =
+          db.select('SELECT contacts_revision FROM users WHERE id = ?', [
+                s.userId,
+              ]).first['contacts_revision']
+              as int;
+      if (current != base) {
+        throw const ApiError(
+          409,
+          'conflict',
+          'Die bekannten Schlüssel wurden auf einem anderen Gerät geändert',
+        );
+      }
+      db.execute(
+        'UPDATE users SET contacts = ?, contacts_revision = ? WHERE id = ?',
+        [data, current + 1, s.userId],
+      );
+      return current + 1;
+    });
+    return _json({'revision': revision});
   }
 
   Response _sessions(Request request) {

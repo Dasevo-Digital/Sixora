@@ -39,6 +39,24 @@ class Item {
   final OtpEntry entry;
 }
 
+/// What reading the newest backup back found.
+class BackupVerification {
+  const BackupVerification({
+    required this.file,
+    required this.files,
+    required this.accounts,
+    required this.missing,
+  });
+  final String file;
+
+  /// Backup files in the folder.
+  final int files;
+  final int accounts;
+
+  /// Accounts here that the backup does not contain (added since).
+  final List<String> missing;
+}
+
 /// A deleted entry in the recycle bin.
 class TrashItem {
   TrashItem(this.item, this.deletedAt);
@@ -52,6 +70,11 @@ class UserError implements Exception {
   final String message;
   @override
   String toString() => message;
+}
+
+/// A check that protects the vaults failed; shown prominently.
+class SecurityError extends UserError {
+  const SecurityError(super.message);
 }
 
 String errorText(Object e) => switch (e) {
@@ -80,6 +103,10 @@ class AppController extends ChangeNotifier {
 
   bool syncing = false;
   String? syncError;
+
+  /// Something that needs the user's attention for security reasons, e.g.
+  /// a member's key that suddenly differs.
+  String? securityWarning;
 
   /// Shown once on the welcome screen, e.g. after a remote logout.
   String? notice;
@@ -721,35 +748,30 @@ class AppController extends ChangeNotifier {
   /// keeps the newest [AppSettings.backupKeep] files.
   Future<void> backupNow() async {
     final folder = settings.backupFolder;
-    final stored = settings.backupKey;
-    final keys = _keys;
     final c = cached;
-    if (folder == null || stored == null || keys == null || c == null) return;
+    if (folder == null || c == null || _keys == null) return;
     try {
-      if (stored['account'] != c.account.id) {
-        throw const UserError(
-          'Die Sicherung wurde für ein anderes Konto eingerichtet. '
-          'Bitte neu einrichten.',
-        );
-      }
-      final key = BackupKey(
-        kdf: KdfParams.fromJson((stored['kdf']! as Map).cast()),
-        salt: stored['salt']! as String,
-        key: await VaultCrypto.decrypt(
-          keys.userKey,
-          stored['key']! as String,
-          aad: _backupAad(c.account.id),
-        ),
-      );
+      final key = await _backupKey();
+      if (key == null) return;
       final cursor = c.cursor;
-      final text = await SixoraBackup.encryptWithKey([
-        for (final i in items) i.entry,
-      ], key);
+      final entries = [for (final i in items) i.entry];
+      final text = await SixoraBackup.encryptWithKey(entries, key);
       final now = DateTime.now();
       String two(int v) => v.toString().padLeft(2, '0');
       final name =
           'Sixora-Sicherung-${now.year}-${two(now.month)}-${two(now.day)}.json';
       await BackupFolder.write(folder, name, text);
+      // Read it back: a file that cannot be opened is no backup.
+      final back = await SixoraBackup.decryptWithKey(
+        await BackupFolder.read(folder, name),
+        key,
+      );
+      if (back.length != entries.length) {
+        throw UserError(
+          'Die geschriebene Sicherung enthält ${back.length} statt '
+          '${entries.length} Konten',
+        );
+      }
       final names = [
         for (final n in await BackupFolder.list(folder))
           if (_backupName.hasMatch(n)) n,
@@ -772,6 +794,66 @@ class AppController extends ChangeNotifier {
     } finally {
       await saveSettings();
       notifyListeners();
+    }
+  }
+
+  /// The stored key of the backup password, opened with the user key.
+  Future<BackupKey?> _backupKey() async {
+    final stored = settings.backupKey;
+    final keys = _keys;
+    final c = cached;
+    if (stored == null || keys == null || c == null) return null;
+    if (stored['account'] != c.account.id) {
+      throw const UserError(
+        'Die Sicherung wurde für ein anderes Konto eingerichtet. '
+        'Bitte neu einrichten.',
+      );
+    }
+    return BackupKey(
+      kdf: KdfParams.fromJson((stored['kdf']! as Map).cast()),
+      salt: stored['salt']! as String,
+      key: await VaultCrypto.decrypt(
+        keys.userKey,
+        stored['key']! as String,
+        aad: _backupAad(c.account.id),
+      ),
+    );
+  }
+
+  /// Opens the newest backup in the folder like a restore would: decrypts
+  /// it and compares it with the accounts here.
+  Future<BackupVerification> verifyBackup() async {
+    final folder = settings.backupFolder;
+    final key = await _backupKey();
+    if (folder == null || key == null) {
+      throw const UserError(
+        'Die automatische Sicherung ist nicht eingerichtet',
+      );
+    }
+    try {
+      final names = [
+        for (final n in await BackupFolder.list(folder))
+          if (_backupName.hasMatch(n)) n,
+      ]..sort();
+      if (names.isEmpty) {
+        throw const UserError('Im Ordner liegt keine Sicherung');
+      }
+      final entries = await SixoraBackup.decryptWithKey(
+        await BackupFolder.read(folder, names.last),
+        key,
+      );
+      final missing = [
+        for (final i in items)
+          if (!entries.any((e) => e.sameKeyAs(i.entry))) i.entry.displayName,
+      ];
+      return BackupVerification(
+        file: names.last,
+        files: names.length,
+        accounts: entries.length,
+        missing: missing,
+      );
+    } on PlatformException catch (e) {
+      throw UserError('Sicherung nicht lesbar: ${e.message ?? e.code}');
     }
   }
 
@@ -821,6 +903,10 @@ class AppController extends ChangeNotifier {
       for (final id in pending) {
         try {
           await rotateVault(id);
+        } on SecurityError catch (e) {
+          _rotationFailed.add(id);
+          securityWarning = e.message;
+          notifyListeners();
         } on Object catch (e) {
           _rotationFailed.add(id);
           debugPrint('Schlüsselwechsel für $id fehlgeschlagen: $e');
@@ -837,7 +923,7 @@ class AppController extends ChangeNotifier {
     for (var attempt = 0; ; attempt++) {
       final vault = _vaults[vaultId];
       if (vault == null || phase != Phase.unlocked) return;
-      final members = await _online((api) => api.members(vaultId));
+      final members = await this.members(vaultId);
       final trash = await _online((api) => api.trash());
       final rotation = await rotateVaultKey(
         oldKey: vault.key,
@@ -1121,8 +1207,15 @@ class AppController extends ChangeNotifier {
     await sync();
   }
 
-  Future<List<MemberDto>> members(String vaultId) =>
-      _online((api) => api.members(vaultId));
+  /// The vault's members, each key checked against the trusted keys.
+  Future<List<MemberDto>> members(String vaultId) async {
+    final list = await _online((api) => api.members(vaultId));
+    await _trust([
+      for (final m in list)
+        (userId: m.userId, username: m.username, publicKey: m.publicKey),
+    ]);
+    return list;
+  }
 
   Future<UserDto> lookupUser(String username) =>
       _online((api) => api.lookupUser(username.trim()));
@@ -1130,6 +1223,9 @@ class AppController extends ChangeNotifier {
   String get myFingerprint => VaultCrypto.fingerprint(account!.publicKey);
 
   Future<void> share(VaultView vault, UserDto user, VaultRole role) async {
+    await _trust([
+      (userId: user.id, username: user.username, publicKey: user.publicKey),
+    ]);
     final sealed = await VaultCrypto.seal(vault.key, user.publicKey);
     await _online(
       (api) => api.addMember(
@@ -1145,6 +1241,88 @@ class AppController extends ChangeNotifier {
   Future<void> removeMember(VaultView vault, String userId) async {
     await _online((api) => api.removeMember(vault.id, userId));
     await sync();
+  }
+
+  // --- Trusted keys ----------------------------------------------------------
+
+  /// Checks other users' public keys before a vault key is sealed to them.
+  ///
+  /// A user's key pair never changes, so a key that differs from the one
+  /// seen before (on any of this account's devices) can only come from the
+  /// server – sealing to it would hand the vault to whoever holds it. Such a
+  /// key aborts; keys seen for the first time are remembered.
+  Future<void> _trust(
+    List<({String userId, String username, String publicKey})> users,
+  ) async {
+    final c = cached!;
+    final keys = _keys!;
+    for (var attempt = 0; ; attempt++) {
+      final known = Map<String, String>.of(c.trustedKeys);
+      ({String data, int revision})? remote;
+      try {
+        remote = await _online((api) => api.contacts());
+      } on ApiException catch (e) {
+        // Servers before 0.1.5: only this device remembers.
+        if (e.status != 404) rethrow;
+      }
+      var stored = const <String, String>{};
+      if (remote != null) {
+        try {
+          stored = await TrustedKeys.decrypt(
+            keys.userKey,
+            c.account.id,
+            remote.data,
+          );
+        } on CryptoException {
+          throw const SecurityError(
+            'Die gespeicherten Schlüssel deiner Kontakte wurden verändert. '
+            'Zur Sicherheit wurde abgebrochen. Bitte den Server prüfen.',
+          );
+        }
+      }
+      String? clash;
+      void add(String id, String key, String name) {
+        final have = known[id];
+        if (have == null) {
+          known[id] = key;
+        } else if (have != key) {
+          clash ??= name;
+        }
+      }
+
+      for (final e in stored.entries) {
+        add(e.key, e.value, 'einem Kontakt');
+      }
+      for (final u in users) {
+        if (u.userId != c.account.id) add(u.userId, u.publicKey, u.username);
+      }
+      if (clash != null) {
+        throw SecurityError(
+          'Der Schlüssel von „$clash“ ist ein anderer als bisher. Ein '
+          'Benutzerschlüssel ändert sich nie, dieser kommt also nicht von '
+          '„$clash“. Zur Sicherheit wurde abgebrochen. Bitte den Server prüfen.',
+        );
+      }
+      c.trustedKeys
+        ..clear()
+        ..addAll(known);
+      await store.saveAccount(c);
+      if (remote == null || mapEquals(stored, known)) return;
+      try {
+        final data = await TrustedKeys.encrypt(
+          keys.userKey,
+          c.account.id,
+          known,
+        );
+        await _online(
+          (api) => api.putContacts(data, baseRevision: remote!.revision),
+        );
+        return;
+      } on ApiException catch (e) {
+        // Another device saved meanwhile: merge its keys and try again.
+        if (!e.conflict || attempt >= 2) rethrow;
+      }
+    }
   }
 
   // --- Account ---------------------------------------------------------------

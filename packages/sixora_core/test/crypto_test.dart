@@ -371,6 +371,30 @@ void main() {
       final file = await SixoraBackup.encryptWithKey(entries, key);
       final r = await Importers.read(file, password: 'pw');
       expect(r.entries.single.issuer, 'A');
+      expect((await SixoraBackup.decryptWithKey(file, key)).single.issuer, 'A');
+      final other = await BackupKey.derive('pw', kdf: _fastKdf);
+      await expectLater(
+        SixoraBackup.decryptWithKey(file, other),
+        throwsA(isA<CryptoException>()),
+      );
     });
   });
+
+  test(
+    'trusted keys open only with the same account key and account',
+    () async {
+      final userKey = VaultCrypto.randomBytes(32);
+      final data = await TrustedKeys.encrypt(userKey, 'acc1', {'bob': 'KEY'});
+      expect(await TrustedKeys.decrypt(userKey, 'acc1', data), {'bob': 'KEY'});
+      expect(await TrustedKeys.decrypt(userKey, 'acc1', ''), isEmpty);
+      await expectLater(
+        TrustedKeys.decrypt(userKey, 'acc2', data),
+        throwsA(isA<CryptoException>()),
+      );
+      await expectLater(
+        TrustedKeys.decrypt(VaultCrypto.randomBytes(32), 'acc1', data),
+        throwsA(isA<CryptoException>()),
+      );
+    },
+  );
 }
