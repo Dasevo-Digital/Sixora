@@ -30,11 +30,11 @@ void main() {
     );
     expect(
       SixoraApi.normalizeBaseUrl(
-        Uri.parse('http://192.168.10.67:8080/sub?x=1#y'),
+        Uri.parse('http://192.168.1.20:8080/sub?x=1#y'),
       ).toString(),
-      'http://192.168.10.67:8080/sub/',
+      'http://192.168.1.20:8080/sub/',
     );
-    expect(SixoraApi.isLocalHost('192.168.10.67'), isTrue);
+    expect(SixoraApi.isLocalHost('192.168.1.20'), isTrue);
     expect(SixoraApi.isLocalHost('sixora.example.org'), isFalse);
   });
 }

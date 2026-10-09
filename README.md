@@ -1,5 +1,14 @@
 # Sixora
 
+<p align="center">
+  <img src="app/assets/icon/app_icon.png" width="112" alt="Sixora App-Symbol">
+</p>
+
+<p align="center">
+  Einmal-Codes für die Zwei-Faktor-Anmeldung auf dem eigenen Server –
+  Ende-zu-Ende verschlüsselt, offline nutzbar, auf allen Geräten.
+</p>
+
 Sixora verwaltet Einmal-Codes für die Zwei-Faktor-Anmeldung (TOTP/HOTP) auf
 einem eigenen Server. Die Apps gibt es für Android, iOS, macOS, Windows und
 Linux. Die Codes entstehen auf den Geräten. Der Server speichert nur
@@ -11,6 +20,38 @@ steht unter der [PolyForm Strict License 1.0.0](LICENSE) (© 2026 Dasevo
 Digital und superkuh). Erlaubt sind die nichtkommerzielle Nutzung und das
 Prüfen des Quellcodes. Kopieren, Ändern, Weitergeben und jede kommerzielle
 Nutzung sind ohne gesonderte schriftliche Genehmigung nicht gestattet.
+Hinweise zu Komponenten und Daten Dritter stehen in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Ein Blick in Sixora
+
+<p align="center">
+  <img src="docs/screenshots/desktop.png" width="58%" alt="Sixora am Desktop: Liste der Konten mit Codes, Filtern nach Tresor und Gruppe">
+  <img src="docs/screenshots/mobile-dark.png" width="20%" alt="Sixora auf dem Smartphone im dunklen Design">
+  <img src="docs/screenshots/editor.png" width="20%" alt="Konto bearbeiten: Dienst, Gruppe, Tresor, Favorit, Logo und Farbe">
+</p>
+
+*Die Screenshots zeigen ausgedachte Demo-Konten (`tool/screenshots.sh`).*
+
+## Herunterladen
+
+Die fertigen Apps und das Server-Paket liegen bei den
+[Releases](../../releases/latest):
+
+| Datei | Für |
+|---|---|
+| `Sixora-<version>-android-arm64.apk` | Android 7 und neuer, fast alle Geräte (`-armv7` für sehr alte, `-x86_64` für Emulatoren) |
+| `Sixora-<version>-macOS.zip` | macOS 12 und neuer, Apple Silicon und Intel |
+| `Sixora-<version>-windows-x64.zip` | Windows 10 und 11 (entpacken, `sixora.exe` starten) |
+| `Sixora-<version>-linux-x64.tar.gz` | Linux x86_64 mit GTK 3 und einem Secret-Service (GNOME Keyring, KWallet) |
+| `sixora-server-<version>-linux-<arch>.tar.gz` | Server ohne Docker, siehe [unten](#ohne-docker-proxmox-lxc-oder-debian) |
+
+Die Builds sind nicht von Apple oder Microsoft beglaubigt. macOS öffnet die
+App beim ersten Mal nur über Rechtsklick → *Öffnen*, Windows fragt über
+SmartScreen nach (*Weitere Informationen* → *Trotzdem ausführen*). Für
+iPhone und iPad gibt es noch keinen Download; dort lässt sich Sixora mit
+Xcode aus dem Quellcode installieren. `SHA256SUMS.txt` im Release enthält
+die Prüfsummen aller Dateien.
 
 ## Funktionen
 

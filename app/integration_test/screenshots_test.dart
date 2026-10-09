@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:sixora/src/app.dart';
 import 'package:sixora/src/data/app_controller.dart';
+import 'package:sixora/src/data/local_store.dart';
 import 'package:sixora/src/data/service_icons.dart';
 import 'package:sixora/src/environment.dart';
 import 'package:sixora/src/screens/entry_editor.dart';
@@ -138,6 +139,12 @@ void main() {
       await _settle(tester);
     }
 
+    // A test window in the background must not lock the app, and the
+    // offer to unlock with Touch ID would cover the list.
+    controller.settings.autoLock = AutoLock.never;
+    controller.offerBiometrics = false;
+    await controller.saveSettings();
+
     await tester.pumpWidget(
       RepaintBoundary(
         key: boundary,
@@ -154,6 +161,7 @@ void main() {
     await theme('dark');
     await shot('mobile-dark');
 
+    expect(controller.phase, Phase.unlocked);
     final nav = Navigator.of(tester.element(find.byType(HomeScreen)));
     final github = controller.items.firstWhere(
       (i) => i.entry.issuer == 'GitHub',

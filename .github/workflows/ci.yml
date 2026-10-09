@@ -1,9 +1,9 @@
 # Checks only: analyze, test and build on Linux runners. Publishes nothing;
 # releases are created by hand from the local release folder.
 #
-# The repo is private on GitHub, so every minute counts against the plan,
-# macOS ten times and Windows twice. Those builds therefore run only for a
-# release tag or by hand (release-build.yml); every push stays on Linux.
+# Every push stays on Linux, which is quick. Windows, macOS and iOS are
+# built for a release tag or by hand (release-build.yml); macOS runners
+# also count ten times and Windows twice whenever the repo is private.
 name: CI
 
 on:
