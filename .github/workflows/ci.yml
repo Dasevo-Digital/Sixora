@@ -1,16 +1,26 @@
-# Checks only: analyze, test and build every platform. Publishes nothing;
+# Checks only: analyze, test and build on Linux runners. Publishes nothing;
 # releases are created by hand from the local release folder.
+#
+# The repo is private on GitHub, so every minute counts against the plan,
+# macOS ten times and Windows twice. Those builds therefore run only for a
+# release tag or by hand (release-build.yml); every push stays on Linux.
 name: CI
 
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+    paths-ignore: ["**.md", "LICENSE"]
   pull_request:
+    paths-ignore: ["**.md", "LICENSE"]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# A newer push makes the running check of the older one pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   FLUTTER_VERSION: "3.47.6"
@@ -19,6 +29,7 @@ jobs:
   dart:
     name: Core and server
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
@@ -38,18 +49,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: windows
-            runner: windows-latest
-          - target: linux
-            runner: ubuntu-24.04
-          - target: macos
-            runner: macos-latest
-          - target: ios
-            runner: macos-latest
-          - target: android
-            runner: ubuntu-24.04
-    runs-on: ${{ matrix.runner }}
+        target: [linux, android]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: app
@@ -69,14 +71,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - run: flutter pub get && flutter analyze --fatal-infos
-      - if: matrix.target == 'windows'
-        run: flutter build windows --release
+      - run: flutter pub get
+      # Once is enough: the result does not depend on the platform.
+      - if: matrix.target == 'linux'
+        run: flutter analyze --fatal-infos
       - if: matrix.target == 'linux'
         run: flutter build linux --release
-      - if: matrix.target == 'macos'
-        run: flutter build macos --release
-      - if: matrix.target == 'ios'
-        run: flutter build ios --release --no-codesign
       - if: matrix.target == 'android'
         run: flutter build apk --release --flavor prod --split-per-abi

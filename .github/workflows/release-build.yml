@@ -1,0 +1,50 @@
+# Checks that the app builds for Windows, macOS and iOS. It publishes
+# nothing: releases and their files are created by hand from the local
+# release folder. Linux and Android are built on every push (ci.yml).
+#
+# These runners are the expensive ones on a private repo (macOS counts ten
+# times, Windows twice), so this runs only for a release tag or by hand.
+name: Release build check (Windows, macOS, iOS)
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.47.6"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows
+            runner: windows-latest
+          # macOS and iOS in one job: the SDK, the packages and the pods
+          # are set up once instead of twice.
+          - target: apple
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: app
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - run: flutter pub get
+      - if: matrix.target == 'windows'
+        run: flutter build windows --release
+      - if: matrix.target == 'apple'
+        run: |
+          flutter build macos --release
+          flutter build ios --release --no-codesign
