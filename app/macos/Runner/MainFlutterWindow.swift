@@ -14,6 +14,7 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
     registerClipboard(flutterViewController.engine.binaryMessenger)
     BackupFolder.register(flutterViewController.engine.binaryMessenger)
+    registerLinkHandler(flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
   }
@@ -134,5 +135,43 @@ private func folderCall(_ method: String, _ url: URL, _ args: [String: Any]) thr
     let name = args["name"] as? String ?? ""
     try fm.removeItem(at: url.appendingPathComponent(name))
     return nil
+  }
+}
+
+/// Which app opens otpauth:// links. Apple's Passwords app claims them too,
+/// and macOS has no setting for it: Sixora asks to become the handler (the
+/// system confirms with its own dialog).
+private func registerLinkHandler(_ messenger: FlutterBinaryMessenger) {
+  let schemes = ["otpauth", "otpauth-migration"]
+  let channel = FlutterMethodChannel(name: "sixora/links", binaryMessenger: messenger)
+  channel.setMethodCallHandler { call, result in
+    let me = Bundle.main.bundleURL.standardizedFileURL
+    switch call.method {
+    case "handler":
+      let app = NSWorkspace.shared.urlForApplication(toOpen: URL(string: "otpauth://totp/x")!)
+      result([
+        "isDefault": app?.standardizedFileURL == me,
+        "name": app.map { FileManager.default.displayName(atPath: $0.path) } ?? "",
+      ])
+    case "makeDefault":
+      let group = DispatchGroup()
+      var failure: Error?
+      for scheme in schemes {
+        group.enter()
+        NSWorkspace.shared.setDefaultApplication(at: me, toOpenURLsWithScheme: scheme) { error in
+          if let error, failure == nil { failure = error }
+          group.leave()
+        }
+      }
+      group.notify(queue: .main) {
+        if let failure {
+          result(FlutterError(code: "declined", message: failure.localizedDescription, details: nil))
+        } else {
+          result(nil)
+        }
+      }
+    default:
+      result(FlutterMethodNotImplemented)
+    }
   }
 }

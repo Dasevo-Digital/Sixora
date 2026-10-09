@@ -19,6 +19,10 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Sixora nutzt die Kamera, um QR-Codes neuer Konten zu scannen.</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>de</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>

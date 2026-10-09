@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sixora_core/sixora_core.dart';
 
@@ -10,6 +10,7 @@ import '../data/biometric_vault.dart';
 import '../data/local_store.dart';
 import '../widgets/common.dart';
 import '../platform/desktop_shell.dart';
+import '../platform/link_inbox.dart';
 import 'account_screens.dart';
 import 'account_check_screen.dart';
 import 'admin_screen.dart';
@@ -202,6 +203,7 @@ class SettingsScreen extends StatelessWidget {
                     await DesktopShell.instance?.applySettings();
                   },
                 ),
+                const _LinkHandlerTile(),
               ],
               const SectionTitle('Anzeige'),
               SwitchListTile(
@@ -566,5 +568,65 @@ class SettingsScreen extends StatelessWidget {
     } catch (e) {
       if (context.mounted) showError(context, e);
     }
+  }
+}
+
+/// macOS: offers to open otpauth:// links with Sixora, as long as another
+/// app (usually Apple's Passwords) gets them.
+class _LinkHandlerTile extends StatefulWidget {
+  const _LinkHandlerTile();
+
+  @override
+  State<_LinkHandlerTile> createState() => _LinkHandlerTileState();
+}
+
+class _LinkHandlerTileState extends State<_LinkHandlerTile> {
+  ({bool isDefault, String app})? _state;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final state = await LinkInbox.handler();
+    if (mounted) setState(() => _state = state);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _state;
+    if (state == null) return const SizedBox.shrink();
+    return ListTile(
+      leading: const Icon(Icons.link),
+      title: const Text('otpauth-Links mit Sixora öffnen'),
+      subtitle: Text(
+        state.isDefault
+            ? 'Links zum Einrichten von Konten öffnen Sixora.'
+            : 'Zurzeit öffnet sie ${state.app.isEmpty ? 'eine andere App' : '„${state.app}“'}.',
+      ),
+      trailing: state.isDefault
+          ? Icon(
+              Icons.check_circle_outline,
+              color: Theme.of(context).colorScheme.primary,
+            )
+          : FilledButton.tonal(
+              onPressed: () async {
+                try {
+                  await LinkInbox.makeDefault();
+                } on Object catch (e) {
+                  if (context.mounted) {
+                    showMessage(
+                      context,
+                      'Nicht geändert: ${e is PlatformException ? e.message : e}',
+                    );
+                  }
+                }
+                await _load();
+              },
+              child: const Text('Sixora verwenden'),
+            ),
+    );
   }
 }
