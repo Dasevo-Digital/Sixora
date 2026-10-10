@@ -57,6 +57,11 @@ static void my_application_activate(GApplication* application) {
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
+  // Impeller (OpenGL) draws some shapes wrongly on virtual GPUs such as
+  // VMware SVGA: outlined text fields turn into filled triangles. Skia is the
+  // safe default; SIXORA_IMPELLER=1 opts in.
+  fl_dart_project_set_enable_impeller(
+      project, g_strcmp0(g_getenv("SIXORA_IMPELLER"), "1") == 0);
 
   FlView* view = fl_view_new(project);
   GdkRGBA background_color;

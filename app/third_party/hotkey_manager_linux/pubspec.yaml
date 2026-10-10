@@ -1,0 +1,23 @@
+name: hotkey_manager_linux
+description: >-
+  Linux part of hotkey_manager for Sixora: does nothing. The original needs
+  libkeybinder-3.0 (build and runtime) and only works under X11, so Sixora
+  offers no global shortcut on Linux and drops the dependency.
+version: 0.2.0
+publish_to: none
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  hotkey_manager_platform_interface: ^0.2.0
+
+flutter:
+  plugin:
+    implements: hotkey_manager
+    platforms:
+      linux:
+        dartPluginClass: HotkeyManagerLinux

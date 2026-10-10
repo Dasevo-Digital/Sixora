@@ -6,6 +6,16 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.21 – 10.10.2026
+- Auf echten Windows- und Linux-Rechnern geprüft (Tests und Builds).
+- Linux: kein globales Tastenkürzel mehr und damit keine Abhängigkeit von
+  libkeybinder (die unter Wayland ohnehin nicht greift). Gezeichnet wird mit
+  Skia, weil Impeller auf virtueller Grafik Eingabefelder falsch füllte.
+  Der Build bricht auf neueren Distributionen nicht mehr an veralteten
+  Funktionen der Infobereich-Bibliothek ab.
+- Windows: Die Testvariante speichert ihre Geheimnisse ohne `chmod`, das es
+  dort nicht gibt.
+
 ### 0.1.20 – 09.10.2026
 - Import aus 2FAS (Sicherung ohne Passwort), Bitwarden (JSON und CSV),
   andOTP und FreeOTP+. Verschlüsselte Exporte von 2FAS, Bitwarden und

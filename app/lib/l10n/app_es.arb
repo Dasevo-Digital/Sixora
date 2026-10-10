@@ -507,5 +507,6 @@
   "choose": "Elegir",
   "err2fasEncrypted": "Copia de 2FAS cifrada: expórtala sin contraseña en 2FAS",
   "errBitwardenEncrypted": "Exportación de Bitwarden cifrada: expórtala como «.json» sin cifrar",
-  "errEnteEncrypted": "Copia de Ente Auth cifrada: expórtala sin cifrar (como archivo de texto)"
+  "errEnteEncrypted": "Copia de Ente Auth cifrada: expórtala sin cifrar (como archivo de texto)",
+  "searchEllipsis": "Buscar…"
 }

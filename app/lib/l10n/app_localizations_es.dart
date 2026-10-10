@@ -1856,4 +1856,7 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errEnteEncrypted =>
       'Copia de Ente Auth cifrada: expórtala sin cifrar (como archivo de texto)';
+
+  @override
+  String get searchEllipsis => 'Buscar…';
 }

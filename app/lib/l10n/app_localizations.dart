@@ -3147,6 +3147,12 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Verschlüsselte Ente-Auth-Sicherung: bitte unverschlüsselt (als Textdatei) exportieren'**
   String get errEnteEncrypted;
+
+  /// No description provided for @searchEllipsis.
+  ///
+  /// In de, this message translates to:
+  /// **'Suchen …'**
+  String get searchEllipsis;
 }
 
 class _AppLocalizationsDelegate

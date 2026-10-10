@@ -1845,4 +1845,7 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get errEnteEncrypted =>
       'Verschlüsselte Ente-Auth-Sicherung: bitte unverschlüsselt (als Textdatei) exportieren';
+
+  @override
+  String get searchEllipsis => 'Suchen …';
 }

@@ -1833,4 +1833,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errEnteEncrypted =>
       'Encrypted Ente Auth backup: please export it unencrypted (as a text file)';
+
+  @override
+  String get searchEllipsis => 'Search …';
 }

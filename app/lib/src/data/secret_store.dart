@@ -104,10 +104,11 @@ class SecretStore {
       if (file.existsSync()) file.deleteSync();
       return;
     }
-    // Restrict the permissions before the token is written.
+    // Restrict the permissions before the token is written. Windows has no
+    // chmod; there the user's AppData folder is private already.
     if (!file.existsSync()) {
       file.createSync(recursive: true);
-      await Process.run('chmod', ['600', file.path]);
+      if (!Platform.isWindows) await Process.run('chmod', ['600', file.path]);
     }
     file.writeAsStringSync(raw, flush: true);
   }

@@ -28,6 +28,10 @@ class DesktopShell with TrayListener, WindowListener {
   /// Ticks when the window should open with the search field focused.
   static final focusSearch = ValueNotifier<int>(0);
 
+  /// Global shortcut: macOS and Windows. Linux has none (Wayland offers
+  /// no global key grabs to apps; see third_party/hotkey_manager_linux).
+  static bool get hasShortcut => Platform.isMacOS || Platform.isWindows;
+
   static bool get supported =>
       Platform.isMacOS || Platform.isWindows || Platform.isLinux;
 
@@ -82,7 +86,7 @@ class DesktopShell with TrayListener, WindowListener {
       await hotKeyManager.unregister(_hotKey!);
       _hotKey = null;
     }
-    if (!c.settings.globalHotkey) return;
+    if (!c.settings.globalHotkey || !hasShortcut) return;
     final key = HotKey(
       key: PhysicalKeyboardKey.keyO,
       modifiers: Platform.isMacOS
@@ -137,7 +141,12 @@ class DesktopShell with TrayListener, WindowListener {
         items: [
           MenuItem(key: 'open', label: t.openSixora),
           if (unlocked) ...[
-            MenuItem(key: 'search', label: t.searchWithShortcut(shortcutLabel)),
+            MenuItem(
+              key: 'search',
+              label: hasShortcut
+                  ? t.searchWithShortcut(shortcutLabel)
+                  : t.searchEllipsis,
+            ),
             MenuItem.separator(),
             if (quick.isEmpty)
               MenuItem(label: t.favoritesHint, disabled: true)

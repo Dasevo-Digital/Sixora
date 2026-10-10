@@ -43,7 +43,7 @@ Die fertigen Apps und das Server-Paket liegen bei den
 | `Sixora-<version>-android-arm64.apk` | Android 7 und neuer, fast alle Geräte (`-armv7` für sehr alte, `-x86_64` für Emulatoren) |
 | `Sixora-<version>-macOS.zip` | macOS 12 und neuer, Apple Silicon und Intel |
 | `Sixora-<version>-windows-x64.zip` | Windows 10 und 11 (entpacken, `sixora.exe` starten) |
-| `Sixora-<version>-linux-x64.tar.gz` | Linux x86_64 mit GTK 3 und einem Secret-Service (GNOME Keyring, KWallet) |
+| `Sixora-<version>-linux-x64.tar.gz` | Linux x86_64 mit GTK 3, libayatana-appindicator3 und einem Secret-Service (GNOME Keyring, KWallet) |
 | `sixora-server-<version>-linux-<arch>.tar.gz` | Server ohne Docker, siehe [unten](#ohne-docker-proxmox-lxc-oder-debian) |
 
 Die Builds sind nicht von Apple oder Microsoft beglaubigt. macOS öffnet die
@@ -257,5 +257,10 @@ App berühren:
   App, `app/tool/mac_install.sh` dasselbe für die echte App. Beide werden mit
   `app/tool/sign_macos.sh` signiert, damit der Schlüsselbund „Immer
   erlauben“ über Updates hinweg behält.
-- Linux braucht zum Bauen `libsecret-1-dev` (Schlüsselbund) und für die
-  Laufzeit einen Secret-Service, z. B. GNOME Keyring oder KWallet.
+- Linux braucht zum Bauen `libsecret-1-dev` (Schlüsselbund) und
+  `libayatana-appindicator3-dev` (Symbol im Infobereich), zur Laufzeit einen
+  Secret-Service (GNOME Keyring, KWallet) und `libayatana-appindicator3-1`.
+  Ein globales Tastenkürzel gibt es unter Linux nicht (Wayland erlaubt
+  Apps keine globalen Tasten). Gezeichnet wird mit Skia, weil Impeller auf
+  virtueller Grafik (z. B. VMware) Formen falsch füllt; `SIXORA_IMPELLER=1`
+  schaltet Impeller ein.

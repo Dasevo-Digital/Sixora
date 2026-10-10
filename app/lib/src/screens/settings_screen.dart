@@ -179,17 +179,18 @@ class SettingsScreen extends StatelessWidget {
                     await DesktopShell.instance?.applySettings();
                   },
                 ),
-                SwitchListTile(
-                  secondary: const Icon(Icons.keyboard_command_key),
-                  title: Text(t.shortcutTitle(DesktopShell.shortcutLabel)),
-                  subtitle: Text(t.shortcutHint),
-                  value: s.globalHotkey,
-                  onChanged: (v) async {
-                    s.globalHotkey = v;
-                    await c.saveSettings();
-                    await DesktopShell.instance?.applySettings();
-                  },
-                ),
+                if (DesktopShell.hasShortcut)
+                  SwitchListTile(
+                    secondary: const Icon(Icons.keyboard_command_key),
+                    title: Text(t.shortcutTitle(DesktopShell.shortcutLabel)),
+                    subtitle: Text(t.shortcutHint),
+                    value: s.globalHotkey,
+                    onChanged: (v) async {
+                      s.globalHotkey = v;
+                      await c.saveSettings();
+                      await DesktopShell.instance?.applySettings();
+                    },
+                  ),
                 const _LinkHandlerTile(),
               ],
               SectionTitle(t.sectionDisplay),

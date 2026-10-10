@@ -330,8 +330,11 @@ void main() {
     final file = File('${dir.path}/transfer.png')
       ..writeAsBytesSync(qr.screenshot(uri));
     addTearDown(() => file.deleteSync());
-    // macOS: Apple Vision via mobile_scanner, as for picked images.
-    expect(await readQrNative(file.path), [uri]);
+    // Apple Vision / ML Kit via mobile_scanner, as for picked images; Linux
+    // and Windows have no system reader and use the fallback below.
+    if (Platform.isMacOS || Platform.isIOS || Platform.isAndroid) {
+      expect(await readQrNative(file.path), [uri]);
+    }
     expect(await readQrImages([(path: file.path, bytes: file.readAsBytes)]), [
       uri,
     ]);

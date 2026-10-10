@@ -1128,5 +1128,6 @@
   "choose": "Auswählen",
   "err2fasEncrypted": "Verschlüsselte 2FAS-Sicherung: bitte in 2FAS ohne Passwort exportieren",
   "errBitwardenEncrypted": "Verschlüsselter Bitwarden-Export: bitte als „.json“ ohne Verschlüsselung exportieren",
-  "errEnteEncrypted": "Verschlüsselte Ente-Auth-Sicherung: bitte unverschlüsselt (als Textdatei) exportieren"
+  "errEnteEncrypted": "Verschlüsselte Ente-Auth-Sicherung: bitte unverschlüsselt (als Textdatei) exportieren",
+  "searchEllipsis": "Suchen …"
 }

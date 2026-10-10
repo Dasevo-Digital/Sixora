@@ -507,5 +507,6 @@
   "choose": "Choose",
   "err2fasEncrypted": "Encrypted 2FAS backup: please export it without a password in 2FAS",
   "errBitwardenEncrypted": "Encrypted Bitwarden export: please export as “.json” without encryption",
-  "errEnteEncrypted": "Encrypted Ente Auth backup: please export it unencrypted (as a text file)"
+  "errEnteEncrypted": "Encrypted Ente Auth backup: please export it unencrypted (as a text file)",
+  "searchEllipsis": "Search …"
 }
