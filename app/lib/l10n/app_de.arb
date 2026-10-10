@@ -1178,5 +1178,22 @@
       }
     }
   },
-  "moveLost": "Sixora war zwischendurch gesperrt. Die übrigen Codes liegen noch verschlüsselt auf diesem Gerät: abmelden, „Ohne Server nutzen“ wählen, öffnen und erneut übertragen."
+  "moveLost": "Sixora war zwischendurch gesperrt. Die übrigen Codes liegen noch verschlüsselt auf diesem Gerät: abmelden, „Ohne Server nutzen“ wählen, öffnen und erneut übertragen.",
+  "autofill": "Codes in anderen Apps einfügen",
+  "autofillOn": "Aktiv: In Feldern für Einmal-Codes erscheint „Code aus Sixora einfügen“.",
+  "autofillOff": "Sixora als Autofill-Dienst wählen. Android erlaubt nur einen solchen Dienst; ein Passwort-Manager, der ihn gerade stellt, wird ersetzt.",
+  "autofillTitle": "Code einfügen",
+  "autofillFor": "für {target}",
+  "@autofillFor": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "autofillSuggested": "Passend",
+  "autofillAll": "Alle Konten",
+  "autofillNotSetUp": "Sixora ist auf diesem Gerät noch nicht eingerichtet. Öffne Sixora und melde dich an oder nutze es ohne Server.",
+  "close": "Schließen",
+  "localPasswordHint": "Das Master-Passwort verlässt nie dieses Gerät und lässt sich nicht zurücksetzen. Nur mit dem Wiederherstellungsschlüssel kommst du ohne Passwort wieder hinein."
 }

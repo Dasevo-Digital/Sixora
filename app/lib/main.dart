@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'src/app.dart';
+import 'src/autofill/autofill.dart';
+import 'src/autofill/autofill_app.dart';
 import 'src/data/app_controller.dart';
 import 'src/data/service_icons.dart';
 import 'src/l10n.dart';
@@ -10,6 +12,30 @@ import 'src/platform/link_inbox.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _addLicenses();
+  // Loads in the background; avatars show letters until then.
+  ServiceIcons.load();
+  LinkInbox.instance.start();
+  final controller = await AppController.create();
+  useLocale(resolveLocale(controller.settings.language));
+  runApp(SixoraApp(controller: controller));
+  // Menu bar / tray and the global shortcut on desktops.
+  await DesktopShell.start(controller);
+}
+
+/// Android autofill window (`AutofillActivity`): its own engine, started
+/// when the user taps "insert code" in another app.
+@pragma('vm:entry-point')
+Future<void> autofillMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  ServiceIcons.load();
+  final controller = await AppController.create(passive: true);
+  useLocale(resolveLocale(controller.settings.language));
+  final request = await Autofill.request();
+  runApp(AutofillApp(controller: controller, request: request));
+}
+
+void _addLicenses() {
   LicenseRegistry.addLicense(
     () => Stream.value(
       const LicenseEntryWithLineBreaks(
@@ -23,12 +49,4 @@ kennzeichnet nur den Dienst und bedeutet keine Verbindung zu Sixora.''',
       ),
     ),
   );
-  // Loads in the background; avatars show letters until then.
-  ServiceIcons.load();
-  LinkInbox.instance.start();
-  final controller = await AppController.create();
-  useLocale(resolveLocale(controller.settings.language));
-  runApp(SixoraApp(controller: controller));
-  // Menu bar / tray and the global shortcut on desktops.
-  await DesktopShell.start(controller);
 }

@@ -7,6 +7,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.DocumentsContract
+import android.provider.Settings
+import android.view.autofill.AutofillManager
 import androidx.activity.result.contract.ActivityResultContracts
 import android.os.PersistableBundle
 import android.view.WindowManager
@@ -39,6 +41,15 @@ class MainActivity : FlutterFragmentActivity() {
             )
             val id = DocumentsContract.getTreeDocumentId(uri)
             result.success(mapOf("ref" to uri.toString(), "label" to id.substringAfter(':')))
+        }
+
+    /** Waiting for the system dialog that picks the autofill service. */
+    private var pendingAutofill: MethodChannel.Result? = null
+
+    private val chooseAutofill =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+            pendingAutofill?.success(r.resultCode == RESULT_OK)
+            pendingAutofill = null
         }
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
@@ -87,6 +98,34 @@ class MainActivity : FlutterFragmentActivity() {
             }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "sixora/folder")
             .setMethodCallHandler { call, result -> folderCall(call.method, call, result) }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "sixora/autofill")
+            .setMethodCallHandler { call, result -> autofillCall(call.method, result) }
+    }
+
+    /** Settings: whether Sixora is the autofill service, and choosing it. */
+    private fun autofillCall(method: String, result: MethodChannel.Result) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            result.success(if (method == "status") mapOf("supported" to false) else false)
+            return
+        }
+        val manager = getSystemService(AutofillManager::class.java)
+        when (method) {
+            "status" -> result.success(
+                mapOf(
+                    "supported" to (manager?.isAutofillSupported == true),
+                    "enabled" to (manager?.hasEnabledAutofillServices() == true),
+                ),
+            )
+            "enable" -> {
+                pendingAutofill?.success(false)
+                pendingAutofill = result
+                chooseAutofill.launch(
+                    Intent(Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE)
+                        .setData(Uri.parse("package:$packageName")),
+                )
+            }
+            else -> result.notImplemented()
+        }
     }
 
     private fun folderCall(

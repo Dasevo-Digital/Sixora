@@ -76,6 +76,12 @@ jobs:
       - if: matrix.target == 'linux'
         run: flutter analyze --fatal-infos
       - if: matrix.target == 'linux'
+        run: flutter test
+      - if: matrix.target == 'linux'
         run: flutter build linux --release
       - if: matrix.target == 'android'
         run: flutter build apk --release --flavor prod --split-per-abi
+      # Field detection of the autofill service (plain Kotlin tests).
+      - if: matrix.target == 'android'
+        working-directory: app/android
+        run: ./gradlew :app:testProdReleaseUnitTest --no-daemon -q

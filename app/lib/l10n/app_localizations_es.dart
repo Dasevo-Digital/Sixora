@@ -1961,4 +1961,40 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get moveLost =>
       'Sixora se bloqueó entretanto. Los códigos restantes siguen cifrados en este dispositivo: cierra sesión, elige «Usar sin servidor», ábrelo y transfiere de nuevo.';
+
+  @override
+  String get autofill => 'Insertar códigos en otras apps';
+
+  @override
+  String get autofillOn =>
+      'Activo: los campos de códigos de un solo uso ofrecen «Insertar código de Sixora».';
+
+  @override
+  String get autofillOff =>
+      'Elige Sixora como servicio de autocompletar. Android solo admite uno; si un gestor de contraseñas lo es ahora, se sustituye.';
+
+  @override
+  String get autofillTitle => 'Insertar código';
+
+  @override
+  String autofillFor(String target) {
+    return 'para $target';
+  }
+
+  @override
+  String get autofillSuggested => 'Coincidentes';
+
+  @override
+  String get autofillAll => 'Todas las cuentas';
+
+  @override
+  String get autofillNotSetUp =>
+      'Sixora aún no está configurado en este dispositivo. Abre Sixora e inicia sesión o úsalo sin servidor.';
+
+  @override
+  String get close => 'Cerrar';
+
+  @override
+  String get localPasswordHint =>
+      'La contraseña maestra nunca sale de este dispositivo y no se puede restablecer. Solo la clave de recuperación te permite volver a entrar sin la contraseña.';
 }

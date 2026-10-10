@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sixora as autofill service: one-time codes only (SixoraAutofillService). -->
+<autofill-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="de.status403.sixora.MainActivity" />

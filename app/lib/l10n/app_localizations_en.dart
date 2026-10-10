@@ -1937,4 +1937,40 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get moveLost =>
       'Sixora was locked in the meantime. The remaining codes are still encrypted on this device: sign out, choose “Use without a server”, open it and move again.';
+
+  @override
+  String get autofill => 'Insert codes in other apps';
+
+  @override
+  String get autofillOn =>
+      'On: one-time code fields offer “Insert code from Sixora”.';
+
+  @override
+  String get autofillOff =>
+      'Choose Sixora as the autofill service. Android allows only one such service; a password manager that currently is one gets replaced.';
+
+  @override
+  String get autofillTitle => 'Insert code';
+
+  @override
+  String autofillFor(String target) {
+    return 'for $target';
+  }
+
+  @override
+  String get autofillSuggested => 'Matching';
+
+  @override
+  String get autofillAll => 'All accounts';
+
+  @override
+  String get autofillNotSetUp =>
+      'Sixora is not set up on this device yet. Open Sixora and sign in, or use it without a server.';
+
+  @override
+  String get close => 'Close';
+
+  @override
+  String get localPasswordHint =>
+      'The master password never leaves this device and cannot be reset. Only the recovery key gets you back in without the password.';
 }

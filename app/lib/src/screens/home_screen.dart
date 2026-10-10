@@ -520,7 +520,10 @@ class _HomeScreenState extends State<HomeScreen> {
               onSubmitted: (_) => _copyFirst(c),
             ),
             actions: [
-              if (c.syncing)
+              // Without a server there is nothing to sync.
+              if (c.isLocal)
+                const SizedBox.shrink()
+              else if (c.syncing)
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 12),
                   child: SizedBox(

@@ -6,6 +6,16 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.24 – 10.10.2026
+- Android: Codes in anderen Apps und auf Websites einfügen (Autofill).
+  Sixora erkennt Felder für Einmal-Codes und bietet dort „Code aus Sixora
+  einfügen“ an; ein kleines Fenster entsperrt, zeigt passende Konten zuerst
+  und setzt den aktuellen Code ein. Andere Felder (Name, Passwort,
+  Gutscheincode …) bleiben unberührt. Einschalten unter Einstellungen →
+  „Codes in anderen Apps einfügen“.
+- Ohne Server: kein Sync-Knopf mehr, und der Hinweis zum Master-Passwort
+  spricht nicht mehr von einem Administrator.
+
 ### 0.1.23 – 10.10.2026
 - Sixora ohne Server: „Ohne Server nutzen“ auf dem Startbildschirm. Die
   Codes bleiben verschlüsselt auf dem Gerät; dafür läuft der Code des

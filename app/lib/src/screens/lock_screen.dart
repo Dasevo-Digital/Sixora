@@ -9,7 +9,10 @@ import '../widgets/brand.dart';
 import '../widgets/common.dart';
 
 class LockScreen extends StatefulWidget {
-  const LockScreen({super.key});
+  const LockScreen({super.key, this.allowSignOut = true});
+
+  /// Not in the autofill window: signing out there would be a surprise.
+  final bool allowSignOut;
 
   @override
   State<LockScreen> createState() => _LockScreenState();
@@ -167,11 +170,13 @@ class _LockScreenState extends State<LockScreen> {
                 onPressed: _busy ? null : _biometric,
               ),
             ],
-            const SizedBox(height: 24),
-            TextButton(
-              onPressed: _busy ? null : _logout,
-              child: Text(t.signOut),
-            ),
+            if (widget.allowSignOut) ...[
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: _busy ? null : _logout,
+                child: Text(t.signOut),
+              ),
+            ],
           ],
         ),
       ),

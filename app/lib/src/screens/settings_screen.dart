@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sixora_core/sixora_core.dart';
 
+import '../autofill/autofill.dart';
 import '../data/biometric_vault.dart';
 import '../data/local_store.dart';
 import '../l10n.dart';
@@ -168,6 +170,7 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: Text(t.activityHint),
                 onTap: () => _open(context, const AuditScreen()),
               ),
+              if (Platform.isAndroid) const _AutofillTile(),
               if (DesktopShell.supported) ...[
                 SectionTitle(t.sectionDesktop),
                 SwitchListTile(
@@ -590,6 +593,59 @@ class SettingsScreen extends StatelessWidget {
 
 /// macOS: offers to open otpauth:// links with Sixora, as long as another
 /// app (usually Apple's Passwords) gets them.
+/// Android: Sixora as the autofill service, for one-time code fields.
+class _AutofillTile extends StatefulWidget {
+  const _AutofillTile();
+
+  @override
+  State<_AutofillTile> createState() => _AutofillTileState();
+}
+
+class _AutofillTileState extends State<_AutofillTile> {
+  ({bool supported, bool enabled})? _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final status = await Autofill.status();
+    if (mounted) setState(() => _status = status);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _status;
+    if (status == null || !status.supported) return const SizedBox.shrink();
+    return ListTile(
+      leading: const Icon(Icons.password),
+      title: Text(t.autofill),
+      subtitle: Text(status.enabled ? t.autofillOn : t.autofillOff),
+      isThreeLine: !status.enabled,
+      trailing: status.enabled
+          ? Icon(
+              Icons.check_circle_outline,
+              color: Theme.of(context).colorScheme.primary,
+            )
+          : FilledButton.tonal(
+              onPressed: () async {
+                try {
+                  await Autofill.enable();
+                } on PlatformException catch (e) {
+                  if (context.mounted) {
+                    showMessage(context, t.notChanged(e.message ?? e.code));
+                  }
+                }
+                await _load();
+              },
+              child: Text(t.useSixora),
+            ),
+    );
+  }
+}
+
 class _LinkHandlerTile extends StatefulWidget {
   const _LinkHandlerTile();
 

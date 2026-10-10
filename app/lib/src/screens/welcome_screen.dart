@@ -644,7 +644,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       ],
       if (newPassword) ...[
         const SizedBox(height: 12),
-        Text(t.masterPasswordNeverLeaves, style: theme.textTheme.bodySmall),
+        Text(
+          _local ? t.localPasswordHint : t.masterPasswordNeverLeaves,
+          style: theme.textTheme.bodySmall,
+        ),
       ],
     ];
   }

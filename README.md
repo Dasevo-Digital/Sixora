@@ -103,6 +103,14 @@ die Prüfsummen aller Dateien.
   Schlüssel, Konten ohne Namen und ohne Logo.
 - **Offline:** Die Codes funktionieren ohne Verbindung. Nur Änderungen
   brauchen den Server.
+- **Autofill (Android 8 und neuer):** In Feldern für Einmal-Codes anderer
+  Apps und Websites erscheint „Code aus Sixora einfügen“. Ein kleines
+  Sixora-Fenster entsperrt, zeigt passende Konten zuerst (nach App bzw.
+  Website) und setzt den aktuellen Code ein. Einschalten unter
+  Einstellungen → „Codes in anderen Apps einfügen“. Android erlaubt nur
+  einen Autofill-Dienst; ein Passwort-Manager, der ihn stellt, wird dabei
+  ersetzt. Browser wie Chrome reichen Websites nur weiter, wenn dort
+  „Autofill mit einem anderen Dienst“ eingeschaltet ist.
 - **Ohne Server:** „Ohne Server nutzen“ auf dem Startbildschirm hält die
   Codes nur auf diesem Gerät, mit derselben Verschlüsselung (der Code des
   Servers läuft dafür in der App, mit eigener Datenbank im App-Ordner). Eine

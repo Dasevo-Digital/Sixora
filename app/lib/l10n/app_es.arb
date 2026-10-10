@@ -533,5 +533,15 @@
   "moveProgress": "{done} de {total} transferidos",
   "moveDone": "{count, plural, =0{Listo: el servidor ya tenía todos los códigos} =1{1 código transferido} other{{count} códigos transferidos}}",
   "moveIncomplete": "La transferencia se interrumpió ({error}). Los códigos restantes siguen en este dispositivo; «Seguir transfiriendo» continúa.",
-  "moveLost": "Sixora se bloqueó entretanto. Los códigos restantes siguen cifrados en este dispositivo: cierra sesión, elige «Usar sin servidor», ábrelo y transfiere de nuevo."
+  "moveLost": "Sixora se bloqueó entretanto. Los códigos restantes siguen cifrados en este dispositivo: cierra sesión, elige «Usar sin servidor», ábrelo y transfiere de nuevo.",
+  "autofill": "Insertar códigos en otras apps",
+  "autofillOn": "Activo: los campos de códigos de un solo uso ofrecen «Insertar código de Sixora».",
+  "autofillOff": "Elige Sixora como servicio de autocompletar. Android solo admite uno; si un gestor de contraseñas lo es ahora, se sustituye.",
+  "autofillTitle": "Insertar código",
+  "autofillFor": "para {target}",
+  "autofillSuggested": "Coincidentes",
+  "autofillAll": "Todas las cuentas",
+  "autofillNotSetUp": "Sixora aún no está configurado en este dispositivo. Abre Sixora e inicia sesión o úsalo sin servidor.",
+  "close": "Cerrar",
+  "localPasswordHint": "La contraseña maestra nunca sale de este dispositivo y no se puede restablecer. Solo la clave de recuperación te permite volver a entrar sin la contraseña."
 }

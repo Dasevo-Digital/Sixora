@@ -15,6 +15,25 @@ import 'widgets/common.dart';
 
 const brandColor = Color(0xFF4F46E5);
 
+ThemeData sixoraTheme(Brightness brightness) {
+  final scheme = ColorScheme.fromSeed(
+    seedColor: brandColor,
+    brightness: brightness,
+  );
+  return ThemeData(
+    colorScheme: scheme,
+    useMaterial3: true,
+    cardTheme: CardThemeData(
+      elevation: 0,
+      color: scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    inputDecorationTheme: const InputDecorationTheme(
+      border: OutlineInputBorder(),
+    ),
+  );
+}
+
 class SixoraApp extends StatefulWidget {
   const SixoraApp({super.key, required this.controller});
   final AppController controller;
@@ -130,25 +149,6 @@ class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
     _idle = Timer(Duration(minutes: minutes == 0 ? 1 : minutes), c.lock);
   }
 
-  ThemeData _theme(Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: brandColor,
-      brightness: brightness,
-    );
-    return ThemeData(
-      colorScheme: scheme,
-      useMaterial3: true,
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: scheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
-      ),
-    );
-  }
-
   @override
   /// The system language changed: matters when the setting is „System“.
   @override
@@ -182,8 +182,8 @@ class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
             navigatorKey: _navigator,
             title: 'Sixora',
             debugShowCheckedModeBanner: false,
-            theme: _theme(Brightness.light),
-            darkTheme: _theme(Brightness.dark),
+            theme: sixoraTheme(Brightness.light),
+            darkTheme: sixoraTheme(Brightness.dark),
             themeMode: switch (c.settings.themeMode) {
               'light' => ThemeMode.light,
               'dark' => ThemeMode.dark,

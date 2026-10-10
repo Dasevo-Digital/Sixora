@@ -533,5 +533,15 @@
   "moveProgress": "{done} of {total} moved",
   "moveDone": "{count, plural, =0{Done: the server already had every code} =1{1 code moved} other{{count} codes moved}}",
   "moveIncomplete": "The move was interrupted ({error}). The remaining codes are still on this device; “Continue moving” carries on.",
-  "moveLost": "Sixora was locked in the meantime. The remaining codes are still encrypted on this device: sign out, choose “Use without a server”, open it and move again."
+  "moveLost": "Sixora was locked in the meantime. The remaining codes are still encrypted on this device: sign out, choose “Use without a server”, open it and move again.",
+  "autofill": "Insert codes in other apps",
+  "autofillOn": "On: one-time code fields offer “Insert code from Sixora”.",
+  "autofillOff": "Choose Sixora as the autofill service. Android allows only one such service; a password manager that currently is one gets replaced.",
+  "autofillTitle": "Insert code",
+  "autofillFor": "for {target}",
+  "autofillSuggested": "Matching",
+  "autofillAll": "All accounts",
+  "autofillNotSetUp": "Sixora is not set up on this device yet. Open Sixora and sign in, or use it without a server.",
+  "close": "Close",
+  "localPasswordHint": "The master password never leaves this device and cannot be reset. Only the recovery key gets you back in without the password."
 }

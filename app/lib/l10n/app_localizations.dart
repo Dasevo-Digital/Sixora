@@ -3303,6 +3303,66 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Sixora war zwischendurch gesperrt. Die übrigen Codes liegen noch verschlüsselt auf diesem Gerät: abmelden, „Ohne Server nutzen“ wählen, öffnen und erneut übertragen.'**
   String get moveLost;
+
+  /// No description provided for @autofill.
+  ///
+  /// In de, this message translates to:
+  /// **'Codes in anderen Apps einfügen'**
+  String get autofill;
+
+  /// No description provided for @autofillOn.
+  ///
+  /// In de, this message translates to:
+  /// **'Aktiv: In Feldern für Einmal-Codes erscheint „Code aus Sixora einfügen“.'**
+  String get autofillOn;
+
+  /// No description provided for @autofillOff.
+  ///
+  /// In de, this message translates to:
+  /// **'Sixora als Autofill-Dienst wählen. Android erlaubt nur einen solchen Dienst; ein Passwort-Manager, der ihn gerade stellt, wird ersetzt.'**
+  String get autofillOff;
+
+  /// No description provided for @autofillTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Code einfügen'**
+  String get autofillTitle;
+
+  /// No description provided for @autofillFor.
+  ///
+  /// In de, this message translates to:
+  /// **'für {target}'**
+  String autofillFor(String target);
+
+  /// No description provided for @autofillSuggested.
+  ///
+  /// In de, this message translates to:
+  /// **'Passend'**
+  String get autofillSuggested;
+
+  /// No description provided for @autofillAll.
+  ///
+  /// In de, this message translates to:
+  /// **'Alle Konten'**
+  String get autofillAll;
+
+  /// No description provided for @autofillNotSetUp.
+  ///
+  /// In de, this message translates to:
+  /// **'Sixora ist auf diesem Gerät noch nicht eingerichtet. Öffne Sixora und melde dich an oder nutze es ohne Server.'**
+  String get autofillNotSetUp;
+
+  /// No description provided for @close.
+  ///
+  /// In de, this message translates to:
+  /// **'Schließen'**
+  String get close;
+
+  /// No description provided for @localPasswordHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Das Master-Passwort verlässt nie dieses Gerät und lässt sich nicht zurücksetzen. Nur mit dem Wiederherstellungsschlüssel kommst du ohne Passwort wieder hinein.'**
+  String get localPasswordHint;
 }
 
 class _AppLocalizationsDelegate

@@ -98,12 +98,22 @@ String errorText(Object e) => switch (e) {
 
 /// State of the whole app: account, lock, vaults, entries and sync.
 class AppController extends ChangeNotifier {
-  AppController._(this.store, this.secrets, this.settings, this.cached);
+  AppController._(
+    this.store,
+    this.secrets,
+    this.settings,
+    this.cached, {
+    this.passive = false,
+  });
 
   final LocalStore store;
   final SecretStore secrets;
   final AppSettings settings;
   CachedAccount? cached;
+
+  /// Only reads: no sync, no backup, no server. For the autofill window,
+  /// which runs beside the app and must not write the same files.
+  final bool passive;
 
   Phase phase = Phase.loading;
   SixoraApi? _api;
@@ -148,7 +158,7 @@ class AppController extends ChangeNotifier {
       ..biometrics = BiometricVault.none(secrets);
   }
 
-  static Future<AppController> create() async {
+  static Future<AppController> create({bool passive = false}) async {
     final base = await getApplicationSupportDirectory();
     final dir = Directory(p.join(base.path, AppEnv.dataFolder))
       ..createSync(recursive: true);
@@ -160,9 +170,10 @@ class AppController extends ChangeNotifier {
       secrets,
       store.loadSettings(),
       store.loadAccount(),
+      passive: passive,
     );
     c.phase = c.cached == null ? Phase.setup : Phase.locked;
-    if (c.cached != null) c._api = c._newApi(c.cached!.server);
+    if (c.cached != null && !passive) c._api = c._newApi(c.cached!.server);
     c.biometrics = await BiometricVault.open(secrets);
     // Up to 0.1.3 the key sat in the normal keystore entry also on iOS and
     // Android; there it now has to be bound to biometrics, so set it up anew.
@@ -395,6 +406,7 @@ class AppController extends ChangeNotifier {
     try {
       _keys = await UnlockedKeys.unlock(c.account, keys.kek);
     } on CryptoException {
+      if (passive) throw UserError(t.masterPasswordWrong);
       // Either a typo, or the password was changed on another device: then
       // the server has a new salt, this device was logged out there, and
       // logging in fetches the new keys. Typos never reach the login.
@@ -415,7 +427,7 @@ class AppController extends ChangeNotifier {
       );
       return;
     }
-    if (secrets['token'] == null) {
+    if (secrets['token'] == null && !passive) {
       // No session (e.g. Linux without keystore after a logout): log in
       // with the auth key derived just now.
       try {
@@ -501,6 +513,7 @@ class AppController extends ChangeNotifier {
     await _decryptAll();
     phase = Phase.unlocked;
     notifyListeners();
+    if (passive) return;
     unawaited(sync());
     _startWatching();
     _scheduleBackup();
