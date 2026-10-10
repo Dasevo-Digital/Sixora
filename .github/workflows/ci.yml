@@ -84,4 +84,4 @@ jobs:
       # Field detection of the autofill service (plain Kotlin tests).
       - if: matrix.target == 'android'
         working-directory: app/android
-        run: ./gradlew :app:testProdReleaseUnitTest --no-daemon -q
+        run: ./gradlew :app:testProdDebugUnitTest --no-daemon -q
