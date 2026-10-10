@@ -508,5 +508,11 @@
   "err2fasEncrypted": "Copia de 2FAS cifrada: expórtala sin contraseña en 2FAS",
   "errBitwardenEncrypted": "Exportación de Bitwarden cifrada: expórtala como «.json» sin cifrar",
   "errEnteEncrypted": "Copia de Ente Auth cifrada: expórtala sin cifrar (como archivo de texto)",
-  "searchEllipsis": "Buscar…"
+  "searchEllipsis": "Buscar…",
+  "qrFromScreen": "Código QR de la pantalla",
+  "qrFromScreenAreaHint": "Selecciona una zona, p. ej. en el navegador",
+  "qrFromScreenWholeHint": "Buscar un código en toda la pantalla",
+  "noQrOnScreen": "No se encontró ningún código QR. El código debe verse completo y legible.",
+  "noScreenshotTool": "No se encontró ninguna herramienta de capturas (Spectacle, GNOME Screenshot, grim y slurp o scrot).",
+  "qrFromScreenWindowHint": "Elige una ventana o pantalla, p. ej. el navegador"
 }

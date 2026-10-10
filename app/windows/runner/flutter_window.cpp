@@ -4,10 +4,53 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "flutter/generated_plugin_registrant.h"
 
 namespace {
+
+// The whole virtual screen (all monitors) as 32-bit BGRA pixels, top row
+// first: {width, height, pixels}. A QR code shown in another app can then be
+// read without a screenshot file.
+std::optional<flutter::EncodableValue> CaptureScreen() {
+  const int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
+  const int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
+  const int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+  const int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+  if (width <= 0 || height <= 0) return std::nullopt;
+  HDC screen = GetDC(nullptr);
+  HDC memory = CreateCompatibleDC(screen);
+  BITMAPINFO info = {};
+  info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+  info.bmiHeader.biWidth = width;
+  info.bmiHeader.biHeight = -height;  // top-down
+  info.bmiHeader.biPlanes = 1;
+  info.bmiHeader.biBitCount = 32;
+  info.bmiHeader.biCompression = BI_RGB;
+  void* bits = nullptr;
+  HBITMAP bitmap =
+      CreateDIBSection(screen, &info, DIB_RGB_COLORS, &bits, nullptr, 0);
+  std::optional<flutter::EncodableValue> result;
+  if (bitmap && bits) {
+    HGDIOBJ old = SelectObject(memory, bitmap);
+    if (BitBlt(memory, 0, 0, width, height, screen, x, y,
+               SRCCOPY | CAPTUREBLT)) {
+      const auto* data = static_cast<const uint8_t*>(bits);
+      std::vector<uint8_t> pixels(data, data + size_t(width) * height * 4);
+      result = flutter::EncodableValue(flutter::EncodableMap{
+          {flutter::EncodableValue("width"), flutter::EncodableValue(width)},
+          {flutter::EncodableValue("height"), flutter::EncodableValue(height)},
+          {flutter::EncodableValue("pixels"), flutter::EncodableValue(pixels)},
+      });
+    }
+    SelectObject(memory, old);
+  }
+  if (bitmap) DeleteObject(bitmap);
+  DeleteDC(memory);
+  ReleaseDC(nullptr, screen);
+  return result;
+}
 
 // Puts |text| on the clipboard and asks Windows to keep it out of the
 // clipboard history (Win+V), the cloud clipboard and clipboard monitors.
@@ -99,6 +142,25 @@ bool FlutterWindow::OnCreate() {
         }
         result->Success();
       });
+  screen_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "sixora/screen",
+          &flutter::StandardMethodCodec::GetInstance());
+  screen_channel_->SetMethodCallHandler(
+      [](const flutter::MethodCall<flutter::EncodableValue>& call,
+         std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+             result) {
+        if (call.method_name() != "capture") {
+          result->NotImplemented();
+          return;
+        }
+        auto shot = CaptureScreen();
+        if (!shot) {
+          result->Error("capture", "Bildschirm nicht verfügbar");
+          return;
+        }
+        result->Success(*shot);
+      });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -115,6 +177,7 @@ bool FlutterWindow::OnCreate() {
 
 void FlutterWindow::OnDestroy() {
   clipboard_channel_ = nullptr;
+  screen_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

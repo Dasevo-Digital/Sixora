@@ -34,6 +34,10 @@ class FlutterWindow : public Win32Window {
   // "sixora/clipboard": copies codes outside clipboard history and cloud.
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
       clipboard_channel_;
+
+  // "sixora/screen": a picture of the screen, to read QR codes from it.
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
+      screen_channel_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

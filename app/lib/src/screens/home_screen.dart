@@ -11,6 +11,7 @@ import '../l10n.dart';
 import '../platform/desktop_shell.dart';
 import '../platform/link_inbox.dart';
 import '../platform/qr_image.dart';
+import '../platform/screen_capture.dart';
 import '../widgets/common.dart';
 import '../widgets/otp_tile.dart';
 import 'entry_editor.dart';
@@ -171,6 +172,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 subtitle: Text(t.withCamera),
                 onTap: () => Navigator.pop(context, 'scan'),
               ),
+            if (ScreenCapture.supported)
+              ListTile(
+                leading: const Icon(Icons.screenshot_monitor_outlined),
+                title: Text(t.qrFromScreen),
+                subtitle: Text(ScreenCapture.hint),
+                onTap: () => Navigator.pop(context, 'screen'),
+              ),
             ListTile(
               leading: const Icon(Icons.image_outlined),
               title: Text(t.qrFromImage),
@@ -209,6 +217,8 @@ class _HomeScreenState extends State<HomeScreen> {
         if (text != null) await _handleCode(text);
       case 'image':
         await _fromImage();
+      case 'screen':
+        await _fromScreen();
       case 'paste':
         final data = await Clipboard.getData(Clipboard.kTextPlain);
         await _handleCode(data?.text ?? '');
@@ -238,6 +248,22 @@ class _HomeScreenState extends State<HomeScreen> {
     if (codes == null || !mounted) return;
     if (codes.isEmpty) {
       showMessage(context, files.length == 1 ? t.noQrInImage : t.noQrInImages);
+      return;
+    }
+    await _handleCode(codes.join('\n'));
+  }
+
+  Future<void> _fromScreen() async {
+    final List<String>? codes;
+    try {
+      codes = await ScreenCapture.readQrCodes();
+    } on Object catch (e) {
+      if (mounted) showError(context, e);
+      return;
+    }
+    if (codes == null || !mounted) return;
+    if (codes.isEmpty) {
+      showMessage(context, t.noQrOnScreen);
       return;
     }
     await _handleCode(codes.join('\n'));

@@ -3153,6 +3153,42 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Suchen …'**
   String get searchEllipsis;
+
+  /// No description provided for @qrFromScreen.
+  ///
+  /// In de, this message translates to:
+  /// **'QR-Code vom Bildschirm'**
+  String get qrFromScreen;
+
+  /// No description provided for @qrFromScreenAreaHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Bereich auswählen, z. B. im Browser'**
+  String get qrFromScreenAreaHint;
+
+  /// No description provided for @qrFromScreenWholeHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Ganzen Bildschirm nach einem Code durchsuchen'**
+  String get qrFromScreenWholeHint;
+
+  /// No description provided for @noQrOnScreen.
+  ///
+  /// In de, this message translates to:
+  /// **'Kein QR-Code gefunden. Der Code muss vollständig und gut lesbar zu sehen sein.'**
+  String get noQrOnScreen;
+
+  /// No description provided for @noScreenshotTool.
+  ///
+  /// In de, this message translates to:
+  /// **'Kein Werkzeug für Bildschirmfotos gefunden (Spectacle, GNOME Screenshot, grim und slurp oder scrot).'**
+  String get noScreenshotTool;
+
+  /// No description provided for @qrFromScreenWindowHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Fenster oder Bildschirm wählen, z. B. den Browser'**
+  String get qrFromScreenWindowHint;
 }
 
 class _AppLocalizationsDelegate

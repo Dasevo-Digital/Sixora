@@ -100,6 +100,17 @@ void main() {
     },
   );
 
+  test('a small code on a 4K screen, as raw BGRA pixels (Windows)', () async {
+    const uri =
+        'otpauth://totp/GitHub:me?secret=JBSWY3DPEHPK3PXP&issuer=GitHub';
+    final screen = img.decodePng(
+      screenshot(uri, width: 3840, height: 2160, qrShare: 0.04),
+    )!;
+    final bgra = screen.getBytes(order: img.ChannelOrder.bgra);
+    expect(await readQrPixels(3840, 2160, bgra), uri);
+    expect(await readQrPixels(3840, 2160, Uint8List(3840 * 2160 * 4)), isNull);
+  });
+
   test('a single otpauth code', () {
     const uri =
         'otpauth://totp/GitHub:me?secret=JBSWY3DPEHPK3PXP&issuer=GitHub';

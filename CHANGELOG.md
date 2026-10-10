@@ -6,6 +6,14 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.22 – 10.10.2026
+- QR-Codes direkt vom Bildschirm lesen, z. B. von der Einstellungsseite
+  eines Dienstes im Browser: Hinzufügen → „QR-Code vom Bildschirm“. Sixora
+  tritt dafür kurz zur Seite. macOS: Fenster oder Bildschirm in der
+  Systemauswahl wählen, ohne Freigabe für Bildschirmaufnahmen; Linux:
+  Bereich mit dem Bildschirmfoto-Werkzeug des Desktops wählen; Windows: der
+  ganze Bildschirm wird durchsucht, auch in voller 4K-Auflösung.
+
 ### 0.1.21 – 10.10.2026
 - Auf echten Windows- und Linux-Rechnern geprüft (Tests und Builds).
 - Linux: kein globales Tastenkürzel mehr und damit keine Abhängigkeit von

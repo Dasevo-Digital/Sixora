@@ -59,8 +59,10 @@ die Prüfsummen aller Dateien.
   mit Zähler, Steam Guard. Countdown, Vorschau auf den nächsten Code, Kopieren
   per Tippen; die Zwischenablage wird nach 30 s geleert.
 - **Hinzufügen:** QR-Code mit der Kamera (Android, iOS, macOS), QR-Code aus
-  einem Bild oder Screenshot (alle Plattformen), `otpauth://`-Link aus der
-  Zwischenablage oder Eingabe von Hand.
+  einem Bild oder Screenshot (alle Plattformen), QR-Code direkt vom
+  Bildschirm (macOS: Fenster wählen, Linux: Bereich wählen, Windows: ganzer
+  Bildschirm), `otpauth://`-Link aus der Zwischenablage oder Eingabe von
+  Hand.
 - **Logos:** Bekannte Dienste zeigen ihr Logo, erkannt am Namen; eigenes
   Logo oder Anfangsbuchstabe lassen sich wählen. Die rund 3.300 Logos aus
   [Simple Icons](https://simpleicons.org) sind in die App eingebaut, es gibt

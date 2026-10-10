@@ -1836,4 +1836,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchEllipsis => 'Search …';
+
+  @override
+  String get qrFromScreen => 'QR code from the screen';
+
+  @override
+  String get qrFromScreenAreaHint => 'Select an area, e.g. in the browser';
+
+  @override
+  String get qrFromScreenWholeHint => 'Search the whole screen for a code';
+
+  @override
+  String get noQrOnScreen =>
+      'No QR code found. The whole code must be clearly visible.';
+
+  @override
+  String get noScreenshotTool =>
+      'No screenshot tool found (Spectacle, GNOME Screenshot, grim and slurp, or scrot).';
+
+  @override
+  String get qrFromScreenWindowHint =>
+      'Pick a window or screen, e.g. the browser';
 }

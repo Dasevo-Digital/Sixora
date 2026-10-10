@@ -1,5 +1,7 @@
 import Cocoa
 import FlutterMacOS
+import ImageIO
+import ScreenCaptureKit
 
 class MainFlutterWindow: NSWindow {
   override func awakeFromNib() {
@@ -16,6 +18,7 @@ class MainFlutterWindow: NSWindow {
     BackupFolder.register(flutterViewController.engine.binaryMessenger)
     registerLinkHandler(flutterViewController.engine.binaryMessenger)
     MenuLanguage.register(flutterViewController.engine.binaryMessenger)
+    ScreenShot.register(flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
   }
@@ -333,4 +336,94 @@ enum MenuLanguage {
     "Alle nach vorne bringen": "Traer todo al frente",
     "Hilfe": "Ayuda"
   ]
+}
+
+/// QR codes on the screen: the system picker lets the user choose a window
+/// or a display. What is chosen there is shared for this one picture, so
+/// Sixora needs no screen recording permission. macOS 14 and later; before
+/// that Dart falls back to the screenshot tool (`screencapture -i`).
+enum ScreenShot {
+  static func register(_ messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "sixora/screen", binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "pick" else { return result(FlutterMethodNotImplemented) }
+      if #available(macOS 14.0, *) {
+        ScreenPicker.shared.pick(result)
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+}
+
+/// Answers with the path of a PNG in the temporary folder, or nil if the
+/// user cancelled.
+@available(macOS 14.0, *)
+private final class ScreenPicker: NSObject, SCContentSharingPickerObserver {
+  static let shared = ScreenPicker()
+  private var pending: FlutterResult?
+
+  func pick(_ result: @escaping FlutterResult) {
+    pending?(nil)
+    pending = result
+    var config = SCContentSharingPickerConfiguration()
+    config.allowedPickerModes = [.singleWindow, .singleDisplay]
+    if let id = Bundle.main.bundleIdentifier { config.excludedBundleIDs = [id] }
+    let picker = SCContentSharingPicker.shared
+    picker.defaultConfiguration = config
+    picker.add(self)
+    picker.isActive = true
+    picker.present()
+  }
+
+  func contentSharingPicker(_ picker: SCContentSharingPicker, didCancelFor stream: SCStream?) {
+    finish(nil)
+  }
+
+  func contentSharingPickerStartDidFailWithError(_ error: Error) {
+    finish(FlutterError(code: "capture", message: error.localizedDescription, details: nil))
+  }
+
+  func contentSharingPicker(
+    _ picker: SCContentSharingPicker, didUpdateWith filter: SCContentFilter,
+    for stream: SCStream?
+  ) {
+    Task {
+      do {
+        finish(try await capture(filter))
+      } catch {
+        finish(FlutterError(code: "capture", message: error.localizedDescription, details: nil))
+      }
+    }
+  }
+
+  /// Full pixel resolution: on a large screen the code is small.
+  private func capture(_ filter: SCContentFilter) async throws -> String {
+    let config = SCStreamConfiguration()
+    let scale = CGFloat(filter.pointPixelScale)
+    config.width = Int(filter.contentRect.width * scale)
+    config.height = Int(filter.contentRect.height * scale)
+    config.showsCursor = false
+    let image = try await SCScreenshotManager.captureImage(
+      contentFilter: filter, configuration: config)
+    let url = FileManager.default.temporaryDirectory
+      .appendingPathComponent("sixora-screen-\(UUID().uuidString).png")
+    guard
+      let target = CGImageDestinationCreateWithURL(
+        url as CFURL, "public.png" as CFString, 1, nil)
+    else { throw CocoaError(.fileWriteUnknown) }
+    CGImageDestinationAddImage(target, image, nil)
+    guard CGImageDestinationFinalize(target) else { throw CocoaError(.fileWriteUnknown) }
+    return url.path
+  }
+
+  private func finish(_ value: Any?) {
+    DispatchQueue.main.async {
+      let picker = SCContentSharingPicker.shared
+      picker.remove(self)
+      picker.isActive = false
+      self.pending?(value)
+      self.pending = nil
+    }
+  }
 }

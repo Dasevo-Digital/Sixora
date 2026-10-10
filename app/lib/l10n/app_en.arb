@@ -508,5 +508,11 @@
   "err2fasEncrypted": "Encrypted 2FAS backup: please export it without a password in 2FAS",
   "errBitwardenEncrypted": "Encrypted Bitwarden export: please export as “.json” without encryption",
   "errEnteEncrypted": "Encrypted Ente Auth backup: please export it unencrypted (as a text file)",
-  "searchEllipsis": "Search …"
+  "searchEllipsis": "Search …",
+  "qrFromScreen": "QR code from the screen",
+  "qrFromScreenAreaHint": "Select an area, e.g. in the browser",
+  "qrFromScreenWholeHint": "Search the whole screen for a code",
+  "noQrOnScreen": "No QR code found. The whole code must be clearly visible.",
+  "noScreenshotTool": "No screenshot tool found (Spectacle, GNOME Screenshot, grim and slurp, or scrot).",
+  "qrFromScreenWindowHint": "Pick a window or screen, e.g. the browser"
 }

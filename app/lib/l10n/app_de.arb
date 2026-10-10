@@ -1129,5 +1129,11 @@
   "err2fasEncrypted": "Verschlüsselte 2FAS-Sicherung: bitte in 2FAS ohne Passwort exportieren",
   "errBitwardenEncrypted": "Verschlüsselter Bitwarden-Export: bitte als „.json“ ohne Verschlüsselung exportieren",
   "errEnteEncrypted": "Verschlüsselte Ente-Auth-Sicherung: bitte unverschlüsselt (als Textdatei) exportieren",
-  "searchEllipsis": "Suchen …"
+  "searchEllipsis": "Suchen …",
+  "qrFromScreen": "QR-Code vom Bildschirm",
+  "qrFromScreenAreaHint": "Bereich auswählen, z. B. im Browser",
+  "qrFromScreenWholeHint": "Ganzen Bildschirm nach einem Code durchsuchen",
+  "noQrOnScreen": "Kein QR-Code gefunden. Der Code muss vollständig und gut lesbar zu sehen sein.",
+  "noScreenshotTool": "Kein Werkzeug für Bildschirmfotos gefunden (Spectacle, GNOME Screenshot, grim und slurp oder scrot).",
+  "qrFromScreenWindowHint": "Fenster oder Bildschirm wählen, z. B. den Browser"
 }

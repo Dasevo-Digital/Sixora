@@ -81,6 +81,22 @@ String? _decodeAll(Uint8List bytes) {
   return _decodeImage(image) ?? '';
 }
 
+/// A screen picture as BGRA pixels (Windows). Tried at full size first: on
+/// a large screen the code is small.
+Future<String?> readQrPixels(int width, int height, Uint8List bgra) =>
+    Isolate.run(
+      () => _decodeImage(
+        img.Image.fromBytes(
+          width: width,
+          height: height,
+          bytes: bgra.buffer,
+          numChannels: 4,
+          order: img.ChannelOrder.bgra,
+        ),
+        fullSize: true,
+      ),
+    );
+
 /// Pure Dart decoding of an encoded image (PNG, JPEG, …); null if no code
 /// was found.
 @visibleForTesting
@@ -89,14 +105,14 @@ String? decodeQrImageSync(Uint8List bytes) {
   return image == null ? null : _decodeImage(image);
 }
 
-String? _decodeImage(img.Image original) {
+String? _decodeImage(img.Image original, {bool fullSize = false}) {
   // Dense codes (Google Authenticator puts ten accounts into one) need the
   // full resolution; huge photos are faster and often better when smaller.
   final longest = original.width > original.height
       ? original.width
       : original.height;
   final sizes = <int>{
-    if (longest <= 3000) longest,
+    if (longest <= 3000 || fullSize) longest,
     for (final s in const [2000, 1400, 900])
       if (s < longest) s,
   };
