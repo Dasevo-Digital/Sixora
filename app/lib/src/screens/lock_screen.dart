@@ -129,7 +129,9 @@ class _LockScreenState extends State<LockScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              '${account.username} · ${c.cached!.server.host}',
+              c.isLocal
+                  ? t.thisDeviceOnly
+                  : '${account.username} · ${c.cached!.server.host}',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,

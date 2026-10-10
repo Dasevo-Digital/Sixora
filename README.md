@@ -103,6 +103,13 @@ die Prüfsummen aller Dateien.
   Schlüssel, Konten ohne Namen und ohne Logo.
 - **Offline:** Die Codes funktionieren ohne Verbindung. Nur Änderungen
   brauchen den Server.
+- **Ohne Server:** „Ohne Server nutzen“ auf dem Startbildschirm hält die
+  Codes nur auf diesem Gerät, mit derselben Verschlüsselung (der Code des
+  Servers läuft dafür in der App, mit eigener Datenbank im App-Ordner). Eine
+  automatische Sicherung in einen Ordner ist dann besonders wichtig. Später
+  überträgt Einstellungen → „Mit Server verbinden“ alle Codes auf einen
+  Server, in ein neues oder ein vorhandenes Konto; danach werden die lokalen
+  Daten gelöscht.
 - **Sofort abgeglichen:** Änderungen anderer Geräte kommen ohne Verzögerung
   an (der Server hält eine Anfrage offen, bis sich etwas ändert).
 - **Papierkorb:** Gelöschte Konten lassen sich 30 Tage lang

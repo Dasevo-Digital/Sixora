@@ -1857,4 +1857,84 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get qrFromScreenWindowHint =>
       'Pick a window or screen, e.g. the browser';
+
+  @override
+  String get useWithoutServer => 'Use without a server';
+
+  @override
+  String get useWithoutServerHint =>
+      'Your codes stay encrypted on this device. You can connect a server later.';
+
+  @override
+  String get thisDeviceOnly => 'Only on this device';
+
+  @override
+  String get localModeHint =>
+      'Without a server: set up an automatic backup, otherwise the codes are lost with the device.';
+
+  @override
+  String get localModeNew =>
+      'Choose a master password. It protects the codes on this device.';
+
+  @override
+  String get deleteLocalData => 'Delete local data';
+
+  @override
+  String get deleteLocalDataMessage =>
+      'All codes on this device are deleted for good. This cannot be undone.';
+
+  @override
+  String get localBanner =>
+      'Your codes are only on this device. An automatic backup protects against loss.';
+
+  @override
+  String get signOutLocalMessage =>
+      'Your codes stay encrypted on this device. To open them, choose “Use without a server” and enter the master password.';
+
+  @override
+  String get deleteLocalAccountMessage =>
+      'All your codes on this device are deleted. This cannot be undone. First turn off two-factor sign-in with the services or export your accounts.';
+
+  @override
+  String get connectServer => 'Connect to a server';
+
+  @override
+  String get connectServerHint =>
+      'Move your codes to your own server and use them on several devices';
+
+  @override
+  String get moveIntro =>
+      'The codes on this device are moved to the server, encrypted for your account there; the server never sees them in plain text. Codes the account already has are skipped. Afterwards the local data is deleted.';
+
+  @override
+  String get moveButton => 'Move';
+
+  @override
+  String get moveContinue => 'Continue moving';
+
+  @override
+  String moveProgress(int done, int total) {
+    return '$done of $total moved';
+  }
+
+  @override
+  String moveDone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count codes moved',
+      one: '1 code moved',
+      zero: 'Done: the server already had every code',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String moveIncomplete(String error) {
+    return 'The move was interrupted ($error). The remaining codes are still on this device; “Continue moving” carries on.';
+  }
+
+  @override
+  String get moveLost =>
+      'Sixora was locked in the meantime. The remaining codes are still encrypted on this device: sign out, choose “Use without a server”, open it and move again.';
 }

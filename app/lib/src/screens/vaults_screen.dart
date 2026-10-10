@@ -200,7 +200,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
             ),
         ],
       ),
-      floatingActionButton: owner && !vault.personal
+      floatingActionButton: owner && !vault.personal && !c.isLocal
           ? FloatingActionButton.extended(
               icon: const Icon(Icons.person_add_alt),
               label: Text(t.share),
@@ -227,7 +227,7 @@ class _VaultDetailScreenState extends State<VaultDetailScreen> {
               ),
             ),
           ),
-          if (!vault.personal) ...[
+          if (!vault.personal && !c.isLocal) ...[
             SectionTitle(t.members),
             SizedBox(
               height: 400,

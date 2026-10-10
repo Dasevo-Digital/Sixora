@@ -39,6 +39,9 @@ enum BiometricResult {
 class BiometricVault {
   BiometricVault._(this.kind, this._secrets);
 
+  /// Without biometrics, e.g. in widget tests.
+  BiometricVault.none(SecretStore secrets) : this._(null, secrets);
+
   /// Display name of the method, e.g. "Face ID"; null if unavailable.
   final String? kind;
   final SecretStore _secrets;

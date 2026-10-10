@@ -3189,6 +3189,120 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Fenster oder Bildschirm wählen, z. B. den Browser'**
   String get qrFromScreenWindowHint;
+
+  /// No description provided for @useWithoutServer.
+  ///
+  /// In de, this message translates to:
+  /// **'Ohne Server nutzen'**
+  String get useWithoutServer;
+
+  /// No description provided for @useWithoutServerHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Codes bleiben verschlüsselt auf diesem Gerät. Ein Server lässt sich später verbinden.'**
+  String get useWithoutServerHint;
+
+  /// No description provided for @thisDeviceOnly.
+  ///
+  /// In de, this message translates to:
+  /// **'Nur auf diesem Gerät'**
+  String get thisDeviceOnly;
+
+  /// No description provided for @localModeHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Ohne Server: Richte eine automatische Sicherung ein, sonst sind die Codes mit dem Gerät verloren.'**
+  String get localModeHint;
+
+  /// No description provided for @localModeNew.
+  ///
+  /// In de, this message translates to:
+  /// **'Lege ein Master-Passwort fest. Es schützt die Codes auf diesem Gerät.'**
+  String get localModeNew;
+
+  /// No description provided for @deleteLocalData.
+  ///
+  /// In de, this message translates to:
+  /// **'Lokale Daten löschen'**
+  String get deleteLocalData;
+
+  /// No description provided for @deleteLocalDataMessage.
+  ///
+  /// In de, this message translates to:
+  /// **'Alle Codes auf diesem Gerät werden endgültig gelöscht. Das lässt sich nicht rückgängig machen.'**
+  String get deleteLocalDataMessage;
+
+  /// No description provided for @localBanner.
+  ///
+  /// In de, this message translates to:
+  /// **'Deine Codes liegen nur auf diesem Gerät. Eine automatische Sicherung schützt vor Verlust.'**
+  String get localBanner;
+
+  /// No description provided for @signOutLocalMessage.
+  ///
+  /// In de, this message translates to:
+  /// **'Deine Codes bleiben verschlüsselt auf diesem Gerät. Zum Öffnen wählst du „Ohne Server nutzen“ und gibst das Master-Passwort ein.'**
+  String get signOutLocalMessage;
+
+  /// No description provided for @deleteLocalAccountMessage.
+  ///
+  /// In de, this message translates to:
+  /// **'Alle deine Codes auf diesem Gerät werden gelöscht. Das lässt sich nicht rückgängig machen. Deaktiviere vorher die Zwei-Faktor-Anmeldung bei den Diensten oder exportiere deine Konten.'**
+  String get deleteLocalAccountMessage;
+
+  /// No description provided for @connectServer.
+  ///
+  /// In de, this message translates to:
+  /// **'Mit Server verbinden'**
+  String get connectServer;
+
+  /// No description provided for @connectServerHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Codes auf einen eigenen Server übertragen und auf mehreren Geräten nutzen'**
+  String get connectServerHint;
+
+  /// No description provided for @moveIntro.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Codes dieses Geräts werden auf den Server übertragen, verschlüsselt für dein Konto dort; der Server sieht sie nie im Klartext. Codes, die das Konto schon hat, werden übersprungen. Danach werden die lokalen Daten gelöscht.'**
+  String get moveIntro;
+
+  /// No description provided for @moveButton.
+  ///
+  /// In de, this message translates to:
+  /// **'Übertragen'**
+  String get moveButton;
+
+  /// No description provided for @moveContinue.
+  ///
+  /// In de, this message translates to:
+  /// **'Weiter übertragen'**
+  String get moveContinue;
+
+  /// No description provided for @moveProgress.
+  ///
+  /// In de, this message translates to:
+  /// **'{done} von {total} übertragen'**
+  String moveProgress(int done, int total);
+
+  /// No description provided for @moveDone.
+  ///
+  /// In de, this message translates to:
+  /// **'{count, plural, =0{Fertig: Der Server hatte schon alle Codes} =1{1 Code übertragen} other{{count} Codes übertragen}}'**
+  String moveDone(int count);
+
+  /// No description provided for @moveIncomplete.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Übertragung wurde unterbrochen ({error}). Die übrigen Codes liegen noch auf diesem Gerät; „Weiter übertragen“ setzt sie fort.'**
+  String moveIncomplete(String error);
+
+  /// No description provided for @moveLost.
+  ///
+  /// In de, this message translates to:
+  /// **'Sixora war zwischendurch gesperrt. Die übrigen Codes liegen noch verschlüsselt auf diesem Gerät: abmelden, „Ohne Server nutzen“ wählen, öffnen und erneut übertragen.'**
+  String get moveLost;
 }
 
 class _AppLocalizationsDelegate

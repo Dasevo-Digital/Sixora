@@ -30,6 +30,9 @@ const _server = String.fromEnvironment(
   defaultValue: 'http://127.0.0.1:18081',
 );
 const _password = 'test-passwort-123';
+
+/// The account of the first test, for moving the local mode there.
+String? _firstUser;
 const _secret = 'JBSWY3DPEHPK3PXP';
 
 Future<void> _pumpUntil(
@@ -93,6 +96,7 @@ void main() {
     );
 
     final user = 'alice${DateTime.now().millisecondsSinceEpoch % 100000}';
+    _firstUser = user;
     await tester.enterText(_field('Benutzername'), user);
     await tester.enterText(_field('Master-Passwort'), _password);
     await tester.enterText(_field('Master-Passwort wiederholen'), _password);
@@ -317,6 +321,73 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     // Clean up: log out removes the local copy.
+    await controller.logout();
+    await _pumpUntil(tester, _field('Server-Adresse oder Einladungslink'));
+  });
+
+  testWidgets('without a server, later moved to one', (tester) async {
+    final user = _firstUser;
+    if (user == null) return; // needs the account of the first test
+    final controller = await AppController.create();
+    controller.settings.language = 'de';
+    if (controller.cached != null) await controller.logout(notice: '');
+    controller.notice = null;
+    AppController.deleteLocalData();
+    await tester.pumpWidget(SixoraApp(controller: controller));
+
+    await _pumpUntil(tester, find.text('Ohne Server nutzen'));
+    await tester.ensureVisible(find.text('Ohne Server nutzen'));
+    await tester.tap(find.text('Ohne Server nutzen'));
+    await _pumpUntil(tester, find.textContaining('Lege ein Master-Passwort'));
+    expect(_field('Benutzername'), findsNothing);
+    await tester.enterText(_field('Master-Passwort'), _password);
+    await tester.enterText(_field('Master-Passwort wiederholen'), _password);
+    await tester.tap(find.widgetWithText(FilledButton, 'Konto erstellen'));
+    await _pumpUntil(
+      tester,
+      find.text('Ich habe den Schlüssel sicher aufbewahrt.'),
+    );
+    await tester.tap(find.byType(Checkbox));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Weiter'));
+    await _pumpUntil(tester, find.text('Noch keine Konten'));
+    expect(controller.isLocal, isTrue);
+    expect(find.textContaining('nur auf diesem Gerät'), findsOneWidget);
+    await _waitFor(tester, () => controller.vaults.isNotEmpty);
+    await controller.saveEntry(
+      const OtpEntry(issuer: 'GitLab', account: '', secret: 'GEZDGNBVGY3TQOJQ'),
+      vaultId: controller.vaults.single.id,
+    );
+    await _pumpUntil(tester, find.text('GitLab'));
+
+    // Move to the server, into the account of the first test.
+    await tester.tap(find.byTooltip('Einstellungen'));
+    await _pumpUntil(tester, find.text('Automatisch sperren'));
+    await tester.scrollUntilVisible(
+      find.text('Mit Server verbinden'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('Mit Server verbinden'));
+    await _pumpUntil(tester, _field('Server-Adresse oder Einladungslink'));
+    expect(find.text('Ohne Server nutzen'), findsNothing);
+    await tester.enterText(
+      _field('Server-Adresse oder Einladungslink'),
+      _server,
+    );
+    await tester.tap(find.text('Verbinden'));
+    await _pumpUntil(tester, _field('Benutzername'));
+    await tester.enterText(_field('Benutzername'), user);
+    await tester.enterText(_field('Master-Passwort'), _password);
+    await tester.tap(find.widgetWithText(FilledButton, 'Übertragen'));
+    await _pumpUntil(tester, find.text('1 Code übertragen'));
+    expect(controller.isLocal, isFalse);
+    expect(controller.account!.username, user);
+    expect(
+      controller.items.map((i) => i.entry.issuer),
+      containsAll(['GitHub', 'GitLab']),
+    );
+
     await controller.logout();
     await _pumpUntil(tester, _field('Server-Adresse oder Einladungslink'));
   });

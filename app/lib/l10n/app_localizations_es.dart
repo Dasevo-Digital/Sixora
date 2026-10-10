@@ -1881,4 +1881,84 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get qrFromScreenWindowHint =>
       'Elige una ventana o pantalla, p. ej. el navegador';
+
+  @override
+  String get useWithoutServer => 'Usar sin servidor';
+
+  @override
+  String get useWithoutServerHint =>
+      'Tus códigos se quedan cifrados en este dispositivo. Puedes conectar un servidor más adelante.';
+
+  @override
+  String get thisDeviceOnly => 'Solo en este dispositivo';
+
+  @override
+  String get localModeHint =>
+      'Sin servidor: configura una copia de seguridad automática; si no, los códigos se pierden con el dispositivo.';
+
+  @override
+  String get localModeNew =>
+      'Elige una contraseña maestra. Protege los códigos en este dispositivo.';
+
+  @override
+  String get deleteLocalData => 'Borrar datos locales';
+
+  @override
+  String get deleteLocalDataMessage =>
+      'Todos los códigos de este dispositivo se borran definitivamente. No se puede deshacer.';
+
+  @override
+  String get localBanner =>
+      'Tus códigos están solo en este dispositivo. Una copia automática te protege de perderlos.';
+
+  @override
+  String get signOutLocalMessage =>
+      'Tus códigos se quedan cifrados en este dispositivo. Para abrirlos, elige «Usar sin servidor» e introduce la contraseña maestra.';
+
+  @override
+  String get deleteLocalAccountMessage =>
+      'Se borran todos tus códigos de este dispositivo. No se puede deshacer. Antes desactiva el inicio de sesión en dos pasos en los servicios o exporta tus cuentas.';
+
+  @override
+  String get connectServer => 'Conectar con un servidor';
+
+  @override
+  String get connectServerHint =>
+      'Pasa tus códigos a tu propio servidor y úsalos en varios dispositivos';
+
+  @override
+  String get moveIntro =>
+      'Los códigos de este dispositivo se pasan al servidor, cifrados para tu cuenta allí; el servidor nunca los ve en claro. Se omiten los códigos que la cuenta ya tiene. Después se borran los datos locales.';
+
+  @override
+  String get moveButton => 'Transferir';
+
+  @override
+  String get moveContinue => 'Seguir transfiriendo';
+
+  @override
+  String moveProgress(int done, int total) {
+    return '$done de $total transferidos';
+  }
+
+  @override
+  String moveDone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count códigos transferidos',
+      one: '1 código transferido',
+      zero: 'Listo: el servidor ya tenía todos los códigos',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String moveIncomplete(String error) {
+    return 'La transferencia se interrumpió ($error). Los códigos restantes siguen en este dispositivo; «Seguir transfiriendo» continúa.';
+  }
+
+  @override
+  String get moveLost =>
+      'Sixora se bloqueó entretanto. Los códigos restantes siguen cifrados en este dispositivo: cierra sesión, elige «Usar sin servidor», ábrelo y transfiere de nuevo.';
 }

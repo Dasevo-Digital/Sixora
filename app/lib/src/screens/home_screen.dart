@@ -1,3 +1,4 @@
+import 'auto_backup_screen.dart';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -604,6 +605,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   if (c.securityWarning != null)
                     _Banner(icon: Icons.gpp_bad, text: c.securityWarning!),
+                  if (c.isLocal && !c.autoBackup) const _LocalNotice(),
                   for (final session in c.unknownSessions)
                     _SignInNotice(session: session),
                   if (c.syncError != null)
@@ -828,6 +830,68 @@ class _SignInNoticeState extends State<_SignInNotice> {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Local mode without a backup: the codes exist only on this device.
+class _LocalNotice extends StatefulWidget {
+  const _LocalNotice();
+
+  @override
+  State<_LocalNotice> createState() => _LocalNoticeState();
+}
+
+class _LocalNoticeState extends State<_LocalNotice> {
+  /// Until the next start.
+  bool _hidden = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_hidden) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      color: scheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.smartphone_outlined,
+                  color: scheme.onSecondaryContainer,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    t.localBanner,
+                    style: TextStyle(color: scheme.onSecondaryContainer),
+                  ),
+                ),
+              ],
+            ),
+            OverflowBar(
+              alignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => setState(() => _hidden = true),
+                  child: Text(t.notNow),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AutoBackupScreen()),
+                  ),
+                  child: Text(t.setUp),
+                ),
+              ],
             ),
           ],
         ),

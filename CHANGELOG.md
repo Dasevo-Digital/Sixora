@@ -6,6 +6,20 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.23 – 10.10.2026
+- Sixora ohne Server: „Ohne Server nutzen“ auf dem Startbildschirm. Die
+  Codes bleiben verschlüsselt auf dem Gerät; dafür läuft der Code des
+  Servers in der App, mit eigener Datenbank. Verschlüsselung, Papierkorb
+  und Wiederherstellungsschlüssel sind dieselben. Ein Hinweis empfiehlt die
+  automatische Sicherung.
+- Einstellungen → „Mit Server verbinden“ überträgt alle Codes auf einen
+  Server, in ein neues oder ein vorhandenes Konto. Codes, die das Konto
+  schon hat, werden übersprungen; Tresore werden nach Namen zugeordnet.
+  Erst wenn alles angekommen ist, werden die lokalen Daten gelöscht. Bricht
+  die Übertragung ab, setzt „Weiter übertragen“ sie fort.
+- Abmelden aus den Einstellungen schließt die Seite sofort; ein noch
+  laufender Abgleich konnte sie vorher ohne Konto neu zeichnen.
+
 ### 0.1.22 – 10.10.2026
 - QR-Codes direkt vom Bildschirm lesen, z. B. von der Einstellungsseite
   eines Dienstes im Browser: Hinzufügen → „QR-Code vom Bildschirm“. Sixora

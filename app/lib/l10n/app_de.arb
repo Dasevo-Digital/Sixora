@@ -1135,5 +1135,48 @@
   "qrFromScreenWholeHint": "Ganzen Bildschirm nach einem Code durchsuchen",
   "noQrOnScreen": "Kein QR-Code gefunden. Der Code muss vollständig und gut lesbar zu sehen sein.",
   "noScreenshotTool": "Kein Werkzeug für Bildschirmfotos gefunden (Spectacle, GNOME Screenshot, grim und slurp oder scrot).",
-  "qrFromScreenWindowHint": "Fenster oder Bildschirm wählen, z. B. den Browser"
+  "qrFromScreenWindowHint": "Fenster oder Bildschirm wählen, z. B. den Browser",
+  "useWithoutServer": "Ohne Server nutzen",
+  "useWithoutServerHint": "Die Codes bleiben verschlüsselt auf diesem Gerät. Ein Server lässt sich später verbinden.",
+  "thisDeviceOnly": "Nur auf diesem Gerät",
+  "localModeHint": "Ohne Server: Richte eine automatische Sicherung ein, sonst sind die Codes mit dem Gerät verloren.",
+  "localModeNew": "Lege ein Master-Passwort fest. Es schützt die Codes auf diesem Gerät.",
+  "deleteLocalData": "Lokale Daten löschen",
+  "deleteLocalDataMessage": "Alle Codes auf diesem Gerät werden endgültig gelöscht. Das lässt sich nicht rückgängig machen.",
+  "localBanner": "Deine Codes liegen nur auf diesem Gerät. Eine automatische Sicherung schützt vor Verlust.",
+  "signOutLocalMessage": "Deine Codes bleiben verschlüsselt auf diesem Gerät. Zum Öffnen wählst du „Ohne Server nutzen“ und gibst das Master-Passwort ein.",
+  "deleteLocalAccountMessage": "Alle deine Codes auf diesem Gerät werden gelöscht. Das lässt sich nicht rückgängig machen. Deaktiviere vorher die Zwei-Faktor-Anmeldung bei den Diensten oder exportiere deine Konten.",
+  "connectServer": "Mit Server verbinden",
+  "connectServerHint": "Codes auf einen eigenen Server übertragen und auf mehreren Geräten nutzen",
+  "moveIntro": "Die Codes dieses Geräts werden auf den Server übertragen, verschlüsselt für dein Konto dort; der Server sieht sie nie im Klartext. Codes, die das Konto schon hat, werden übersprungen. Danach werden die lokalen Daten gelöscht.",
+  "moveButton": "Übertragen",
+  "moveContinue": "Weiter übertragen",
+  "moveProgress": "{done} von {total} übertragen",
+  "@moveProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "moveDone": "{count, plural, =0{Fertig: Der Server hatte schon alle Codes} =1{1 Code übertragen} other{{count} Codes übertragen}}",
+  "@moveDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "moveIncomplete": "Die Übertragung wurde unterbrochen ({error}). Die übrigen Codes liegen noch auf diesem Gerät; „Weiter übertragen“ setzt sie fort.",
+  "@moveIncomplete": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "moveLost": "Sixora war zwischendurch gesperrt. Die übrigen Codes liegen noch verschlüsselt auf diesem Gerät: abmelden, „Ohne Server nutzen“ wählen, öffnen und erneut übertragen."
 }

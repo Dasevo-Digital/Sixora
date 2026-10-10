@@ -1870,4 +1870,84 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get qrFromScreenWindowHint =>
       'Fenster oder Bildschirm wählen, z. B. den Browser';
+
+  @override
+  String get useWithoutServer => 'Ohne Server nutzen';
+
+  @override
+  String get useWithoutServerHint =>
+      'Die Codes bleiben verschlüsselt auf diesem Gerät. Ein Server lässt sich später verbinden.';
+
+  @override
+  String get thisDeviceOnly => 'Nur auf diesem Gerät';
+
+  @override
+  String get localModeHint =>
+      'Ohne Server: Richte eine automatische Sicherung ein, sonst sind die Codes mit dem Gerät verloren.';
+
+  @override
+  String get localModeNew =>
+      'Lege ein Master-Passwort fest. Es schützt die Codes auf diesem Gerät.';
+
+  @override
+  String get deleteLocalData => 'Lokale Daten löschen';
+
+  @override
+  String get deleteLocalDataMessage =>
+      'Alle Codes auf diesem Gerät werden endgültig gelöscht. Das lässt sich nicht rückgängig machen.';
+
+  @override
+  String get localBanner =>
+      'Deine Codes liegen nur auf diesem Gerät. Eine automatische Sicherung schützt vor Verlust.';
+
+  @override
+  String get signOutLocalMessage =>
+      'Deine Codes bleiben verschlüsselt auf diesem Gerät. Zum Öffnen wählst du „Ohne Server nutzen“ und gibst das Master-Passwort ein.';
+
+  @override
+  String get deleteLocalAccountMessage =>
+      'Alle deine Codes auf diesem Gerät werden gelöscht. Das lässt sich nicht rückgängig machen. Deaktiviere vorher die Zwei-Faktor-Anmeldung bei den Diensten oder exportiere deine Konten.';
+
+  @override
+  String get connectServer => 'Mit Server verbinden';
+
+  @override
+  String get connectServerHint =>
+      'Codes auf einen eigenen Server übertragen und auf mehreren Geräten nutzen';
+
+  @override
+  String get moveIntro =>
+      'Die Codes dieses Geräts werden auf den Server übertragen, verschlüsselt für dein Konto dort; der Server sieht sie nie im Klartext. Codes, die das Konto schon hat, werden übersprungen. Danach werden die lokalen Daten gelöscht.';
+
+  @override
+  String get moveButton => 'Übertragen';
+
+  @override
+  String get moveContinue => 'Weiter übertragen';
+
+  @override
+  String moveProgress(int done, int total) {
+    return '$done von $total übertragen';
+  }
+
+  @override
+  String moveDone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Codes übertragen',
+      one: '1 Code übertragen',
+      zero: 'Fertig: Der Server hatte schon alle Codes',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String moveIncomplete(String error) {
+    return 'Die Übertragung wurde unterbrochen ($error). Die übrigen Codes liegen noch auf diesem Gerät; „Weiter übertragen“ setzt sie fort.';
+  }
+
+  @override
+  String get moveLost =>
+      'Sixora war zwischendurch gesperrt. Die übrigen Codes liegen noch verschlüsselt auf diesem Gerät: abmelden, „Ohne Server nutzen“ wählen, öffnen und erneut übertragen.';
 }

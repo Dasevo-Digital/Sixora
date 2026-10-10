@@ -21,6 +21,7 @@ import 'import_screen.dart';
 import 'recovery_key_screen.dart';
 import 'trash_screen.dart';
 import 'vaults_screen.dart';
+import 'welcome_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -32,7 +33,9 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
     final s = c.settings;
-    final account = c.account!;
+    final account = c.account;
+    // Signed out; the page is about to close.
+    if (account == null) return const Scaffold();
     return Scaffold(
       appBar: AppBar(title: Text(t.settings)),
       body: Center(
@@ -46,11 +49,13 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 title: Text(account.username),
                 subtitle: Text(
-                  '${c.cached!.serverName} · ${c.cached!.server.host}'
-                  '${account.isAdmin ? ' · ${t.administrator}' : ''}\n'
-                  '${t.lastSynced(formatDate(c.cached!.lastSync))}',
+                  c.isLocal
+                      ? t.thisDeviceOnly
+                      : '${c.cached!.serverName} · ${c.cached!.server.host}'
+                            '${account.isAdmin ? ' · ${t.administrator}' : ''}\n'
+                            '${t.lastSynced(formatDate(c.cached!.lastSync))}',
                 ),
-                isThreeLine: true,
+                isThreeLine: !c.isLocal,
               ),
               SectionTitle(t.sectionSecurity),
               ListTile(
@@ -145,11 +150,12 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: Text(t.newRecoveryKeyHint),
                 onTap: () => _renewRecovery(context),
               ),
-              ListTile(
-                leading: const Icon(Icons.devices_outlined),
-                title: Text(t.signedInDevices),
-                onTap: () => _open(context, const SessionsScreen()),
-              ),
+              if (!c.isLocal)
+                ListTile(
+                  leading: const Icon(Icons.devices_outlined),
+                  title: Text(t.signedInDevices),
+                  onTap: () => _open(context, const SessionsScreen()),
+                ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: Text(t.trash),
@@ -288,7 +294,15 @@ class SettingsScreen extends StatelessWidget {
                 subtitle: Text(t.accountCheckHint),
                 onTap: () => _open(context, const AccountCheckScreen()),
               ),
-              if (account.isAdmin) ...[
+              if (c.isLocal) ...[
+                SectionTitle(t.sectionServer),
+                ListTile(
+                  leading: const Icon(Icons.cloud_upload_outlined),
+                  title: Text(t.connectServer),
+                  subtitle: Text(t.connectServerHint),
+                  onTap: () => _connectServer(context),
+                ),
+              ] else if (account.isAdmin) ...[
                 SectionTitle(t.sectionServer),
                 ListTile(
                   leading: const Icon(Icons.admin_panel_settings_outlined),
@@ -306,7 +320,9 @@ class SettingsScreen extends StatelessWidget {
                   final ok = await confirm(
                     context,
                     title: t.signOutQuestion,
-                    message: t.signOutMessage,
+                    message: c.isLocal
+                        ? t.signOutLocalMessage
+                        : t.signOutMessage,
                     action: t.signOut,
                   );
                   if (ok) await c.logout();
@@ -441,12 +457,22 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _connectServer(BuildContext context) async {
+    final moved = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(builder: (_) => const WelcomeScreen(move: true)),
+    );
+    if (moved != null && context.mounted) {
+      showMessage(context, t.moveDone(moved));
+    }
+  }
+
   Future<void> _deleteAccount(BuildContext context) async {
     final c = AppScope.read(context);
     final ok = await confirm(
       context,
       title: t.deleteAccountQuestion,
-      message: t.deleteAccountMessage,
+      message: c.isLocal ? t.deleteLocalAccountMessage : t.deleteAccountMessage,
       action: t.continueAction,
       destructive: true,
     );

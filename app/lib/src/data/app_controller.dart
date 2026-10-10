@@ -13,6 +13,7 @@ import '../l10n.dart';
 import '../platform/backup_folder.dart';
 import 'biometric_vault.dart';
 import 'error_texts.dart';
+import 'local_server.dart';
 import 'local_store.dart';
 import 'secret_store.dart';
 
@@ -79,6 +80,14 @@ class SecurityError extends UserError {
   const SecurityError(super.message);
 }
 
+/// The move to a server stopped half way; [AppController.finishMove] goes
+/// on. Carries the recovery key of the account just created there, which
+/// the user has to see anyway.
+class MoveIncomplete extends UserError {
+  const MoveIncomplete(super.message, this.recoveryKey);
+  final String? recoveryKey;
+}
+
 String errorText(Object e) => switch (e) {
   UserError(:final message) => message,
   ApiException() => apiErrorText(e),
@@ -132,12 +141,11 @@ class AppController extends ChangeNotifier {
   @visibleForTesting
   factory AppController.forTest(Directory dir) {
     final store = LocalStore(dir);
-    return AppController._(
-      store,
-      SecretStore.inFolder(dir),
-      store.loadSettings(),
-      null,
-    )..phase = Phase.setup;
+    final secrets = SecretStore.inFolder(dir);
+    LocalServer.folder = Directory(p.join(dir.path, 'local'));
+    return AppController._(store, secrets, store.loadSettings(), null)
+      ..phase = Phase.setup
+      ..biometrics = BiometricVault.none(secrets);
   }
 
   static Future<AppController> create() async {
@@ -146,6 +154,7 @@ class AppController extends ChangeNotifier {
       ..createSync(recursive: true);
     final store = LocalStore(dir);
     final secrets = await SecretStore.open(dir);
+    LocalServer.folder = Directory(p.join(dir.path, 'local'));
     final c = AppController._(
       store,
       secrets,
@@ -169,7 +178,13 @@ class AppController extends ChangeNotifier {
     return c;
   }
 
-  SixoraApi _newApi(Uri server) => SixoraApi(server, token: secrets['token']);
+  SixoraApi _newApi(Uri server) => apiFor(server, token: secrets['token']);
+
+  /// A client for [server]; the local mode answers in the app itself.
+  static SixoraApi apiFor(Uri server, {String? token}) =>
+      LocalServer.isLocal(server)
+      ? LocalServer.api(token: token)
+      : SixoraApi(server, token: token);
 
   AccountBundle? get account => cached?.account;
   List<VaultView> get vaults => _vaults.values.toList();
@@ -263,7 +278,7 @@ class AppController extends ChangeNotifier {
       username: username,
       password: password,
     );
-    final api = SixoraApi(server);
+    final api = apiFor(server);
     final result = await api.register({
       ...created.body,
       'device': (await deviceInfo()).toJson(),
@@ -282,7 +297,7 @@ class AppController extends ChangeNotifier {
     required String username,
     required String password,
   }) async {
-    final api = SixoraApi(server);
+    final api = apiFor(server);
     final pre = await api.prelogin(username.trim());
     final keys = await derivePasswordKeysAsync(
       password,
@@ -309,7 +324,7 @@ class AppController extends ChangeNotifier {
     required String recoveryKey,
     required String newPassword,
   }) async {
-    final api = SixoraApi(server);
+    final api = apiFor(server);
     final recovery = VaultCrypto.recoveryKeys(recoveryKey);
     final start = await api.recoverStart(
       username: username.trim(),
@@ -495,6 +510,8 @@ class AppController extends ChangeNotifier {
   /// arrive within a moment instead of with the next poll.
   void _startWatching() {
     final generation = ++_watch;
+    // Without a server no other device changes anything.
+    if (isLocal) return;
     unawaited(_watchLoop(generation));
   }
 
@@ -549,6 +566,7 @@ class AppController extends ChangeNotifier {
   void lock() {
     if (phase != Phase.unlocked) return;
     _stopWatching();
+    _moving = null;
     _rotationFailed.clear();
     _backupTimer?.cancel();
     _wipeKeys();
@@ -585,7 +603,14 @@ class AppController extends ChangeNotifier {
     _api = null;
     _wipeKeys();
     items = const [];
+    _moving = null;
+    _backupTimer?.cancel();
     cached = null;
+    this.notice = notice;
+    phase = Phase.setup;
+    // Closes the open pages at once: a sync still under way must not
+    // redraw them without an account.
+    notifyListeners();
     await store.deleteAccount();
     await biometrics.disable();
     await secrets.clear();
@@ -593,10 +618,7 @@ class AppController extends ChangeNotifier {
     settings.biometricsOffered = false;
     // The key belongs to this account; the folder may stay.
     settings.backupKey = null;
-    _backupTimer?.cancel();
     await store.saveSettings(settings);
-    this.notice = notice;
-    phase = Phase.setup;
     notifyListeners();
   }
 
@@ -698,18 +720,24 @@ class AppController extends ChangeNotifier {
 
   /// Backs up to [folder] from now on, encrypted with [password].
   Future<void> enableAutoBackup(FolderRef folder, String password) async {
-    final keys = _keys!;
-    final id = account!.id;
     final key = await BackupKey.derive(password);
     settings
       ..backupFolder = folder.ref
-      ..backupFolderLabel = folder.label
+      ..backupFolderLabel = folder.label;
+    await _storeBackupKey(key);
+    await backupNow();
+  }
+
+  /// Keeps the key of the backup password, wrapped with the user key.
+  Future<void> _storeBackupKey(BackupKey key) async {
+    final id = account!.id;
+    settings
       ..backupKey = {
         'account': id,
         'kdf': key.kdf.toJson(),
         'salt': key.salt,
         'key': await VaultCrypto.encrypt(
-          keys.userKey,
+          _keys!.userKey,
           key.key,
           aad: _backupAad(id),
         ),
@@ -717,7 +745,6 @@ class AppController extends ChangeNotifier {
       ..lastBackupCursor = -1
       ..backupError = null;
     await saveSettings();
-    await backupNow();
   }
 
   Future<void> disableAutoBackup() async {
@@ -1106,7 +1133,8 @@ class AppController extends ChangeNotifier {
     var done = 0;
     for (final e in entries) {
       await saveEntry(e, vaultId: vaultId);
-      progress?.call(++done);
+      done++;
+      progress?.call(done);
     }
     return done;
   }
@@ -1156,7 +1184,8 @@ class AppController extends ChangeNotifier {
 
   // --- Vaults ----------------------------------------------------------------
 
-  Future<void> createVault(String name) async {
+  /// Returns the id of the new vault, which is known here once this returns.
+  Future<String> createVault(String name) async {
     final id = VaultCrypto.newId();
     final key = VaultCrypto.randomBytes(32);
     await _online(
@@ -1170,7 +1199,8 @@ class AppController extends ChangeNotifier {
         sealedKey: await VaultCrypto.seal(key, _keys!.publicKey),
       ),
     );
-    await sync();
+    await _syncNow();
+    return id;
   }
 
   Future<void> renameVault(VaultView vault, String name) async {
@@ -1359,7 +1389,153 @@ class AppController extends ChangeNotifier {
   Future<void> deleteAccount(String password) async {
     final authKey = await _currentAuthKey(password);
     await _online((api) => api.deleteAccount(authKey));
+    final local = isLocal;
     await logout(notice: t.accountDeletedNotice);
+    if (local) LocalServer.delete();
+  }
+
+  // --- Local mode ------------------------------------------------------------
+
+  /// No server: the data stays on this device ([LocalServer]).
+  bool get isLocal => cached != null && LocalServer.isLocal(cached!.server);
+
+  /// Opens the database of the local mode for the welcome screen;
+  /// [ServerInfo.hasUsers] tells whether there is an account to open.
+  static Future<(Uri, ServerInfo)> openLocal() async {
+    final api = LocalServer.api();
+    return (api.baseUrl, await api.info());
+  }
+
+  /// Starts over without the old local data (password and recovery key
+  /// lost).
+  static void deleteLocalData() => LocalServer.delete();
+
+  /// Accounts of the local mode on their way to a server. Plaintext, so
+  /// only in memory, and dropped when the app locks.
+  List<({OtpEntry entry, String vault, bool personal})>? _moving;
+
+  /// The move to a server is under way or stopped half way.
+  bool get moving => _moving != null;
+
+  /// Moves the local mode to a server: signs in there ([create]: with a
+  /// new account) and stores every account there, encrypted for the
+  /// account there. Accounts the server account already has (same secret)
+  /// are skipped. The local database is deleted only once everything
+  /// arrived; if the move stops half way it throws [MoveIncomplete] and
+  /// [finishMove] goes on. Returns the recovery key of a new account.
+  Future<({int moved, String? recoveryKey})> moveToServer({
+    required Uri server,
+    required String serverName,
+    required String username,
+    required String password,
+    required bool create,
+    String? inviteCode,
+    void Function(int done, int total)? progress,
+  }) async {
+    if (!isLocal || _keys == null) throw StateError('not in local mode');
+    final carried = [
+      for (final i in items)
+        (
+          entry: i.entry,
+          vault: _vaults[i.vaultId]!.name,
+          personal: _vaults[i.vaultId]!.personal,
+        ),
+    ];
+    BackupKey? backup;
+    try {
+      backup = await _backupKey();
+    } on Object {
+      backup = null;
+    }
+    final localKeys = _keys!;
+    final localVaults = _vaults.values.toList();
+    _stopWatching();
+    _backupTimer?.cancel();
+    String? recoveryKey;
+    try {
+      if (create) {
+        recoveryKey = await register(
+          server: server,
+          serverName: serverName,
+          username: username,
+          password: password,
+          inviteCode: inviteCode,
+        );
+      } else {
+        await login(
+          server: server,
+          serverName: serverName,
+          username: username,
+          password: password,
+        );
+      }
+    } on Object {
+      if (isLocal && phase == Phase.unlocked) _startWatching();
+      rethrow;
+    }
+    // From here on the account on the server is the one of this app.
+    localKeys.userKey.fillRange(0, localKeys.userKey.length, 0);
+    localKeys.privateKey.fillRange(0, localKeys.privateKey.length, 0);
+    for (final v in localVaults) {
+      _vaults.remove(v.id);
+      v.key.fillRange(0, v.key.length, 0);
+    }
+    try {
+      if (create) await enter();
+      // The automatic backup goes on, now with the account there.
+      if (backup != null) await _storeBackupKey(backup);
+      await _syncNow();
+      _moving = [
+        for (final c in carried)
+          if (!items.any((i) => i.entry.sameKeyAs(c.entry))) c,
+      ];
+      return (
+        moved: await finishMove(progress: progress),
+        recoveryKey: recoveryKey,
+      );
+    } on Object catch (e) {
+      throw MoveIncomplete(t.moveIncomplete(errorText(e)), recoveryKey);
+    }
+  }
+
+  /// Stores the rest of an interrupted move; returns how many arrived.
+  Future<int> finishMove({void Function(int done, int total)? progress}) async {
+    final pending = _moving;
+    if (pending == null) return 0;
+    final total = pending.length;
+    var done = 0;
+    while (pending.isNotEmpty) {
+      final next = pending.first;
+      await saveEntry(
+        next.entry,
+        vaultId: await _moveTarget(next.vault, next.personal),
+      );
+      pending.removeAt(0);
+      done++;
+      progress?.call(done, total);
+    }
+    _moving = null;
+    LocalServer.delete();
+    notifyListeners();
+    return done;
+  }
+
+  /// The personal vault for personal accounts, else a vault of the same
+  /// name (created if needed).
+  Future<String> _moveTarget(String name, bool personal) async {
+    final own = [
+      for (final v in _vaults.values)
+        if (v.canWrite) v,
+    ];
+    if (personal) {
+      for (final v in own) {
+        if (v.personal) return v.id;
+      }
+    }
+    for (final v in own) {
+      if (!v.personal && v.name == name) return v.id;
+    }
+    return createVault(name);
   }
 
   @override

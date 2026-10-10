@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../data/app_controller.dart';
+import '../data/local_server.dart';
 import '../l10n.dart';
 import '../platform/link_inbox.dart';
 import '../widgets/brand.dart';
@@ -13,9 +14,16 @@ import 'scan_screen.dart';
 
 enum _Mode { login, register, recover }
 
-/// First start: connect to a server, then log in, register or recover.
+/// First start: connect to a server (or use none), then log in, register
+/// or recover.
+///
+/// With [move] it moves the local mode to a server instead: sign in there
+/// or create an account, then carry the codes over. Pops with the number
+/// of codes moved.
 class WelcomeScreen extends StatefulWidget {
-  const WelcomeScreen({super.key});
+  const WelcomeScreen({super.key, this.move = false});
+
+  final bool move;
 
   @override
   State<WelcomeScreen> createState() => _WelcomeScreenState();
@@ -33,6 +41,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   _Mode _mode = _Mode.login;
   bool _busy = false;
   String? _error;
+
+  /// Local mode chosen ("Ohne Server nutzen").
+  bool _local = false;
+
+  /// A move to the server stopped half way and can go on.
+  bool _moveStopped = false;
+  String? _progress;
 
   /// Set by an invitation link or QR code: register with this code.
   bool _invited = false;
@@ -112,6 +127,48 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
   }
 
+  Future<void> _useLocal() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final (url, info) = await AppController.openLocal();
+      setState(() {
+        _local = true;
+        _url = url;
+        _info = info;
+        _username.text = LocalServer.username;
+        _mode = info.hasUsers ? _Mode.login : _Mode.register;
+      });
+    } catch (e) {
+      setState(() => _error = errorText(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _deleteLocalData() async {
+    final ok = await confirm(
+      context,
+      title: '${t.deleteLocalData}?',
+      message: t.deleteLocalDataMessage,
+      action: t.deleteLocalData,
+      destructive: true,
+    );
+    if (!ok || !mounted) return;
+    AppController.deleteLocalData();
+    await _useLocal();
+  }
+
+  void _changeServer() => setState(() {
+    _info = null;
+    if (_local) {
+      _local = false;
+      _username.clear();
+    }
+  });
+
   bool get _canRegister =>
       _info != null &&
       (!_info!.hasUsers || _info!.registration != RegistrationMode.closed);
@@ -147,6 +204,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       _error = null;
     });
     final navigator = Navigator.of(context);
+    if (widget.move) {
+      await _move(c, navigator);
+      return;
+    }
     try {
       switch (_mode) {
         case _Mode.login:
@@ -201,10 +262,96 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
   }
 
+  /// Signs in at the server (or creates the account), shows a new recovery
+  /// key and carries the codes over; after an interruption it goes on.
+  Future<void> _move(AppController c, NavigatorState navigator) async {
+    void progress(int done, int total) {
+      if (mounted) setState(() => _progress = t.moveProgress(done, total));
+    }
+
+    int? moved;
+    String? recoveryKey;
+    String? stopped;
+    try {
+      if (_moveStopped) {
+        if (!c.moving) throw UserError(t.moveLost);
+        moved = await c.finishMove(progress: progress);
+      } else {
+        final r = await c.moveToServer(
+          server: _url!,
+          serverName: _info!.name,
+          username: _username.text.trim(),
+          password: _password.text,
+          create: _mode == _Mode.register,
+          inviteCode: _invite.text,
+          progress: progress,
+        );
+        moved = r.moved;
+        recoveryKey = r.recoveryKey;
+      }
+    } on MoveIncomplete catch (e) {
+      recoveryKey = e.recoveryKey;
+      stopped = e.message;
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = errorText(e);
+          _busy = false;
+          _progress = null;
+        });
+      }
+      return;
+    }
+    if (recoveryKey != null) {
+      await navigator.push(
+        MaterialPageRoute<void>(
+          fullscreenDialog: true,
+          builder: (_) => RecoveryKeyScreen(
+            recoveryKey: recoveryKey!,
+            username: _username.text.trim(),
+          ),
+        ),
+      );
+    }
+    if (!mounted) return;
+    if (stopped != null) {
+      setState(() {
+        _moveStopped = true;
+        _error = stopped;
+        _busy = false;
+        _progress = null;
+      });
+      return;
+    }
+    navigator.pop(moved);
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
     final theme = Theme.of(context);
+    if (widget.move) {
+      return Scaffold(
+        appBar: AppBar(title: Text(t.connectServer)),
+        body: SafeArea(
+          child: FormPage(
+            children: [
+              Text(t.moveIntro, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 20),
+              if (_info == null) ..._serverStep() else ..._accountStep(theme),
+              if (_progress != null) ...[
+                const SizedBox(height: 12),
+                Text(_progress!, textAlign: TextAlign.center),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: 16),
+                Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
     return Scaffold(
       body: SafeArea(
         child: FormPage(
@@ -280,42 +427,86 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         label: Text(t.scanInviteQr),
       ),
     ],
+    if (!widget.move) ...[
+      const SizedBox(height: 28),
+      const Divider(),
+      const SizedBox(height: 12),
+      TextButton.icon(
+        onPressed: _busy ? null : _useLocal,
+        icon: const Icon(Icons.smartphone_outlined),
+        label: Text(t.useWithoutServer),
+      ),
+      Text(
+        t.useWithoutServerHint,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+    ],
+  ];
+
+  /// Which way in: sign in, create an account, or recover. The local mode
+  /// has a single account; the move only signs in or creates.
+  List<_Mode> get _modes => [
+    if (_info!.hasUsers) _Mode.login,
+    if (!_local && _canRegister) _Mode.register,
+    if (_info!.hasUsers && !widget.move) _Mode.recover,
   ];
 
   List<Widget> _accountStep(ThemeData theme) {
     final strength = passwordStrength(_password.text);
     final newPassword = _mode != _Mode.login;
+    final modes = _modes;
     return [
-      Card(
-        child: ListTile(
-          leading: Icon(
-            _url!.scheme == 'https'
-                ? Icons.lock_outline
-                : Icons.lock_open_outlined,
-            color: _url!.scheme == 'https'
-                ? Colors.green
-                : theme.colorScheme.error,
+      if (_local)
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.smartphone_outlined),
+            title: Text(t.thisDeviceOnly),
+            subtitle: Text(t.localModeHint),
+            trailing: TextButton(
+              onPressed: _busy ? null : _changeServer,
+              child: Text(t.change),
+            ),
           ),
-          title: Text(_info!.name),
-          subtitle: Text(
-            '${_url!.host}${_url!.hasPort ? ':${_url!.port}' : ''} · '
-            '${t.serverVersion(_info!.version)}'
-            '${_url!.scheme == 'http' ? '\n${t.noHttpsWarning}' : ''}',
-          ),
-          trailing: TextButton(
-            onPressed: _busy ? null : () => setState(() => _info = null),
-            child: Text(t.change),
+        )
+      else
+        Card(
+          child: ListTile(
+            leading: Icon(
+              _url!.scheme == 'https'
+                  ? Icons.lock_outline
+                  : Icons.lock_open_outlined,
+              color: _url!.scheme == 'https'
+                  ? Colors.green
+                  : theme.colorScheme.error,
+            ),
+            title: Text(_info!.name),
+            subtitle: Text(
+              '${_url!.host}${_url!.hasPort ? ':${_url!.port}' : ''} · '
+              '${t.serverVersion(_info!.version)}'
+              '${_url!.scheme == 'http' ? '\n${t.noHttpsWarning}' : ''}',
+            ),
+            trailing: TextButton(
+              onPressed: _busy || _moveStopped ? null : _changeServer,
+              child: Text(t.change),
+            ),
           ),
         ),
-      ),
       const SizedBox(height: 16),
-      if (_info!.hasUsers)
+      if (_moveStopped)
+        const SizedBox.shrink()
+      else if (modes.length > 1)
         SegmentedButton<_Mode>(
           segments: [
-            ButtonSegment(value: _Mode.login, label: Text(t.signIn)),
-            if (_canRegister)
-              ButtonSegment(value: _Mode.register, label: Text(t.register)),
-            ButtonSegment(value: _Mode.recover, label: Text(t.forgotten)),
+            for (final m in modes)
+              ButtonSegment(
+                value: m,
+                label: Text(switch (m) {
+                  _Mode.login => t.signIn,
+                  _Mode.register => t.register,
+                  _Mode.recover => t.forgotten,
+                }),
+              ),
           ],
           selected: {_mode},
           onSelectionChanged: _busy
@@ -325,24 +516,72 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   _error = null;
                 }),
         )
-      else
+      else if (_local)
+        Text(t.localModeNew, style: theme.textTheme.bodyMedium)
+      else if (!_info!.hasUsers)
         Text(t.newServerFirstAdmin, style: theme.textTheme.bodyMedium),
       const SizedBox(height: 16),
-      TextField(
-        controller: _username,
-        autocorrect: false,
-        autofillHints: [
-          if (_mode == _Mode.register)
-            AutofillHints.newUsername
-          else
-            AutofillHints.username,
-        ],
-        decoration: InputDecoration(
-          labelText: t.username,
-          prefixIcon: Icon(Icons.person_outline),
-        ),
+      if (!_moveStopped) ..._credentials(theme, newPassword, strength),
+      const SizedBox(height: 20),
+      FilledButton(
+        onPressed: _busy ? null : _submit,
+        child: _busy
+            ? const _Spinner()
+            : Text(
+                _moveStopped
+                    ? t.moveContinue
+                    : widget.move
+                    ? t.moveButton
+                    : switch (_mode) {
+                        _Mode.login => t.signIn,
+                        _Mode.register => t.createAccount,
+                        _Mode.recover => t.setNewPassword,
+                      },
+              ),
       ),
-      const SizedBox(height: 12),
+      if (_busy && _mode != _Mode.login && _progress == null) ...[
+        const SizedBox(height: 8),
+        Text(
+          t.generatingKeys,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
+      if (_local && _mode == _Mode.login) ...[
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: _busy ? null : _deleteLocalData,
+          style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+          child: Text(t.deleteLocalData),
+        ),
+      ],
+    ];
+  }
+
+  List<Widget> _credentials(
+    ThemeData theme,
+    bool newPassword,
+    ({double score, String label}) strength,
+  ) {
+    return [
+      // The local mode has one account; its name is fixed.
+      if (!_local) ...[
+        TextField(
+          controller: _username,
+          autocorrect: false,
+          autofillHints: [
+            if (_mode == _Mode.register)
+              AutofillHints.newUsername
+            else
+              AutofillHints.username,
+          ],
+          decoration: InputDecoration(
+            labelText: t.username,
+            prefixIcon: Icon(Icons.person_outline),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
       if (_mode == _Mode.recover) ...[
         TextField(
           controller: _recovery,
@@ -406,25 +645,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       if (newPassword) ...[
         const SizedBox(height: 12),
         Text(t.masterPasswordNeverLeaves, style: theme.textTheme.bodySmall),
-      ],
-      const SizedBox(height: 20),
-      FilledButton(
-        onPressed: _busy ? null : _submit,
-        child: _busy
-            ? const _Spinner()
-            : Text(switch (_mode) {
-                _Mode.login => t.signIn,
-                _Mode.register => t.createAccount,
-                _Mode.recover => t.setNewPassword,
-              }),
-      ),
-      if (_busy && _mode != _Mode.login) ...[
-        const SizedBox(height: 8),
-        Text(
-          t.generatingKeys,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodySmall,
-        ),
       ],
     ];
   }
