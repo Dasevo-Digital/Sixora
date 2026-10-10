@@ -11,6 +11,7 @@ export 'src/otp/check.dart';
 export 'src/otp/entry.dart';
 export 'src/otp/otp.dart';
 export 'src/otp/otpauth.dart';
+export 'src/otp/service_match.dart';
 export 'src/transfer/google_migration.dart';
 export 'src/transfer/importers.dart';
 export 'src/transfer/invite_link.dart';

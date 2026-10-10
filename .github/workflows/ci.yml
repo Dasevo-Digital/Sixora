@@ -42,6 +42,11 @@ jobs:
       - name: Server
         working-directory: server
         run: dart pub get && dart analyze --fatal-infos && dart test
+      - name: Browser extension
+        working-directory: browser
+        run: |
+          dart pub get && dart analyze --fatal-infos && dart test
+          tool/build.sh
       - name: Server image builds
         run: docker build -t sixora-server:ci .
 

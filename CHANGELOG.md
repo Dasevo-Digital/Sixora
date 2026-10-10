@@ -146,6 +146,21 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
   eigenen Server, geteilte Tresore, Import und Export, Apps für iOS,
   Android, macOS, Windows und Linux.
 
+## Browser-Erweiterung
+
+### 0.1.0 – 10.10.2026
+- Erste Version für Firefox, Safari und Chromium-Browser (Chrome, Edge,
+  Opera, Brave, Vivaldi): Anmeldung am eigenen Server, Codes mit
+  Restzeit, Kopieren und Einfügen in das Code-Feld der Seite (auch Felder
+  mit einem Kästchen je Ziffer), passende Konten zuerst. Sie liest nur;
+  Konten werden in den Apps angelegt.
+- Dieselbe Verschlüsselung wie die Apps (gemeinsamer Kern als
+  WebAssembly). Im Browser-Profil liegt nichts im Klartext, auch das
+  Sitzungs-Token nicht; entsperrt bleibt sie bis zur eingestellten Zeit
+  oder bis der Browser schließt.
+- Sie fragt nur nach Zugriff auf den eigenen Server und auf den aktiven
+  Tab, wenn man sie öffnet.
+
 ## Server
 
 ### 0.1.5 – 09.10.2026

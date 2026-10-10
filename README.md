@@ -111,6 +111,11 @@ die Prüfsummen aller Dateien.
   einen Autofill-Dienst; ein Passwort-Manager, der ihn stellt, wird dabei
   ersetzt. Browser wie Chrome reichen Websites nur weiter, wenn dort
   „Autofill mit einem anderen Dienst“ eingeschaltet ist.
+- **Browser-Erweiterung** für Firefox, Safari und Chromium-Browser (Chrome,
+  Edge, Opera, Brave, Vivaldi): zeigt die Codes, kopiert sie und setzt sie
+  in das Code-Feld der Seite ein, passende Konten zuerst. Sie nutzt
+  denselben Kern wie die Apps (als WebAssembly) und liest nur; siehe
+  [browser/README.md](browser/README.md).
 - **Ohne Server:** „Ohne Server nutzen“ auf dem Startbildschirm hält die
   Codes nur auf diesem Gerät, mit derselben Verschlüsselung (der Code des
   Servers läuft dafür in der App, mit eigener Datenbank im App-Ordner). Eine

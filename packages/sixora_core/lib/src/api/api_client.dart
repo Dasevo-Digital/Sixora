@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../platform/transport_io.dart'
+    if (dart.library.js_interop) '../platform/transport_web.dart';
 import 'models.dart';
 
 class ApiException implements Exception {
@@ -56,16 +57,33 @@ class SixoraApi {
   /// tolerated (with a warning in the app).
   static bool isLocalHost(String host) {
     if (host == 'localhost' || host.endsWith('.local')) return true;
-    final ip = InternetAddress.tryParse(host);
-    if (ip == null) return false;
-    if (ip.isLoopback || ip.isLinkLocal) return true;
-    final b = ip.rawAddress;
-    if (ip.type == InternetAddressType.IPv4) {
-      return b[0] == 10 ||
-          (b[0] == 172 && b[1] >= 16 && b[1] < 32) ||
-          (b[0] == 192 && b[1] == 168);
+    // Without dart:io, so it also works in the browser extension.
+    final v4 = _tryParse(Uri.parseIPv4Address, host);
+    if (v4 != null) {
+      return v4[0] == 127 ||
+          v4[0] == 10 ||
+          (v4[0] == 169 && v4[1] == 254) ||
+          (v4[0] == 172 && v4[1] >= 16 && v4[1] < 32) ||
+          (v4[0] == 192 && v4[1] == 168);
     }
-    return (b[0] & 0xfe) == 0xfc; // fc00::/7
+    final v6 = _tryParse(
+      Uri.parseIPv6Address,
+      host.startsWith('[') ? host.substring(1, host.length - 1) : host,
+    );
+    if (v6 == null) return false;
+    final loopback =
+        v6.sublist(0, 15).every((b) => b == 0) && v6[15] == 1; // ::1
+    return loopback ||
+        (v6[0] == 0xfe && (v6[1] & 0xc0) == 0x80) || // fe80::/10
+        (v6[0] & 0xfe) == 0xfc; // fc00::/7
+  }
+
+  static List<int>? _tryParse(List<int> Function(String) parse, String s) {
+    try {
+      return parse(s);
+    } on FormatException {
+      return null;
+    }
   }
 
   void close() => _client.close();
@@ -93,28 +111,12 @@ class SixoraApi {
       ).timeout(timeout);
     } on TimeoutException {
       throw const ApiException(0, 'offline', 'Server antwortet nicht');
-    } on SocketException catch (e) {
-      // A failed name lookup is a DNS problem, not a server problem: say so,
-      // otherwise a wrong or stale DNS record looks like a server outage.
-      if (e.message.contains('host lookup') ||
-          e.osError?.message.contains('nodename nor servname') == true ||
-          e.osError?.message.contains('No address associated') == true) {
-        throw ApiException(
-          0,
-          'dns',
-          'Adresse „${uri.host}“ nicht gefunden (DNS). Stimmt die Adresse? '
-              'Nach einer Änderung kann es bis zu einer Stunde dauern.',
-        );
-      }
-      throw const ApiException(0, 'offline', 'Server nicht erreichbar');
-    } on HandshakeException {
-      throw const ApiException(
-        0,
-        'tls',
-        'Sichere Verbindung fehlgeschlagen (Zertifikat prüfen)',
-      );
     } on http.ClientException catch (e) {
-      throw ApiException(0, 'offline', 'Server nicht erreichbar: ${e.message}');
+      // dart:io reports DNS problems as a socket error inside it.
+      throw transportError(e, uri) ??
+          ApiException(0, 'offline', 'Server nicht erreichbar: ${e.message}');
+    } on Exception catch (e) {
+      throw transportError(e, uri) ?? e;
     }
     Object? json;
     if (response.body.isNotEmpty) {

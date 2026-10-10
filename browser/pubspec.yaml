@@ -1,0 +1,21 @@
+name: sixora_browser
+description: Sixora browser extension for Firefox, Chromium browsers and Safari.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  http: ^1.6.0
+  sixora_core:
+    path: ../packages/sixora_core
+  web: ^1.1.1
+
+dev_dependencies:
+  crypto: ^3.0.7
+  lints: ^6.1.0
+  shelf: ^1.4.2
+  sixora_server:
+    path: ../server
+  test: ^1.32.0

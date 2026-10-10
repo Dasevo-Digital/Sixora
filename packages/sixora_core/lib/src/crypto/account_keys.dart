@@ -1,9 +1,10 @@
 import 'dart:convert';
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import '../api/models.dart';
 import '../otp/entry.dart';
+import '../platform/background_io.dart'
+    if (dart.library.js_interop) '../platform/background_web.dart';
 import 'vault_crypto.dart';
 
 /// Argon2id in a background isolate, so the UI keeps running.
@@ -11,7 +12,7 @@ Future<PasswordKeys> derivePasswordKeysAsync(
   String password,
   String saltB64,
   KdfParams params,
-) => Isolate.run(
+) => runInBackground(
   () => VaultCrypto.derivePasswordKeys(password, saltB64, params),
 );
 

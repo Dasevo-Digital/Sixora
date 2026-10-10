@@ -62,59 +62,12 @@ class AutofillRequest {
   /// For the title: the website if there is one, else the app.
   String get label => (domain?.isNotEmpty ?? false) ? domain! : package ?? '';
 
-  /// Words that name the service: "github" from `github.com` or
-  /// `com.github.android`. A browser's own package says nothing about the
-  /// website, so with a domain only the domain counts.
-  Set<String> get words {
-    const generic = {
-      'www',
-      'app',
-      'apps',
-      'login',
-      'signin',
-      'auth',
-      'account',
-      'accounts',
-      'secure',
-      'mobile',
-      'web',
-      'sso',
-      'portal',
-      'my',
-      'id',
-      'com',
-      'org',
-      'net',
-      'edu',
-      'gov',
-      'android',
-      'client',
-      'beta',
-      'release',
-      'debug',
-    };
-    final source = (domain?.isNotEmpty ?? false) ? domain! : package ?? '';
-    return {
-      for (final part in source.toLowerCase().split('.'))
-        if (_letters(part) case final w
-            when w.length >= 3 && !generic.contains(w))
-          w,
-    };
-  }
+  /// Which accounts belong to the asking app or website.
+  ServiceMatch get service => ServiceMatch(domain: domain, package: package);
 
-  /// Whether [entry] belongs to this app or website (by its service name).
-  bool matches(OtpEntry entry) {
-    final issuer = _letters(entry.issuer.toLowerCase());
-    if (issuer.length < 3) return false;
-    return words.any(
-      (w) =>
-          w == issuer ||
-          (w.length >= 4 && issuer.contains(w)) ||
-          (issuer.length >= 4 && w.contains(issuer)),
-    );
-  }
+  Set<String> get words => service.words;
 
-  static String _letters(String s) => s.replaceAll(RegExp('[^a-z0-9]'), '');
+  bool matches(OtpEntry entry) => service.matches(entry);
 }
 
 /// Accounts for the picker: the matching ones first, then the rest. HOTP
@@ -123,6 +76,7 @@ class AutofillRequest {
   List<Item> items,
   AutofillRequest request,
 ) {
+  final service = request.service;
   final usable = [
     for (final i in items)
       if (i.entry.type != OtpType.hotp) i,
@@ -130,11 +84,11 @@ class AutofillRequest {
   return (
     matching: [
       for (final i in usable)
-        if (request.matches(i.entry)) i,
+        if (service.matches(i.entry)) i,
     ],
     others: [
       for (final i in usable)
-        if (!request.matches(i.entry)) i,
+        if (!service.matches(i.entry)) i,
     ],
   );
 }
