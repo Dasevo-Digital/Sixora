@@ -1494,7 +1494,12 @@ class AppController extends ChangeNotifier {
       v.key.fillRange(0, v.key.length, 0);
     }
     try {
-      if (create) await enter();
+      // Not enter(): its offer of Face ID & co. would open a dialog over
+      // the move and swallow its result. The move screen points to the
+      // settings instead (the old quick unlock belonged to the local
+      // account).
+      if (create) await _afterUnlock();
+      offerBiometrics = false;
       // The automatic backup goes on, now with the account there.
       if (backup != null) await _storeBackupKey(backup);
       await _syncNow();

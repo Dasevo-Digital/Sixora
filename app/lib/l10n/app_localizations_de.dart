@@ -1986,4 +1986,14 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get localPasswordHint =>
       'Das Master-Passwort verlässt nie dieses Gerät und lässt sich nicht zurücksetzen. Nur mit dem Wiederherstellungsschlüssel kommst du ohne Passwort wieder hinein.';
+
+  @override
+  String moveConnected(String server) {
+    return 'Sixora ist jetzt mit $server verbunden.';
+  }
+
+  @override
+  String moveBiometricsHint(String method) {
+    return 'Entsperren mit $method gilt für das neue Konto noch nicht; du schaltest es unter Einstellungen wieder ein.';
+  }
 }

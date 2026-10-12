@@ -460,15 +460,9 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _connectServer(BuildContext context) async {
-    final moved = await Navigator.push<int>(
-      context,
-      MaterialPageRoute(builder: (_) => const WelcomeScreen(move: true)),
-    );
-    if (moved != null && context.mounted) {
-      showMessage(context, t.moveDone(moved));
-    }
-  }
+  /// The move shows its result itself.
+  void _connectServer(BuildContext context) =>
+      _open(context, const WelcomeScreen(move: true));
 
   Future<void> _deleteAccount(BuildContext context) async {
     final c = AppScope.read(context);

@@ -6,6 +6,14 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.26 – 12.10.2026
+- „Mit Server verbinden“ zeigt das Ergebnis jetzt auf einer eigenen Seite
+  mit „Fertig“. Bisher erschien es nur kurz als Meldung, und die gleich
+  danach gestellte Frage nach Touch ID bzw. Face ID verdrängte sie. Diese
+  Frage kommt während der Übertragung nicht mehr; die Ergebnisseite weist
+  darauf hin, dass das schnelle Entsperren für das neue Konto in den
+  Einstellungen wieder eingeschaltet wird.
+
 ### 0.1.25 – 12.10.2026
 - macOS: „QR-Code vom Bildschirm“ fragt nicht mehr nach der Freigabe für
   Bildschirmaufnahmen. Das Bild kam bisher aus der Bildschirmfoto-Funktion

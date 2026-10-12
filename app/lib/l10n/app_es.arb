@@ -543,5 +543,7 @@
   "autofillAll": "Todas las cuentas",
   "autofillNotSetUp": "Sixora aún no está configurado en este dispositivo. Abre Sixora e inicia sesión o úsalo sin servidor.",
   "close": "Cerrar",
-  "localPasswordHint": "La contraseña maestra nunca sale de este dispositivo y no se puede restablecer. Solo la clave de recuperación te permite volver a entrar sin la contraseña."
+  "localPasswordHint": "La contraseña maestra nunca sale de este dispositivo y no se puede restablecer. Solo la clave de recuperación te permite volver a entrar sin la contraseña.",
+  "moveConnected": "Sixora está ahora conectado a {server}.",
+  "moveBiometricsHint": "El desbloqueo con {method} aún no se aplica a la cuenta nueva; vuelve a activarlo en los ajustes."
 }

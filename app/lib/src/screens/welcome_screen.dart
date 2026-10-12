@@ -47,6 +47,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   /// A move to the server stopped half way and can go on.
   bool _moveStopped = false;
+
+  /// How many codes the finished move carried over; shown on this page
+  /// until "Fertig", so no dialog or message can hide it.
+  int? _moved;
   String? _progress;
 
   /// Set by an invitation link or QR code: register with this code.
@@ -323,13 +327,58 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       });
       return;
     }
-    navigator.pop(moved);
+    setState(() {
+      _moved = moved;
+      _busy = false;
+      _progress = null;
+      _error = null;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
     final theme = Theme.of(context);
+    if (widget.move && _moved != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(t.connectServer),
+          automaticallyImplyLeading: false,
+        ),
+        body: SafeArea(
+          child: FormPage(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                size: 56,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                t.moveDone(_moved!),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(t.moveConnected(_url!.host), textAlign: TextAlign.center),
+              if (c.biometricsAvailable && !c.settings.quickUnlock) ...[
+                const SizedBox(height: 8),
+                Text(
+                  t.moveBiometricsHint(c.biometricLabel),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(t.done),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (widget.move) {
       return Scaffold(
         appBar: AppBar(title: Text(t.connectServer)),

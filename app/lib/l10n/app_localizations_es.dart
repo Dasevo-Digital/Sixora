@@ -1997,4 +1997,14 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get localPasswordHint =>
       'La contraseña maestra nunca sale de este dispositivo y no se puede restablecer. Solo la clave de recuperación te permite volver a entrar sin la contraseña.';
+
+  @override
+  String moveConnected(String server) {
+    return 'Sixora está ahora conectado a $server.';
+  }
+
+  @override
+  String moveBiometricsHint(String method) {
+    return 'El desbloqueo con $method aún no se aplica a la cuenta nueva; vuelve a activarlo en los ajustes.';
+  }
 }

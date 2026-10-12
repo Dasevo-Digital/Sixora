@@ -3363,6 +3363,18 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Das Master-Passwort verlässt nie dieses Gerät und lässt sich nicht zurücksetzen. Nur mit dem Wiederherstellungsschlüssel kommst du ohne Passwort wieder hinein.'**
   String get localPasswordHint;
+
+  /// No description provided for @moveConnected.
+  ///
+  /// In de, this message translates to:
+  /// **'Sixora ist jetzt mit {server} verbunden.'**
+  String moveConnected(String server);
+
+  /// No description provided for @moveBiometricsHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Entsperren mit {method} gilt für das neue Konto noch nicht; du schaltest es unter Einstellungen wieder ein.'**
+  String moveBiometricsHint(String method);
 }
 
 class _AppLocalizationsDelegate

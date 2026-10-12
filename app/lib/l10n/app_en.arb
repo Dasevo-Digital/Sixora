@@ -543,5 +543,7 @@
   "autofillAll": "All accounts",
   "autofillNotSetUp": "Sixora is not set up on this device yet. Open Sixora and sign in, or use it without a server.",
   "close": "Close",
-  "localPasswordHint": "The master password never leaves this device and cannot be reset. Only the recovery key gets you back in without the password."
+  "localPasswordHint": "The master password never leaves this device and cannot be reset. Only the recovery key gets you back in without the password.",
+  "moveConnected": "Sixora is now connected to {server}.",
+  "moveBiometricsHint": "Unlocking with {method} does not apply to the new account yet; turn it on again in the settings."
 }

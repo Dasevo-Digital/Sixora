@@ -1195,5 +1195,21 @@
   "autofillAll": "Alle Konten",
   "autofillNotSetUp": "Sixora ist auf diesem Gerät noch nicht eingerichtet. Öffne Sixora und melde dich an oder nutze es ohne Server.",
   "close": "Schließen",
-  "localPasswordHint": "Das Master-Passwort verlässt nie dieses Gerät und lässt sich nicht zurücksetzen. Nur mit dem Wiederherstellungsschlüssel kommst du ohne Passwort wieder hinein."
+  "localPasswordHint": "Das Master-Passwort verlässt nie dieses Gerät und lässt sich nicht zurücksetzen. Nur mit dem Wiederherstellungsschlüssel kommst du ohne Passwort wieder hinein.",
+  "moveConnected": "Sixora ist jetzt mit {server} verbunden.",
+  "@moveConnected": {
+    "placeholders": {
+      "server": {
+        "type": "String"
+      }
+    }
+  },
+  "moveBiometricsHint": "Entsperren mit {method} gilt für das neue Konto noch nicht; du schaltest es unter Einstellungen wieder ein.",
+  "@moveBiometricsHint": {
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  }
 }

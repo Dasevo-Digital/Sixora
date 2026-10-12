@@ -1973,4 +1973,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get localPasswordHint =>
       'The master password never leaves this device and cannot be reset. Only the recovery key gets you back in without the password.';
+
+  @override
+  String moveConnected(String server) {
+    return 'Sixora is now connected to $server.';
+  }
+
+  @override
+  String moveBiometricsHint(String method) {
+    return 'Unlocking with $method does not apply to the new account yet; turn it on again in the settings.';
+  }
 }
