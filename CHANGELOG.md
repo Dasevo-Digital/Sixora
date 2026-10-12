@@ -6,6 +6,13 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.25 – 12.10.2026
+- macOS: „QR-Code vom Bildschirm“ fragt nicht mehr nach der Freigabe für
+  Bildschirmaufnahmen. Das Bild kam bisher aus der Bildschirmfoto-Funktion
+  von ScreenCaptureKit, für die macOS die Freigabe auch dann verlangt, wenn
+  das Fenster in der Systemauswahl gewählt wurde. Jetzt ist es das erste
+  Bild eines kurzen Streams; dafür genügt die Auswahl.
+
 ### 0.1.24 – 10.10.2026
 - Android: Codes in anderen Apps und auf Websites einfügen (Autofill).
   Sixora erkennt Felder für Einmal-Codes und bietet dort „Code aus Sixora

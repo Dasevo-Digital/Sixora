@@ -1,7 +1,8 @@
 import Cocoa
 import FlutterMacOS
+import CoreImage
 import ImageIO
-import ScreenCaptureKit
+@preconcurrency import ScreenCaptureKit
 
 class MainFlutterWindow: NSWindow {
   override func awakeFromNib() {
@@ -356,6 +357,65 @@ enum ScreenShot {
   }
 }
 
+/// Takes the first complete frame of a stream with the picked content, at
+/// full pixel resolution (on a large screen the code is small), and stops.
+/// Its state is only touched on [queue].
+@available(macOS 14.0, *)
+private final class FrameGrabber: NSObject, SCStreamOutput, @unchecked Sendable {
+  private let queue = DispatchQueue(label: "sixora.screen")
+  private var stream: SCStream?
+  private var continuation: CheckedContinuation<CGImage, Error>?
+
+  func grab(_ filter: SCContentFilter) async throws -> CGImage {
+    let config = SCStreamConfiguration()
+    let scale = CGFloat(filter.pointPixelScale)
+    config.width = Int(filter.contentRect.width * scale)
+    config.height = Int(filter.contentRect.height * scale)
+    config.showsCursor = false
+    config.pixelFormat = kCVPixelFormatType_32BGRA
+    let stream = SCStream(filter: filter, configuration: config, delegate: nil)
+    try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
+    return try await withCheckedThrowingContinuation { continuation in
+      queue.async {
+        self.stream = stream
+        self.continuation = continuation
+        stream.startCapture { error in
+          if let error { self.queue.async { self.finish(.failure(error)) } }
+        }
+        // A frame comes at once; without one something is wrong.
+        self.queue.asyncAfter(deadline: .now() + 5) {
+          self.finish(.failure(CocoaError(.fileReadUnknown)))
+        }
+      }
+    }
+  }
+
+  func stream(
+    _ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
+    of type: SCStreamOutputType
+  ) {
+    guard type == .screen, continuation != nil,
+      let info = CMSampleBufferGetSampleAttachmentsArray(
+        sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
+      let raw = info.first?[.status] as? Int,
+      SCFrameStatus(rawValue: raw) == .complete,
+      let pixels = CMSampleBufferGetImageBuffer(sampleBuffer)
+    else { return }
+    let frame = CIImage(cvPixelBuffer: pixels)
+    guard let image = CIContext().createCGImage(frame, from: frame.extent) else { return }
+    finish(.success(image))
+  }
+
+  /// On the queue; only the first result counts.
+  private func finish(_ result: Result<CGImage, Error>) {
+    guard let continuation else { return }
+    self.continuation = nil
+    stream?.stopCapture(completionHandler: nil)
+    stream = nil
+    continuation.resume(with: result)
+  }
+}
+
 /// Answers with the path of a PNG in the temporary folder, or nil if the
 /// user cancelled.
 @available(macOS 14.0, *)
@@ -397,15 +457,11 @@ private final class ScreenPicker: NSObject, SCContentSharingPickerObserver {
     }
   }
 
-  /// Full pixel resolution: on a large screen the code is small.
+  /// One frame of a short stream. The picker's choice covers streams
+  /// only: SCScreenshotManager asks for the screen recording permission
+  /// even with a picked filter.
   private func capture(_ filter: SCContentFilter) async throws -> String {
-    let config = SCStreamConfiguration()
-    let scale = CGFloat(filter.pointPixelScale)
-    config.width = Int(filter.contentRect.width * scale)
-    config.height = Int(filter.contentRect.height * scale)
-    config.showsCursor = false
-    let image = try await SCScreenshotManager.captureImage(
-      contentFilter: filter, configuration: config)
+    let image = try await FrameGrabber().grab(filter)
     let url = FileManager.default.temporaryDirectory
       .appendingPathComponent("sixora-screen-\(UUID().uuidString).png")
     guard
