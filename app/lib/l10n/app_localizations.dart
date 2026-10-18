@@ -3375,6 +3375,48 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Entsperren mit {method} gilt für das neue Konto noch nicht; du schaltest es unter Einstellungen wieder ein.'**
   String moveBiometricsHint(String method);
+
+  /// No description provided for @autoLockWithScreen.
+  ///
+  /// In de, this message translates to:
+  /// **'auch beim Sperren des Bildschirms und im Ruhezustand'**
+  String get autoLockWithScreen;
+
+  /// No description provided for @autofillMismatchTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Passt nicht zu dieser Seite'**
+  String get autofillMismatchTitle;
+
+  /// No description provided for @autofillMismatchBody.
+  ///
+  /// In de, this message translates to:
+  /// **'„{account}“ gehört nicht erkennbar zu {target}. Gefälschte Anmeldeseiten sehen oft aus wie das Original. Setze den Code nur ein, wenn du sicher bist, dass du richtig bist.'**
+  String autofillMismatchBody(String account, String target);
+
+  /// No description provided for @autofillMismatchConfirm.
+  ///
+  /// In de, this message translates to:
+  /// **'Trotzdem einsetzen'**
+  String get autofillMismatchConfirm;
+
+  /// No description provided for @setupCode.
+  ///
+  /// In de, this message translates to:
+  /// **'Einrichtungscode'**
+  String get setupCode;
+
+  /// No description provided for @setupCodeHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Steht im Protokoll des Servers (journalctl -u sixora oder docker logs sixora). Einen neuen erzeugt: sixora-admin setup-code'**
+  String get setupCodeHint;
+
+  /// No description provided for @errInvalidSetupCode.
+  ///
+  /// In de, this message translates to:
+  /// **'Der Einrichtungscode stimmt nicht. Er steht im Protokoll des Servers; ein neuer Code ersetzt die älteren.'**
+  String get errInvalidSetupCode;
 }
 
 class _AppLocalizationsDelegate

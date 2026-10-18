@@ -47,6 +47,8 @@ class LocalServer {
     final app = SixoraServerApp(
       db: openSixoraDatabase(_file.path),
       registration: Registration.open,
+      // The one account of this device needs no setup code.
+      requireSetupCode: false,
     )..startMaintenance();
     return _current = LocalServer._(folder, app);
   }

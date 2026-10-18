@@ -63,7 +63,11 @@ class SettingsScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.timer_outlined),
                 title: Text(t.autoLock),
-                subtitle: Text(s.autoLock.label),
+                subtitle: Text(
+                  DesktopShell.supported && s.autoLock != AutoLock.never
+                      ? '${s.autoLock.label}, ${t.autoLockWithScreen}'
+                      : s.autoLock.label,
+                ),
                 onTap: () async {
                   final value = await showDialog<AutoLock>(
                     context: context,

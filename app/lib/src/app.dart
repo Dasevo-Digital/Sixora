@@ -8,6 +8,7 @@ import 'data/app_controller.dart';
 import 'data/local_store.dart';
 import 'l10n.dart';
 import 'platform/desktop_shell.dart';
+import 'platform/session_events.dart';
 import 'screens/home_screen.dart';
 import 'screens/lock_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -51,6 +52,7 @@ class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
   Phase _phase = Phase.loading;
   DateTime? _backgroundSince;
   Timer? _idle;
+  late final _session = SessionEvents(_away);
 
   /// Covers the codes while the app switcher shows a preview (mobile).
   bool _obscured = false;
@@ -64,6 +66,7 @@ class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
     _lifecycle = AppLifecycleListener(onStateChange: _lifecycleChanged);
     WidgetsBinding.instance.addObserver(this);
     _applySecureWindow();
+    if (DesktopShell.supported) unawaited(_session.start());
   }
 
   @override
@@ -72,7 +75,14 @@ class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _lifecycle.dispose();
     _idle?.cancel();
+    if (DesktopShell.supported) unawaited(_session.stop());
     super.dispose();
+  }
+
+  /// Desktop: the screen locked or the computer went to sleep. Whoever
+  /// unlocks the computer later should not find the codes open.
+  void _away() {
+    if (c.settings.autoLock != AutoLock.never) c.lock();
   }
 
   void _changed() {
@@ -149,7 +159,6 @@ class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
     _idle = Timer(Duration(minutes: minutes == 0 ? 1 : minutes), c.lock);
   }
 
-  @override
   /// The system language changed: matters when the setting is „System“.
   @override
   void didChangeLocales(List<Locale>? locales) => setState(() {});

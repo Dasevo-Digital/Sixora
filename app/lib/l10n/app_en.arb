@@ -545,5 +545,12 @@
   "close": "Close",
   "localPasswordHint": "The master password never leaves this device and cannot be reset. Only the recovery key gets you back in without the password.",
   "moveConnected": "Sixora is now connected to {server}.",
-  "moveBiometricsHint": "Unlocking with {method} does not apply to the new account yet; turn it on again in the settings."
+  "moveBiometricsHint": "Unlocking with {method} does not apply to the new account yet; turn it on again in the settings.",
+  "autoLockWithScreen": "also when the screen locks or the computer sleeps",
+  "autofillMismatchTitle": "Does not match this site",
+  "autofillMismatchBody": "“{account}” does not appear to belong to {target}. Fake sign-in pages often look like the real one. Only insert the code if you are sure you are in the right place.",
+  "autofillMismatchConfirm": "Insert anyway",
+  "setupCode": "Setup code",
+  "setupCodeHint": "Shown in the server’s log (journalctl -u sixora or docker logs sixora). To create a new one: sixora-admin setup-code",
+  "errInvalidSetupCode": "The setup code is wrong. It is in the server’s log; a new code replaces older ones."
 }

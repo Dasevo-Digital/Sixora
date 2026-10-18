@@ -1,6 +1,7 @@
 // End-to-end test of the real app against a fresh, empty Sixora server:
 //
-//   (cd server && SIXORA_DATA_DIR=$(mktemp -d) SIXORA_PORT=18081 dart run bin/server.dart)
+//   (cd server && SIXORA_DATA_DIR=$(mktemp -d) SIXORA_PORT=18081 \
+//     SIXORA_SETUP_CODE=TEST-SETUP-CODE-0001 dart run bin/server.dart)
 //   flutter test integration_test -d macos --dart-define=SIXORA_ENV=test \
 //     --dart-define=SIXORA_TEST_SERVER=http://127.0.0.1:18081
 //
@@ -30,6 +31,12 @@ const _server = String.fromEnvironment(
   defaultValue: 'http://127.0.0.1:18081',
 );
 const _password = 'test-passwort-123';
+
+/// SIXORA_SETUP_CODE of the test server: its first account needs it.
+const _setupCode = String.fromEnvironment(
+  'SIXORA_TEST_SETUP_CODE',
+  defaultValue: 'TEST-SETUP-CODE-0001',
+);
 
 /// The account of the first test, for moving the local mode there.
 String? _firstUser;
@@ -100,6 +107,11 @@ void main() {
     await tester.enterText(_field('Benutzername'), user);
     await tester.enterText(_field('Master-Passwort'), _password);
     await tester.enterText(_field('Master-Passwort wiederholen'), _password);
+    await tester.enterText(_field('Einrichtungscode'), _setupCode);
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Konto erstellen'),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Konto erstellen'));
 
     // The recovery key has to be confirmed before the vault opens.

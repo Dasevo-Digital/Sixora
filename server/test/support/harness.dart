@@ -20,12 +20,14 @@ class Harness {
     Registration registration = Registration.invite,
     bool trustProxy = false,
     String serverName = 'Sixora',
+    bool requireSetupCode = false,
   }) async {
     app = SixoraServerApp(
       db: openSixoraDatabase(':memory:'),
       registration: registration,
       trustProxy: trustProxy,
       serverName: serverName,
+      requireSetupCode: requireSetupCode,
     );
     server = await io.serve(
       app.handler,

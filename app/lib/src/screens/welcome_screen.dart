@@ -177,6 +177,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       _info != null &&
       (!_info!.hasUsers || _info!.registration != RegistrationMode.closed);
 
+  /// A new server: its first account needs the setup code from its log.
+  bool get _setupCode => _info != null && !_info!.hasUsers && _info!.setupCode;
+
   String? _validateNewPassword() {
     if (_username.text.trim().length < 3) {
       return t.usernameTooShort;
@@ -677,16 +680,23 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         ),
       ],
       if (_mode == _Mode.register &&
-          _info!.hasUsers &&
-          _info!.registration == RegistrationMode.invite) ...[
+          (_setupCode ||
+              _info!.hasUsers &&
+                  _info!.registration == RegistrationMode.invite)) ...[
         const SizedBox(height: 12),
         TextField(
           controller: _invite,
           autocorrect: false,
           textCapitalization: TextCapitalization.characters,
           decoration: InputDecoration(
-            labelText: t.inviteCode,
-            prefixIcon: const Icon(Icons.confirmation_number_outlined),
+            labelText: _setupCode ? t.setupCode : t.inviteCode,
+            helperText: _setupCode ? t.setupCodeHint : null,
+            helperMaxLines: 4,
+            prefixIcon: Icon(
+              _setupCode
+                  ? Icons.admin_panel_settings_outlined
+                  : Icons.confirmation_number_outlined,
+            ),
             suffixIcon: PasteButton(controller: _invite),
           ),
         ),

@@ -49,6 +49,55 @@ void main() {
     );
   });
 
+  test('the first account needs the setup code', () async {
+    Matcher refused(String code) =>
+        throwsA(isA<ApiException>().having((e) => e.code, 'code', code));
+    await h.stop();
+    h = Harness();
+    await h.start(requireSetupCode: true);
+    expect((await h.api().info()).setupCode, isTrue);
+    // Without a code (the server makes one when it starts) nobody gets in.
+    await expectLater(
+      TestUser.register(h, 'mallory'),
+      refused('invalid_setup_code'),
+    );
+    final old = h.app.newSetupCode()!;
+    final code = h.app.newSetupCode()!;
+    // A new code replaces the old one.
+    await expectLater(
+      TestUser.register(h, 'mallory', invite: old),
+      refused('invalid_setup_code'),
+    );
+    final alice = await TestUser.register(
+      h,
+      'alice',
+      invite: code.toLowerCase(),
+    );
+    expect(alice.account.isAdmin, isTrue);
+    expect((await h.api().info()).setupCode, isFalse);
+    // Used up: from now on the invite rules apply.
+    expect(h.app.newSetupCode(), isNull);
+    await expectLater(
+      TestUser.register(h, 'bob', invite: code),
+      refused('invalid_invite'),
+    );
+  });
+
+  test('argon2 parameters a phone cannot afford are refused', () async {
+    final created = await NewAccount.create(
+      username: 'alice',
+      password: 'pw-alice',
+      kdf: testKdf,
+    );
+    await expectLater(
+      h.api().register({
+        ...created.body,
+        'kdf': {'alg': 'argon2id', 'm': 1048576, 't': 3, 'p': 1},
+      }),
+      throwsA(isA<ApiException>().having((e) => e.status, 'status', 400)),
+    );
+  });
+
   test('login, wrong password and enumeration-safe prelogin', () async {
     final alice = await TestUser.register(h, 'alice');
     final api = h.api();

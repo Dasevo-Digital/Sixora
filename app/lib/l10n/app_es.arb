@@ -545,5 +545,12 @@
   "close": "Cerrar",
   "localPasswordHint": "La contraseña maestra nunca sale de este dispositivo y no se puede restablecer. Solo la clave de recuperación te permite volver a entrar sin la contraseña.",
   "moveConnected": "Sixora está ahora conectado a {server}.",
-  "moveBiometricsHint": "El desbloqueo con {method} aún no se aplica a la cuenta nueva; vuelve a activarlo en los ajustes."
+  "moveBiometricsHint": "El desbloqueo con {method} aún no se aplica a la cuenta nueva; vuelve a activarlo en los ajustes.",
+  "autoLockWithScreen": "también al bloquear la pantalla o suspender el equipo",
+  "autofillMismatchTitle": "No coincide con este sitio",
+  "autofillMismatchBody": "«{account}» no parece pertenecer a {target}. Las páginas de inicio de sesión falsas suelen parecerse a la original. Inserta el código solo si estás seguro de estar en el lugar correcto.",
+  "autofillMismatchConfirm": "Insertar de todos modos",
+  "setupCode": "Código de configuración",
+  "setupCodeHint": "Aparece en el registro del servidor (journalctl -u sixora o docker logs sixora). Para crear uno nuevo: sixora-admin setup-code",
+  "errInvalidSetupCode": "El código de configuración no es correcto. Aparece en el registro del servidor; un código nuevo sustituye a los anteriores."
 }

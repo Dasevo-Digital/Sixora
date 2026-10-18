@@ -24,8 +24,6 @@ install -d -o sixora -g sixora -m 0700 /var/lib/sixora
 install -d -m 0755 /etc/sixora
 [ -f /etc/sixora/sixora.env ] || install -m 0644 "$HERE/sixora.env" /etc/sixora/sixora.env
 
-FRESH=1
-[ ! -f /var/lib/sixora/sixora.db ] || FRESH=0
 systemctl stop sixora 2>/dev/null || true
 rm -rf /opt/sixora.new && mkdir -p /opt/sixora.new
 cp -R "$TMP/bundle/." /opt/sixora.new/
@@ -33,7 +31,8 @@ rm -rf /opt/sixora.old
 [ ! -d /opt/sixora ] || mv /opt/sixora /opt/sixora.old
 mv /opt/sixora.new /opt/sixora
 
-# Admin commands (invite, users, admin, disable, enable) as the service user.
+# Admin commands (setup-code, invite, users, admin, disable, enable) as the
+# service user.
 cat > /usr/local/bin/sixora-admin <<'WRAPPER'
 #!/bin/sh
 set -a
@@ -49,7 +48,11 @@ systemctl enable --now sixora
 sleep 2
 if sixora-admin --healthcheck; then
   echo "Sixora is running."
-  [ "$FRESH" -eq 0 ] || echo "New server: the first account to register becomes administrator."
+  # Only prints a code while the server has no accounts yet.
+  if code="$(sixora-admin setup-code 2>/dev/null)"; then
+    echo "New server: the first account (administrator) needs the setup code."
+    echo "$code"
+  fi
 else
   echo "Sixora did not start – see: journalctl -u sixora" >&2
   exit 1

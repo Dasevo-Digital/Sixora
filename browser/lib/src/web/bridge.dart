@@ -14,7 +14,9 @@ extension type Bridge._(JSObject _) implements JSObject {
   /// Call right in the click handler: browsers ask only during a gesture.
   external JSPromise<JSBoolean> requestHost(String pattern);
   external JSPromise<JSString?> activeTabUrl();
-  external JSPromise<JSBoolean> fill(String code);
+
+  /// "filled", "none" or "moved" (the tab no longer shows [site]).
+  external JSPromise<JSString> fill(String code, String site);
   external JSPromise<JSAny?> openTab(String path);
   external String version();
   external String language();

@@ -38,6 +38,13 @@ class FlutterWindow : public Win32Window {
   // "sixora/screen": a picture of the screen, to read QR codes from it.
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
       screen_channel_;
+
+  // "sixora/session": tells Dart when the session is locked or the computer
+  // goes to sleep, so Sixora locks too.
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
+      session_channel_;
+
+  void NotifyAway();
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

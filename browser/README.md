@@ -22,6 +22,10 @@ setzt sie in das Code-Feld der aktuellen Seite ein. Konten anlegen und
   öffnet) und der eigene Server. Den Zugriff auf den Server erfragt die
   Anmeldung, und zwar nur für diese eine Adresse; Zugriff auf alle
   Websites braucht die Erweiterung nicht.
+- Einsetzen: Der Code geht nur an die Seite, die beim Öffnen des Popups
+  angezeigt wurde, und nur in Rahmen dieser Adresse, nicht in eingebettete
+  Rahmen anderer Websites. Passt das Konto nicht erkennbar zur Seite, fragt
+  die Erweiterung vorher nach.
 
 ## Bauen
 

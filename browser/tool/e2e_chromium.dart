@@ -63,7 +63,14 @@ Future<void> main() async {
       },
     );
     await server.stop();
-    work.deleteSync(recursive: true);
+    // The browser may still be writing its profile for a moment.
+    for (var i = 0; i < 10 && work.existsSync(); i++) {
+      try {
+        work.deleteSync(recursive: true);
+      } on FileSystemException {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+    }
   }
   if (failures > 0) {
     stderr.writeln('$failures Prüfungen fehlgeschlagen');

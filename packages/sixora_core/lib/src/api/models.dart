@@ -24,6 +24,7 @@ class ServerInfo {
     required this.apiVersion,
     required this.registration,
     required this.hasUsers,
+    this.setupCode = false,
   });
   final String name;
   final String version;
@@ -33,12 +34,17 @@ class ServerInfo {
   /// False until the first account (the administrator) exists.
   final bool hasUsers;
 
+  /// The first account needs the setup code from the server's log (sent as
+  /// the invite code). Older servers do not ask for one.
+  final bool setupCode;
+
   factory ServerInfo.fromJson(Map<String, Object?> j) => ServerInfo(
     name: j['name'] as String? ?? 'Sixora',
     version: j['version'] as String? ?? '',
     apiVersion: (j['apiVersion'] as num?)?.toInt() ?? 0,
     registration: RegistrationMode.parse(j['registration']),
     hasUsers: j['hasUsers'] as bool? ?? true,
+    setupCode: j['setupCode'] == true,
   );
 }
 

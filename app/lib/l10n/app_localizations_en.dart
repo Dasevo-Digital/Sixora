@@ -1983,4 +1983,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String moveBiometricsHint(String method) {
     return 'Unlocking with $method does not apply to the new account yet; turn it on again in the settings.';
   }
+
+  @override
+  String get autoLockWithScreen =>
+      'also when the screen locks or the computer sleeps';
+
+  @override
+  String get autofillMismatchTitle => 'Does not match this site';
+
+  @override
+  String autofillMismatchBody(String account, String target) {
+    return '“$account” does not appear to belong to $target. Fake sign-in pages often look like the real one. Only insert the code if you are sure you are in the right place.';
+  }
+
+  @override
+  String get autofillMismatchConfirm => 'Insert anyway';
+
+  @override
+  String get setupCode => 'Setup code';
+
+  @override
+  String get setupCodeHint =>
+      'Shown in the server’s log (journalctl -u sixora or docker logs sixora). To create a new one: sixora-admin setup-code';
+
+  @override
+  String get errInvalidSetupCode =>
+      'The setup code is wrong. It is in the server’s log; a new code replaces older ones.';
 }

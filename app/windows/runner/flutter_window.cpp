@@ -1,6 +1,7 @@
 #include "flutter_window.h"
 
 #include <flutter/standard_method_codec.h>
+#include <wtsapi32.h>
 
 #include <optional>
 #include <string>
@@ -161,6 +162,11 @@ bool FlutterWindow::OnCreate() {
         }
         result->Success(*shot);
       });
+  session_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "sixora/session",
+          &flutter::StandardMethodCodec::GetInstance());
+  WTSRegisterSessionNotification(GetHandle(), NOTIFY_FOR_THIS_SESSION);
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -176,13 +182,19 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  WTSUnRegisterSessionNotification(GetHandle());
   clipboard_channel_ = nullptr;
   screen_channel_ = nullptr;
+  session_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
 
   Win32Window::OnDestroy();
+}
+
+void FlutterWindow::NotifyAway() {
+  if (session_channel_) session_channel_->InvokeMethod("away", nullptr);
 }
 
 LRESULT
@@ -202,6 +214,16 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   switch (message) {
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
+      break;
+    case WM_WTSSESSION_CHANGE:
+      // Win+L, the screen saver's lock, or a remote session cut off.
+      if (wparam == WTS_SESSION_LOCK || wparam == WTS_CONSOLE_DISCONNECT ||
+          wparam == WTS_REMOTE_DISCONNECT) {
+        NotifyAway();
+      }
+      break;
+    case WM_POWERBROADCAST:
+      if (wparam == PBT_APMSUSPEND) NotifyAway();
       break;
   }
 

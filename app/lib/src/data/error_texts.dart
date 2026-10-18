@@ -19,6 +19,7 @@ String apiErrorText(ApiException e) {
     'forbidden' => t.errForbidden,
     'invalid_credentials' => t.errInvalidCredentials,
     'invalid_invite' => t.errInvalidInvite,
+    'invalid_setup_code' => t.errInvalidSetupCode,
     'invalid_username' => t.errInvalidUsername,
     'key_changed' => t.vaultKeyRenewed,
     'last_admin' => t.errLastAdmin,

@@ -105,10 +105,42 @@ class _AutofillScreenState extends State<AutofillScreen> {
     super.dispose();
   }
 
-  Future<void> _fill(Item item) async {
+  /// An account that does not belong to the asking app or website needs a
+  /// confirmation: a phishing page would otherwise get the code with one
+  /// tap.
+  Future<void> _fill(Item item, {required bool matching}) async {
     if (_busy) return;
+    if (!matching && !await _confirmMismatch(item)) return;
     setState(() => _busy = true);
     await Autofill.fill(item.entry.code());
+  }
+
+  Future<bool> _confirmMismatch(Item item) async {
+    final label = widget.request.label;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.gpp_maybe_outlined),
+        title: Text(t.autofillMismatchTitle),
+        content: Text(
+          t.autofillMismatchBody(
+            item.entry.displayName,
+            label.isEmpty ? '?' : label,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(t.autofillMismatchConfirm),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(t.cancel),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
   }
 
   @override
@@ -155,11 +187,11 @@ class _AutofillScreenState extends State<AutofillScreen> {
           ),
           if (matching.isNotEmpty) ...[
             SectionTitle(t.autofillSuggested),
-            for (final i in matching) _tile(i),
+            for (final i in matching) _tile(i, matching: true),
           ],
           if (others.isNotEmpty) ...[
             SectionTitle(t.autofillAll),
-            for (final i in others) _tile(i),
+            for (final i in others) _tile(i, matching: false),
           ],
           if (matching.isEmpty && others.isEmpty)
             Padding(
@@ -171,12 +203,12 @@ class _AutofillScreenState extends State<AutofillScreen> {
     );
   }
 
-  Widget _tile(Item i) => ListTile(
+  Widget _tile(Item i, {required bool matching}) => ListTile(
     leading: EntryAvatar(i.entry, size: 40),
     title: Text(i.entry.displayName),
     subtitle: i.entry.account.isEmpty ? null : Text(i.entry.account),
     trailing: const Icon(Icons.input),
     enabled: !_busy,
-    onTap: () => _fill(i),
+    onTap: () => _fill(i, matching: matching),
   );
 }

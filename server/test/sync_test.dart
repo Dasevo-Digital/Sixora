@@ -137,6 +137,7 @@ void main() {
     h.app = SixoraServerApp(
       db: db,
       registration: Registration.open,
+      requireSetupCode: false,
       clock: () => now,
     );
     h.server = await io.serve(h.app.handler, InternetAddress.loopbackIPv4, 0);

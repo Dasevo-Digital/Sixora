@@ -28,6 +28,7 @@ class ServerConfig {
     required this.tlsKey,
     required this.serverName,
     this.backupDays = 14,
+    this.setupCode,
     this.command = const [],
     this.healthcheck = false,
   });
@@ -47,6 +48,10 @@ class ServerConfig {
   /// Daily database copies in `<data>/backups`, kept this many days
   /// (SIXORA_BACKUP_DAYS, 0 = off).
   final int backupDays;
+
+  /// A chosen setup code for the first account (SIXORA_SETUP_CODE), e.g. for
+  /// automated installs; otherwise the server makes one up.
+  final String? setupCode;
 
   /// Administrative sub command, e.g. `invite` or `users`.
   final List<String> command;
@@ -77,6 +82,9 @@ class ServerConfig {
         ..writeln('Aufruf: server [Optionen] [Befehl]')
         ..writeln()
         ..writeln('Befehle:')
+        ..writeln(
+          '  setup-code              Neuer Einrichtungscode fürs erste Konto',
+        )
         ..writeln('  invite [Tage] [Notiz]   Einladungscode erzeugen')
         ..writeln('  users                   Benutzer auflisten')
         ..writeln('  admin <Name>            Benutzer zum Administrator machen')
@@ -94,6 +102,15 @@ class ServerConfig {
       return v == null || v.trim().isEmpty ? null : v.trim();
     }
 
+    final setupCode = e['SIXORA_SETUP_CODE']?.trim();
+    if (setupCode != null &&
+        setupCode.isNotEmpty &&
+        setupCode.toUpperCase().replaceAll(RegExp('[^A-Z0-9]'), '').length <
+            12) {
+      throw const FormatException(
+        'SIXORA_SETUP_CODE: mindestens 12 Buchstaben oder Ziffern',
+      );
+    }
     final port = int.tryParse(opt('port', 'SIXORA_PORT') ?? '8080');
     if (port == null || port < 1 || port > 65535) {
       throw const FormatException('SIXORA_PORT ist ungültig');
@@ -113,6 +130,7 @@ class ServerConfig {
           : 'Sixora',
       backupDays:
           int.tryParse(e['SIXORA_BACKUP_DAYS'] ?? '')?.clamp(0, 365) ?? 14,
+      setupCode: setupCode == null || setupCode.isEmpty ? null : setupCode,
       command: r.rest,
       healthcheck: r.flag('healthcheck'),
     );

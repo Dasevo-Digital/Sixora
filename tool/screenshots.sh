@@ -10,7 +10,8 @@ log="$(mktemp)"
 trap 'kill "$server" 2>/dev/null || true; rm -rf "$data" "$log"' EXIT
 
 (cd server && SIXORA_DATA_DIR="$data" SIXORA_HOST=127.0.0.1 SIXORA_PORT=$port \
-  SIXORA_REGISTRATION=open exec dart run bin/server.dart) >"$data.log" 2>&1 &
+  SIXORA_REGISTRATION=open SIXORA_SETUP_CODE=SHOT-SETUP-CODE-0001 \
+  exec dart run bin/server.dart) >"$data.log" 2>&1 &
 server=$!
 for _ in $(seq 1 60); do
   curl -fs "http://127.0.0.1:$port/api/v1/info" >/dev/null && break

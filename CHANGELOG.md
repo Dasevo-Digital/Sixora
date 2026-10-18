@@ -6,6 +6,27 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.27 – 18.10.2026 (Server 0.1.6 für den Einrichtungscode)
+- Schreibtisch: Sixora sperrt sich, sobald der Bildschirm gesperrt wird
+  oder der Rechner in den Ruhezustand geht, nicht erst nach der
+  eingestellten Zeit ohne Eingabe. Wer den Rechner danach entsperrt, findet
+  die Codes nicht offen vor. Gilt für macOS, Windows und Linux (über
+  systemd-logind und den Bildschirmschoner); bei „Automatisch sperren: Nie“
+  bleibt es wie bisher.
+- Android-Autofill: Wählt man ein Konto, das nicht erkennbar zur App oder
+  Website gehört, fragt Sixora vor dem Einsetzen nach. Eine nachgemachte
+  Anmeldeseite bekommt den Code so nicht mehr mit einem Tipp.
+- Android-Autofill: Die Website-Adresse zählt nur noch, wenn ein bekannter
+  Browser fragt. Jede App kann in ihr Formular eine beliebige Adresse
+  schreiben und hätte sich so als „github.com“ ausgeben können; bei anderen
+  Apps zählt jetzt nur ihr eigener Paketname.
+- Ein neuer Server fragt beim ersten Konto nach dem Einrichtungscode aus
+  seinem Protokoll; die App zeigt dafür ein eigenes Feld.
+- Schlüsselparameter von einem Server oder aus einer Sicherungsdatei werden
+  bei mehr als 256 MiB Speicher abgelehnt (bisher 1 GiB). Ein bösartiger
+  Server hätte die App mit einem riesigen Wert zum Absturz bringen können;
+  Sixora selbst nutzt 64 MiB.
+
 ### 0.1.26 – 12.10.2026
 - „Mit Server verbinden“ zeigt das Ergebnis jetzt auf einer eigenen Seite
   mit „Fertig“. Bisher erschien es nur kurz als Meldung, und die gleich
@@ -163,6 +184,15 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## Browser-Erweiterung
 
+### 0.1.1 – 18.10.2026
+- Vor dem Einfügen eines Codes, dessen Konto nicht erkennbar zur Seite
+  gehört, fragt die Erweiterung nach. Eine nachgemachte Anmeldeseite bekommt
+  den Code so nicht mit einem Klick.
+- Der Code geht nur noch an die Seite, die beim Öffnen von Sixora angezeigt
+  wurde: Hat der Tab inzwischen zu einer anderen Adresse gewechselt, setzt
+  die Erweiterung nichts ein. Eingebettete Rahmen anderer Websites (Werbung,
+  Widgets) bekommen den Code nie.
+
 ### 0.1.0 – 10.10.2026
 - Erste Version für Firefox, Safari und Chromium-Browser (Chrome, Edge,
   Opera, Brave, Vivaldi): Anmeldung am eigenen Server, Codes mit
@@ -177,6 +207,16 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
   Tab, wenn man sie öffnet.
 
 ## Server
+
+### 0.1.6 – 18.10.2026
+- Das erste Konto braucht einen Einrichtungscode. Bisher wurde Administrator,
+  wer sich zuerst registrierte; war ein neuer Server schon aus dem Netz
+  erreichbar, konnte das ein Fremder sein. Der Server schreibt den Code
+  beim Start ins Protokoll (`journalctl -u sixora` bzw. `docker logs
+  sixora`), `setup-code` erzeugt einen neuen, und mit `SIXORA_SETUP_CODE`
+  lässt er sich vorgeben. Server mit Benutzern sind nicht betroffen.
+- Argon2-Parameter über 256 MiB Speicher werden bei der Registrierung
+  abgelehnt, passend zur Grenze der Apps.
 
 ### 0.1.5 – 09.10.2026
 - Bekannte Schlüssel je Konto, verschlüsselt gespeichert (Schema 4).

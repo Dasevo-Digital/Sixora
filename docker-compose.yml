@@ -23,8 +23,11 @@ services:
     environment:
       # open = anyone may register, invite = only with an invite code from an
       # administrator, closed = nobody. The very first account (the
-      # administrator) can always be created.
+      # administrator) can always be created, with the setup code from
+      # "docker logs sixora".
       SIXORA_REGISTRATION: invite
+      # Choose the setup code yourself (at least 12 letters or digits).
+      # SIXORA_SETUP_CODE: ""
       # Behind a reverse proxy: take the client address for rate limits and
       # the audit log from X-Forwarded-For.
       SIXORA_TRUST_PROXY: "true"

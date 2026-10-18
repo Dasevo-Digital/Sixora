@@ -94,6 +94,21 @@ void main() {
       () => KdfParams.fromJson({'alg': 'argon2id', 'm': 1024, 't': 1, 'p': 1}),
       throwsA(isA<CryptoException>()),
     );
+    // A huge value would exhaust a phone's memory.
+    expect(
+      () =>
+          KdfParams.fromJson({'alg': 'argon2id', 'm': 1048576, 't': 3, 'p': 1}),
+      throwsA(isA<CryptoException>()),
+    );
+    expect(
+      KdfParams.fromJson({
+        'alg': 'argon2id',
+        'm': 262144,
+        't': 3,
+        'p': 1,
+      }).memoryKiB,
+      262144,
+    );
     expect(KdfParams.fromJson(KdfParams.recommended.toJson()).memoryKiB, 65536);
   });
 

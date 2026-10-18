@@ -47,7 +47,7 @@ class SixoraAutofillService : AutofillService() {
         }
         val intent = Intent(this, AutofillActivity::class.java)
             .putParcelableArrayListExtra(AutofillActivity.EXTRA_IDS, ArrayList(found.ids))
-            .putExtra(AutofillActivity.EXTRA_DOMAIN, found.domain)
+            .putExtra(AutofillActivity.EXTRA_DOMAIN, KnownBrowsers.trustedDomain(target, found.domain))
             .putExtra(AutofillActivity.EXTRA_PACKAGE, target)
         // Mutable: Android adds the form's structure to the intent.
         val flags = PendingIntent.FLAG_CANCEL_CURRENT or

@@ -33,6 +33,12 @@ class KdfParams {
   final int iterations;
   final int parallelism;
 
+  /// Bounds for parameters that come from elsewhere (a server, a backup
+  /// file). The upper memory bound stays well below what a phone can spare:
+  /// a malicious server could otherwise crash the app with a huge value.
+  static const minMemoryKiB = 19456;
+  static const maxMemoryKiB = 262144;
+
   Map<String, Object?> toJson() => {
     'alg': 'argon2id',
     'm': memoryKiB,
@@ -49,8 +55,8 @@ class KdfParams {
       parallelism: (json['p'] as num?)?.toInt() ?? 0,
     );
     if (json['alg'] != 'argon2id' ||
-        params.memoryKiB < 19456 ||
-        params.memoryKiB > 1048576 ||
+        params.memoryKiB < minMemoryKiB ||
+        params.memoryKiB > maxMemoryKiB ||
         params.iterations < 2 ||
         params.iterations > 20 ||
         params.parallelism < 1 ||

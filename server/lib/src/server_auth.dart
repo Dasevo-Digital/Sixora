@@ -65,6 +65,7 @@ extension _AuthApi on SixoraServerApp {
     final vaultId = _uuid(v['id'], 'Tresor-ID');
     final vaultName = _b64(v, 'encryptedName', min: 41, max: 2000);
     final sealedKey = _b64(v, 'sealedKey', min: 73, max: 300);
+    // Invite code, or for the first account the setup code.
     final inviteCode = body['inviteCode'] is String
         ? body['inviteCode'] as String
         : '';
@@ -73,7 +74,9 @@ extension _AuthApi on SixoraServerApp {
     final token = _transaction(() {
       final first = !_hasUsers;
       String? inviteId;
-      if (!first) {
+      if (first) {
+        if (requireSetupCode) _checkSetupCode(inviteCode, ip);
+      } else {
         switch (registration) {
           case Registration.closed:
             throw const ApiError(
@@ -154,6 +157,7 @@ extension _AuthApi on SixoraServerApp {
       if (inviteId != null) {
         db.execute('DELETE FROM invites WHERE id = ?', [inviteId]);
       }
+      if (first) db.execute("DELETE FROM meta WHERE key = 'setup_code'");
       _audit(
         'register',
         userId: userId,

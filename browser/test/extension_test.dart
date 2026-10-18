@@ -57,6 +57,7 @@ void main() {
     app = SixoraServerApp(
       db: openSixoraDatabase(':memory:'),
       registration: Registration.open,
+      requireSetupCode: false,
     );
     server = await io.serve(app.handler, InternetAddress.loopbackIPv4, 0);
     url = Uri.parse('http://127.0.0.1:${server.port}/');

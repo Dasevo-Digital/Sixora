@@ -110,10 +110,14 @@ die Prüfsummen aller Dateien.
   Einstellungen → „Codes in anderen Apps einfügen“. Android erlaubt nur
   einen Autofill-Dienst; ein Passwort-Manager, der ihn stellt, wird dabei
   ersetzt. Browser wie Chrome reichen Websites nur weiter, wenn dort
-  „Autofill mit einem anderen Dienst“ eingeschaltet ist.
+  „Autofill mit einem anderen Dienst“ eingeschaltet ist. Die Website zählt
+  nur, wenn ein bekannter Browser fragt; ein Konto, das nicht erkennbar
+  passt, setzt Sixora erst nach einer Rückfrage ein (Schutz vor
+  nachgemachten Anmeldeseiten).
 - **Browser-Erweiterung** für Firefox, Safari und Chromium-Browser (Chrome,
   Edge, Opera, Brave, Vivaldi): zeigt die Codes, kopiert sie und setzt sie
-  in das Code-Feld der Seite ein, passende Konten zuerst. Sie nutzt
+  in das Code-Feld der Seite ein, passende Konten zuerst; bei anderen fragt
+  sie vorher nach. Sie nutzt
   denselben Kern wie die Apps (als WebAssembly) und liest nur; siehe
   [browser/README.md](browser/README.md).
 - **Ohne Server:** „Ohne Server nutzen“ auf dem Startbildschirm hält die
@@ -130,8 +134,9 @@ die Prüfsummen aller Dateien.
 - **Schreibtisch:** Symbol in der Menüleiste bzw. im Infobereich, über das
   sich die Codes der Favoriten kopieren lassen, ohne das Fenster zu öffnen;
   „Suchen …“, ⌥⌘O bzw. Strg+Alt+O holt Sixora mit dem Cursor in der Suche
-  nach vorn.
-- **Mehrbenutzer:** Das erste Konto wird Administrator. Die Registrierung
+  nach vorn. Sixora sperrt sich mit dem Bildschirm und im Ruhezustand.
+- **Mehrbenutzer:** Das erste Konto wird Administrator; es braucht den
+  Einrichtungscode aus dem Protokoll des Servers. Die Registrierung
   ist offen, nur mit Einladungscode oder geschlossen. Einladungen gibt es
   als QR-Code und Link, die Server-Adresse und Code gleich mitbringen. Administratoren können
   Benutzer sperren und befördern und sehen das Protokoll.
@@ -187,6 +192,7 @@ nur für Adressen im lokalen Netz an.
 | Variable | Bedeutung | Standard |
 |---|---|---|
 | `SIXORA_REGISTRATION` | `open`, `invite` oder `closed` | `invite` |
+| `SIXORA_SETUP_CODE` | Einrichtungscode fürs erste Konto selbst festlegen (mind. 12 Zeichen) | zufällig |
 | `SIXORA_TRUST_PROXY` | Client-Adresse aus `X-Forwarded-For` (nur hinter einem Proxy!) | aus |
 | `SIXORA_TLS_CERT`, `SIXORA_TLS_KEY` | eigenes TLS (PEM-Dateien) | – |
 | `SIXORA_SERVER_NAME` | Name, den die Apps anzeigen | `Sixora` |
@@ -194,11 +200,15 @@ nur für Adressen im lokalen Netz an.
 | `SIXORA_DATA_DIR` | Datenverzeichnis | `/data` im Image |
 | `SIXORA_BACKUP_DAYS` | Tage, die tägliche Datenbank-Kopien in `<Daten>/backups` aufgehoben werden (0 = aus) | `14` |
 
-Das erste Konto, das sich registriert, wird Administrator, egal welche
-Registrierungsart eingestellt ist. Weitere Benutzer lädt man in der App unter
-*Einstellungen → Verwaltung → Einladungen* ein. Das geht auch auf dem Server:
+Das erste Konto wird Administrator, egal welche Registrierungsart eingestellt
+ist. Damit niemand einen frisch gestarteten Server übernimmt, braucht es den
+Einrichtungscode, den der Server beim Start ins Protokoll schreibt
+(`docker logs sixora`); die App fragt danach. Weitere Benutzer lädt man in
+der App unter *Einstellungen → Verwaltung → Einladungen* ein. Das geht auch
+auf dem Server:
 
 ```bash
+docker exec sixora /opt/sixora/bin/server setup-code    # neuer Einrichtungscode
 docker exec sixora /opt/sixora/bin/server invite 7 "für Alex"
 docker exec sixora /opt/sixora/bin/server users
 docker exec sixora /opt/sixora/bin/server admin <name>
@@ -218,7 +228,10 @@ sh install.sh sixora-server-<version>-linux-x64.tar.gz
 Daneben müssen `install.sh`, `sixora.service` und `sixora.env` aus
 `deploy/lxc/` liegen. Der Server läuft dann als systemd-Dienst `sixora` mit
 Daten in `/var/lib/sixora` und Einstellungen in `/etc/sixora/sixora.env`.
-Befehle wie `invite` laufen über `sixora-admin invite 7 "für Alex"`. Für
+Bei einem neuen Server zeigt `install.sh` am Ende den Einrichtungscode für
+das erste Konto; später liefert ihn `journalctl -u sixora`, einen neuen
+`sixora-admin setup-code`. Befehle wie `invite` laufen über
+`sixora-admin invite 7 "für Alex"`. Für
 ein Update ruft man dasselbe Skript mit dem neuen Paket auf. Daten und
 Einstellungen bleiben erhalten, die vorige Version liegt in
 `/opt/sixora.old`.

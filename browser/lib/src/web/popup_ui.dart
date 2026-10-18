@@ -502,15 +502,86 @@ class PopupUi {
   }
 
   Future<void> _insert(Code c) async {
-    final code = c.entry.code();
-    unawaited(x.touch());
-    if ((await bridge.fill(code).toDart).toDart) {
-      _say(t['inserted']);
-      Timer(const Duration(milliseconds: 500), () => web.window.close());
+    final site = _site;
+    if (site != null &&
+        !(_match?.matches(c.entry) ?? false) &&
+        !await _confirmMismatch(c, site)) {
       return;
     }
-    await web.window.navigator.clipboard.writeText(code).toDart;
-    _say(t['noField']);
+    final code = c.entry.code();
+    unawaited(x.touch());
+    final result = site == null
+        ? 'none'
+        : (await bridge.fill(code, site).toDart).toDart;
+    switch (result) {
+      case 'filled':
+        _say(t['inserted']);
+        Timer(const Duration(milliseconds: 500), () => web.window.close());
+      case 'moved':
+        _say(t['siteChanged']);
+      default:
+        await web.window.navigator.clipboard.writeText(code).toDart;
+        _say(t['noField']);
+    }
+  }
+
+  /// An account that does not belong to the page needs a confirmation: a
+  /// phishing page would otherwise get the code with one click. „Cancel“
+  /// has the focus, so Enter does not insert by accident.
+  Future<bool> _confirmMismatch(Code c, String site) {
+    final answer = Completer<bool>();
+    late final web.HTMLElement overlay;
+    void close(bool value) {
+      overlay.remove();
+      if (!answer.isCompleted) answer.complete(value);
+    }
+
+    final cancel = _el('button', cls: 'primary', text: t['cancel']);
+    final insert = _el('button', cls: 'secondary', text: t['mismatchInsert']);
+    _onClick(cancel, () => close(false));
+    _onClick(insert, () => close(true));
+    overlay = _el(
+      'div',
+      cls: 'overlay',
+      attrs: {
+        'role': 'alertdialog',
+        'aria-modal': 'true',
+        'aria-labelledby': 'mismatch-title',
+      },
+      children: [
+        _el(
+          'div',
+          cls: 'dialog',
+          children: [
+            _el(
+              'h2',
+              text: t['mismatchTitle'],
+              attrs: {'id': 'mismatch-title'},
+            ),
+            _el(
+              'p',
+              text: t.fill('mismatchBody', {
+                'account': c.entry.displayName,
+                'site': site,
+              }),
+            ),
+            _el('div', cls: 'buttons', children: [cancel, insert]),
+          ],
+        ),
+      ],
+    );
+    overlay.addEventListener(
+      'keydown',
+      ((web.KeyboardEvent ev) {
+        if (ev.key != 'Escape') return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        close(false);
+      }).toJS,
+    );
+    _root.appendChild(overlay);
+    cancel.focus();
+    return answer.future;
   }
 
   Future<void> _sync() async {

@@ -88,7 +88,9 @@ Future<void> main() async {
 /// A minimal client for Firefox's Marionette protocol (`length:json`).
 class Marionette implements Driver {
   Marionette._(this._socket) {
-    _socket.listen(_receive);
+    // Firefox drops the connection when the test ends it.
+    _socket.listen(_receive, onError: (Object _) {});
+    _socket.done.ignore();
   }
 
   final Socket _socket;

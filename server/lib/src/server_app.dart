@@ -21,7 +21,7 @@ part 'server_auth.dart';
 part 'server_sync.dart';
 part 'server_vaults.dart';
 
-const serverVersion = '0.1.5';
+const serverVersion = '0.1.6';
 const apiVersion = 1;
 
 /// Error answered as `{"error": code, "message": text}`.
@@ -54,6 +54,7 @@ class SixoraServerApp {
     this.tls = false,
     this.dataDir,
     this.backupDays = 14,
+    this.requireSetupCode = true,
     void Function(String line)? log,
     DateTime Function()? clock,
   }) : _log = log ?? ((_) {}),
@@ -72,6 +73,11 @@ class SixoraServerApp {
 
   /// How many daily copies to keep; 0 switches them off.
   final int backupDays;
+
+  /// The first account needs the setup code from the server's log (see
+  /// [newSetupCode]): a fresh server that is already reachable cannot be
+  /// taken over by whoever registers first. Off for the app's local mode.
+  final bool requireSetupCode;
   final void Function(String) _log;
   final DateTime Function() _clock;
   late final String _secret;
@@ -562,13 +568,54 @@ class SixoraServerApp {
 
   bool get _hasUsers => db.select('SELECT 1 FROM users LIMIT 1').isNotEmpty;
 
-  Response _info(Request request) => _json({
-    'name': serverName,
-    'version': serverVersion,
-    'apiVersion': apiVersion,
-    'registration': registration.name,
-    'hasUsers': _hasUsers,
-  });
+  Response _info(Request request) {
+    final hasUsers = _hasUsers;
+    return _json({
+      'name': serverName,
+      'version': serverVersion,
+      'apiVersion': apiVersion,
+      'registration': registration.name,
+      'hasUsers': hasUsers,
+      'setupCode': requireSetupCode && !hasUsers,
+    });
+  }
+
+  /// A new setup code for the first account; null once accounts exist (or
+  /// when none is needed). Only its hash is stored, and a new code replaces
+  /// the previous one. [preset] comes from SIXORA_SETUP_CODE.
+  String? newSetupCode({String? preset}) {
+    if (!requireSetupCode || _hasUsers) {
+      db.execute("DELETE FROM meta WHERE key = 'setup_code'");
+      return null;
+    }
+    final code = preset ?? newInviteCode();
+    db.execute(
+      "INSERT INTO meta (key, value) VALUES ('setup_code', ?) "
+      'ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+      [sha256Hex(normalizeInviteCode(code))],
+    );
+    return code;
+  }
+
+  void _checkSetupCode(String code, String ip) {
+    if (_ipFailures.blocked('ip:$ip')) {
+      throw const ApiError(429, 'rate_limited', 'Zu viele Fehlversuche');
+    }
+    final rows = db.select("SELECT value FROM meta WHERE key = 'setup_code'");
+    if (rows.isEmpty ||
+        !constantTimeEquals(
+          rows.first['value'] as String,
+          sha256Hex(normalizeInviteCode(code)),
+        )) {
+      _ipFailures.fail('ip:$ip');
+      throw const ApiError(
+        403,
+        'invalid_setup_code',
+        'Einrichtungscode ist falsch. Er steht im Protokoll des Servers; '
+            'einen neuen erzeugt der Befehl „setup-code“.',
+      );
+    }
+  }
 
   /// Also used by the `invite` command line.
   Map<String, Object?> createInvite({
@@ -673,7 +720,7 @@ String _kdf(Object? v) {
       t is! int ||
       p is! int ||
       m < 19456 ||
-      m > 1048576 ||
+      m > 262144 ||
       t < 2 ||
       t > 20 ||
       p < 1 ||

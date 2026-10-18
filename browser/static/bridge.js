@@ -20,11 +20,18 @@ function area(name) {
   return ext.storage[name];
 }
 
+// The host as the popup knows it: IPv6 without brackets.
+function plainHost(host) {
+  return (host || "").replace(/^\[|\]$/g, "");
+}
+
 // Runs inside the web page (copied there by scripting.executeScript, so it
 // must not use anything from this file). Puts the code into the field for
 // it: the focused field, a field that asks for a one-time code, or a row
 // of single-character fields. Returns whether it filled something.
-function fillInPage(code) {
+// Frames of other sites on the page (ads, widgets) get nothing.
+function fillInPage(code, site) {
+  if (location.hostname.replace(/^\[|\]$/g, "") !== site) return false;
   const strong = [
     "totp", "2fa", "mfa", "tfa", "one-time", "onetime", "one_time",
     "authenticator", "two-factor", "twofactor", "two_factor", "2-step",
@@ -116,19 +123,29 @@ globalThis.sixoraBridge = {
     return tab?.url ?? null;
   },
 
-  async fill(code) {
+  // Fills only while the tab still shows |site|, the page the user saw
+  // when choosing: it may have moved on since the popup opened.
+  // "filled", "none" (no field, or no scripts allowed) or "moved".
+  async fill(code, site) {
     const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) return false;
+    if (!tab?.id) return "none";
+    let host = null;
+    try {
+      host = plainHost(new URL(tab.url).hostname);
+    } catch (e) {
+      return "none";
+    }
+    if (host !== site) return "moved";
     try {
       const results = await ext.scripting.executeScript({
         target: { tabId: tab.id, allFrames: true },
         func: fillInPage,
-        args: [code],
+        args: [code, site],
       });
-      return results.some((r) => r.result === true);
+      return results.some((r) => r.result === true) ? "filled" : "none";
     } catch (e) {
       // Browser pages and stores do not allow scripts.
-      return false;
+      return "none";
     }
   },
 

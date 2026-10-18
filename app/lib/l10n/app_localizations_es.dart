@@ -2007,4 +2007,30 @@ class AppLocalizationsEs extends AppLocalizations {
   String moveBiometricsHint(String method) {
     return 'El desbloqueo con $method aún no se aplica a la cuenta nueva; vuelve a activarlo en los ajustes.';
   }
+
+  @override
+  String get autoLockWithScreen =>
+      'también al bloquear la pantalla o suspender el equipo';
+
+  @override
+  String get autofillMismatchTitle => 'No coincide con este sitio';
+
+  @override
+  String autofillMismatchBody(String account, String target) {
+    return '«$account» no parece pertenecer a $target. Las páginas de inicio de sesión falsas suelen parecerse a la original. Inserta el código solo si estás seguro de estar en el lugar correcto.';
+  }
+
+  @override
+  String get autofillMismatchConfirm => 'Insertar de todos modos';
+
+  @override
+  String get setupCode => 'Código de configuración';
+
+  @override
+  String get setupCodeHint =>
+      'Aparece en el registro del servidor (journalctl -u sixora o docker logs sixora). Para crear uno nuevo: sixora-admin setup-code';
+
+  @override
+  String get errInvalidSetupCode =>
+      'El código de configuración no es correcto. Aparece en el registro del servidor; un código nuevo sustituye a los anteriores.';
 }

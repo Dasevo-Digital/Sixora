@@ -79,6 +79,16 @@ const _de = {
   'insert': 'In die Seite einfügen',
   'inserted': 'Eingefügt',
   'noField': 'Kein Code-Feld gefunden – der Code ist kopiert.',
+  'siteChanged':
+      'Die Seite hat gewechselt. Öffne Sixora noch einmal auf der Seite, '
+      'die nach dem Code fragt.',
+  'mismatchTitle': 'Passt nicht zu dieser Seite',
+  'mismatchBody':
+      '„{account}“ gehört nicht erkennbar zu {site}. Gefälschte '
+      'Anmeldeseiten sehen oft aus wie das Original. Setze den Code nur '
+      'ein, wenn du sicher bist, dass du richtig bist.',
+  'mismatchInsert': 'Trotzdem einsetzen',
+  'cancel': 'Abbrechen',
   'lock': 'Sperren',
   'settings': 'Einstellungen',
   'back': 'Zurück',
@@ -151,6 +161,16 @@ const _en = {
   'insert': 'Insert into the page',
   'inserted': 'Inserted',
   'noField': 'No code field found – the code has been copied.',
+  'siteChanged':
+      'The page has changed. Open Sixora again on the page that asks for '
+      'the code.',
+  'mismatchTitle': 'Does not match this site',
+  'mismatchBody':
+      '“{account}” does not appear to belong to {site}. Fake sign-in pages '
+      'often look like the real one. Only insert the code if you are sure '
+      'you are in the right place.',
+  'mismatchInsert': 'Insert anyway',
+  'cancel': 'Cancel',
   'lock': 'Lock',
   'settings': 'Settings',
   'back': 'Back',
@@ -225,6 +245,16 @@ const _es = {
   'insert': 'Insertar en la página',
   'inserted': 'Insertado',
   'noField': 'No se encontró ningún campo de código: el código se ha copiado.',
+  'siteChanged':
+      'La página ha cambiado. Abre Sixora de nuevo en la página que pide '
+      'el código.',
+  'mismatchTitle': 'No coincide con este sitio',
+  'mismatchBody':
+      '«{account}» no parece pertenecer a {site}. Las páginas de inicio de '
+      'sesión falsas suelen parecerse a la original. Inserta el código '
+      'solo si estás seguro de estar en el lugar correcto.',
+  'mismatchInsert': 'Insertar de todos modos',
+  'cancel': 'Cancelar',
   'lock': 'Bloquear',
   'settings': 'Ajustes',
   'back': 'Atrás',

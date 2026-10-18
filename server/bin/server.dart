@@ -36,7 +36,7 @@ Future<void> main(List<String> args) async {
   );
 
   if (config.command.isNotEmpty) {
-    exit(_command(app, db, config.command));
+    exit(_command(app, db, config));
   }
 
   final HttpServer server;
@@ -67,6 +67,16 @@ Future<void> main(List<String> args) async {
     'Sixora-Server $serverVersion auf ${config.tls ? 'https' : 'http'}://'
     '${config.host}:${server.port} (Registrierung: ${config.registration.name})',
   );
+  final setup = app.newSetupCode(preset: config.setupCode);
+  if (setup != null) {
+    stdout.writeln(
+      config.setupCode != null
+          ? 'Neuer Server: Das erste Konto (Administrator) braucht den '
+                'Einrichtungscode aus SIXORA_SETUP_CODE.'
+          : 'Neuer Server: Das erste Konto (Administrator) braucht den '
+                'Einrichtungscode $setup',
+    );
+  }
   if (!config.tls) {
     stdout.writeln(
       'Hinweis: ohne TLS. Für den Zugriff aus dem Netz einen Reverse-Proxy mit '
@@ -105,9 +115,23 @@ Future<int> _healthcheck(ServerConfig config) async {
   }
 }
 
-int _command(SixoraServerApp app, Database db, List<String> command) {
+int _command(SixoraServerApp app, Database db, ServerConfig config) {
+  final command = config.command;
   String arg(int i) => command.length > i ? command[i] : '';
   switch (command.first) {
+    case 'setup-code':
+      final code = app.newSetupCode(preset: config.setupCode);
+      if (code == null) {
+        stderr.writeln(
+          'Es gibt schon Benutzer. Weitere lädt man mit „invite“ ein.',
+        );
+        return 1;
+      }
+      stdout
+        ..writeln('Einrichtungscode: $code')
+        ..writeln('Gilt, bis das erste Konto angelegt ist; frühere Codes')
+        ..writeln('gelten nicht mehr.');
+      return 0;
     case 'invite':
       final days = int.tryParse(arg(1)) ?? 7;
       final invite = app.createInvite(

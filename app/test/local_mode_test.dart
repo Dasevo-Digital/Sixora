@@ -17,6 +17,9 @@ void main() {
   late HttpServer remote;
   late Uri remoteUrl;
 
+  /// The remote server is new: its first account needs the setup code.
+  late String setupCode;
+
   final github = OtpEntry(
     issuer: 'GitHub',
     account: 'alice@example.org',
@@ -35,6 +38,7 @@ void main() {
       db: openSixoraDatabase(':memory:'),
       registration: Registration.open,
     );
+    setupCode = remoteApp.newSetupCode()!;
     remote = await io.serve(remoteApp.handler, InternetAddress.loopbackIPv4, 0);
     remoteUrl = Uri.parse('http://127.0.0.1:${remote.port}/');
   });
@@ -66,6 +70,7 @@ void main() {
   Future<void> startLocal() async {
     final (url, info) = await AppController.openLocal();
     expect(info.hasUsers, isFalse);
+    expect(info.setupCode, isFalse);
     await c.register(
       server: url,
       serverName: info.name,
@@ -127,6 +132,7 @@ void main() {
       username: 'anna',
       password: 'server-master-password',
       create: true,
+      inviteCode: setupCode,
     );
     expect(r.moved, 2);
     expect(r.recoveryKey, isNotNull);
@@ -163,6 +169,7 @@ void main() {
       serverName: 'Test',
       username: 'bob',
       password: 'bob-master-password',
+      inviteCode: setupCode,
     );
     await other.enter();
     await vaultsLoaded(other);

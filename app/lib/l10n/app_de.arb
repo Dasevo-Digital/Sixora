@@ -1211,5 +1211,22 @@
         "type": "String"
       }
     }
-  }
+  },
+  "autoLockWithScreen": "auch beim Sperren des Bildschirms und im Ruhezustand",
+  "autofillMismatchTitle": "Passt nicht zu dieser Seite",
+  "autofillMismatchBody": "„{account}“ gehört nicht erkennbar zu {target}. Gefälschte Anmeldeseiten sehen oft aus wie das Original. Setze den Code nur ein, wenn du sicher bist, dass du richtig bist.",
+  "@autofillMismatchBody": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "autofillMismatchConfirm": "Trotzdem einsetzen",
+  "setupCode": "Einrichtungscode",
+  "setupCodeHint": "Steht im Protokoll des Servers (journalctl -u sixora oder docker logs sixora). Einen neuen erzeugt: sixora-admin setup-code",
+  "errInvalidSetupCode": "Der Einrichtungscode stimmt nicht. Er steht im Protokoll des Servers; ein neuer Code ersetzt die älteren."
 }

@@ -54,6 +54,7 @@ class TestServer {
     final app = SixoraServerApp(
       db: openSixoraDatabase(':memory:'),
       registration: Registration.open,
+      requireSetupCode: false,
     );
     final server = await io.serve(app.handler, InternetAddress.loopbackIPv4, 0);
     final s = TestServer._(app, server);
@@ -166,9 +167,9 @@ Future<int> runScenario(Driver d, String base, String serverUrl) async {
 
   // The function that fills web pages.
   final source = File('static/bridge.js').readAsStringSync();
-  final start = source.indexOf('function fillInPage(code) {');
+  final start = source.indexOf('function fillInPage(code, site) {');
   final fill = source.substring(start, source.indexOf('\n}\n', start) + 2);
-  Future<String> fillPage(String html, String code) async {
+  Future<String> fillPage(String html, String code, {String? site}) async {
     await d.navigate('about:blank');
     return jsonEncode(
       await d.script(
@@ -176,9 +177,9 @@ Future<int> runScenario(Driver d, String base, String serverUrl) async {
         'window.events = 0;'
         "document.addEventListener('input', () => window.events++);"
         '$fill\n'
-        'const filled = fillInPage(arguments[1]);'
+        'const filled = fillInPage(arguments[1], arguments[2] ?? location.hostname);'
         "return [filled, [...document.querySelectorAll('input')].map(i => i.value), window.events];",
-        [html, code],
+        [html, code, site],
       ),
     );
   }
@@ -206,5 +207,11 @@ Future<int> runScenario(Driver d, String base, String serverUrl) async {
     '123456',
   );
   check('hidden and search fields left alone $r', r == '[false,["",""],0]');
+  r = await fillPage(
+    '<input autocomplete="one-time-code">',
+    '123456',
+    site: 'github.com',
+  );
+  check('frames of other sites left alone $r', r == '[false,[""],0]');
   return failures;
 }

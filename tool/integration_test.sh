@@ -10,7 +10,9 @@ port=18081
 data="$(mktemp -d)"
 trap 'kill "$server" 2>/dev/null || true; rm -rf "$data"' EXIT
 
+# The test registers the first account with this setup code.
 (cd server && SIXORA_DATA_DIR="$data" SIXORA_HOST=127.0.0.1 SIXORA_PORT=$port \
+  SIXORA_SETUP_CODE=TEST-SETUP-CODE-0001 \
   exec dart run bin/server.dart) >"$data.log" 2>&1 &
 server=$!
 for _ in $(seq 1 60); do

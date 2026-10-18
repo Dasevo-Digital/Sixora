@@ -20,6 +20,7 @@ class MainFlutterWindow: NSWindow {
     registerLinkHandler(flutterViewController.engine.binaryMessenger)
     MenuLanguage.register(flutterViewController.engine.binaryMessenger)
     ScreenShot.register(flutterViewController.engine.binaryMessenger)
+    SessionEvents.register(flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
   }
@@ -181,6 +182,29 @@ private func registerLinkHandler(_ messenger: FlutterBinaryMessenger) {
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+}
+
+/// Tells Dart when the user steps away: screen locked, display asleep,
+/// the Mac going to sleep or another user taking over. Sixora locks then.
+enum SessionEvents {
+  private static var observers: [NSObjectProtocol] = []
+
+  static func register(_ messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "sixora/session", binaryMessenger: messenger)
+    let away: (Notification) -> Void = { _ in channel.invokeMethod("away", arguments: nil) }
+    let workspace = NSWorkspace.shared.notificationCenter
+    for name in [
+      NSWorkspace.willSleepNotification,
+      NSWorkspace.screensDidSleepNotification,
+      NSWorkspace.sessionDidResignActiveNotification,
+    ] {
+      observers.append(workspace.addObserver(forName: name, object: nil, queue: .main, using: away))
+    }
+    observers.append(
+      DistributedNotificationCenter.default().addObserver(
+        forName: NSNotification.Name("com.apple.screenIsLocked"), object: nil, queue: .main,
+        using: away))
   }
 }
 

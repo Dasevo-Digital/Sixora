@@ -92,6 +92,8 @@ void main() {
       serverName: 'Sixora',
       username: 'alex',
       password: 'demo-passwort-${r.nextInt(1 << 30)}',
+      // SIXORA_SETUP_CODE in tool/screenshots.sh.
+      inviteCode: 'SHOT-SETUP-CODE-0001',
     );
     await controller.enter();
     // The vaults arrive with the first sync, which [enter] starts.
