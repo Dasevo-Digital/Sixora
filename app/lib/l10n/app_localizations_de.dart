@@ -2066,4 +2066,11 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get decline => 'Ablehnen';
+
+  @override
+  String get supportSixora => 'Sixora unterstützen';
+
+  @override
+  String get supportSixoraHint =>
+      'Ein Kaffee über Ko-fi hilft bei der Weiterentwicklung.';
 }

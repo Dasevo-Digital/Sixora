@@ -2077,4 +2077,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get decline => 'Rechazar';
+
+  @override
+  String get supportSixora => 'Apoyar Sixora';
+
+  @override
+  String get supportSixoraHint =>
+      'Un café en Ko-fi ayuda a seguir desarrollando Sixora.';
 }

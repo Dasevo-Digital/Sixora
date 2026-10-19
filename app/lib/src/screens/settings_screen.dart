@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../autofill/autofill.dart';
@@ -25,6 +26,9 @@ import 'recovery_key_screen.dart';
 import 'trash_screen.dart';
 import 'vaults_screen.dart';
 import 'welcome_screen.dart';
+
+/// Opens in the browser; nothing is sent before the user taps.
+const _kofiUrl = 'https://ko-fi.com/superkuh86';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -406,6 +410,16 @@ class SettingsScreen extends StatelessWidget {
                     applicationName: 'Sixora',
                     applicationVersion: snap.data?.version,
                   ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.coffee_outlined),
+                title: Text(t.supportSixora),
+                subtitle: Text(t.supportSixoraHint),
+                trailing: const Icon(Icons.open_in_new),
+                onTap: () => launchUrl(
+                  Uri.parse(_kofiUrl),
+                  mode: LaunchMode.externalApplication,
                 ),
               ),
               const SizedBox(height: 24),

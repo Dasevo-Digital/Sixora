@@ -1283,5 +1283,7 @@
       }
     }
   },
-  "decline": "Ablehnen"
+  "decline": "Ablehnen",
+  "supportSixora": "Sixora unterstützen",
+  "supportSixoraHint": "Ein Kaffee über Ko-fi hilft bei der Weiterentwicklung."
 }

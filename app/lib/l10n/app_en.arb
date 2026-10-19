@@ -562,5 +562,7 @@
   "browserUnlockReason": "Unlock the Sixora extension in {browser} (code {code})",
   "browserUnlockTitle": "Unlock the extension in {browser}?",
   "browserUnlockBody": "The Sixora extension shows the code {code}. If it matches, this unlocks it. If it shows no code or a different one, another program asked: decline.",
-  "decline": "Decline"
+  "decline": "Decline",
+  "supportSixora": "Support Sixora",
+  "supportSixoraHint": "A coffee on Ko-fi helps keep Sixora going."
 }

@@ -3477,6 +3477,18 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Ablehnen'**
   String get decline;
+
+  /// No description provided for @supportSixora.
+  ///
+  /// In de, this message translates to:
+  /// **'Sixora unterstützen'**
+  String get supportSixora;
+
+  /// No description provided for @supportSixoraHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Ein Kaffee über Ko-fi hilft bei der Weiterentwicklung.'**
+  String get supportSixoraHint;
 }
 
 class _AppLocalizationsDelegate

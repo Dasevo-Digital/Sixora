@@ -6,6 +6,10 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.29 – 19.10.2026
+- Einstellungen → Über: „Sixora unterstützen“ öffnet die Ko-fi-Seite im
+  Browser. Die App selbst sendet dafür nichts.
+
 ### 0.1.28 – 19.10.2026
 - Schreibtisch: Die Browser-Erweiterung lässt sich über die App entsperren,
   mit Touch ID bzw. Windows Hello oder, wo es das nicht gibt, mit einer

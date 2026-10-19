@@ -562,5 +562,7 @@
   "browserUnlockReason": "Desbloquear la extensión de Sixora en {browser} (código {code})",
   "browserUnlockTitle": "¿Desbloquear la extensión en {browser}?",
   "browserUnlockBody": "La extensión de Sixora muestra el código {code}. Si coincide, la desbloqueas. Si no muestra ningún código o muestra otro, lo ha pedido otro programa: recházalo.",
-  "decline": "Rechazar"
+  "decline": "Rechazar",
+  "supportSixora": "Apoyar Sixora",
+  "supportSixoraHint": "Un café en Ko-fi ayuda a seguir desarrollando Sixora."
 }
