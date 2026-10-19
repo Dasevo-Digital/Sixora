@@ -2,6 +2,7 @@
 // in this process with one account, and the same checks for both browsers.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:sixora_core/sixora_core.dart';
@@ -49,6 +50,10 @@ class TestServer {
 
   String get url => 'http://127.0.0.1:${_server.port}/';
 
+  /// The account "alice", as the desktop app would have it.
+  late final String userId;
+  late final Uint8List userKey;
+
   /// With an account "alice": GitHub and a Steam code.
   static Future<TestServer> start() async {
     final app = SixoraServerApp(
@@ -75,6 +80,8 @@ class TestServer {
       'device': const DeviceInfo(name: 'Mac', platform: 'macos').toJson(),
     });
     final keys = await UnlockedKeys.unlock(r.account, created.kek);
+    userId = r.account.id;
+    userKey = keys.userKey;
     final vault = (await api.sync(0)).vaults.single;
     final key = await keys.openVaultKey(vault);
     for (final entry in const [
@@ -103,10 +110,83 @@ class TestServer {
   }
 }
 
+/// The Sixora desktop app as the extension sees it: the app's end of
+/// [BrowserLink] on 127.0.0.1, signed in as alice, "confirming" with Touch
+/// ID at once. The browser reaches it through the real native messaging
+/// host (the Sixora binary), started with SIXORA_LINK_PORT=[port].
+class FakeDesktopApp implements BrowserLinkDelegate {
+  FakeDesktopApp._(this._server, this._socket);
+
+  final TestServer _server;
+  final ServerSocket _socket;
+  final codes = <String>[];
+
+  int get port => _socket.port;
+
+  static Future<FakeDesktopApp> start(TestServer server) async {
+    final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final app = FakeDesktopApp._(server, socket);
+    final host = BrowserLinkHost(app, version: 'e2e');
+    socket.listen((client) {
+      app._clients.add(client);
+      final reader = FrameReader();
+      var pending = Future<void>.value();
+      client.done.ignore();
+      client.listen(
+        (data) {
+          for (final message in reader.add(data)) {
+            pending = pending.then(
+              (_) async =>
+                  client.add(BrowserLink.frame(await host.handle(message))),
+            );
+          }
+        },
+        // Like the app: answer what is open, then close.
+        onDone: () => pending.whenComplete(client.close),
+        onError: (Object _) {},
+      );
+    });
+    return app;
+  }
+
+  final _clients = <Socket>[];
+
+  Future<void> stop() async {
+    for (final c in _clients) {
+      c.destroy();
+    }
+    await _socket.close();
+  }
+
+  @override
+  ({Uri server, String userId})? get account =>
+      (server: Uri.parse(_server.url), userId: _server.userId);
+  @override
+  bool get unlocked => true;
+  @override
+  bool get unlockWhileLocked => false;
+  @override
+  String? get method => 'Touch ID';
+  @override
+  Future<Uint8List?> approve({
+    required String code,
+    required String browser,
+  }) async {
+    codes.add(code);
+    return Uint8List.fromList(_server.userKey);
+  }
+}
+
 /// The checks, the same in every browser. [base] is the extension's own
-/// address (moz-extension://… or chrome-extension://…). Returns the
-/// number of failed checks.
-Future<int> runScenario(Driver d, String base, String serverUrl) async {
+/// address (moz-extension://… or chrome-extension://…). With [app] the
+/// browser can reach the desktop app ("Mit Touch ID entsperren"). Returns
+/// the number of failed checks.
+Future<int> runScenario(
+  Driver d,
+  String base,
+  String serverUrl, {
+  FakeDesktopApp? app,
+}) async {
   var failures = 0;
   void check(String what, bool ok) {
     stdout.writeln('${ok ? 'ok  ' : 'FEHL'} $what');
@@ -164,6 +244,27 @@ Future<int> runScenario(Driver d, String base, String serverUrl) async {
   await d.click('button[type=submit]');
   await d.waitFor('.row');
   check('lock and unlock', true);
+
+  if (app != null) {
+    // The way to the app: background.js, native messaging, the host.
+    final hello = await d.script(
+      'return sixoraBridge.native(JSON.stringify({type: "hello"}), 5000, null);',
+    );
+    check(
+      'the desktop app answers ($hello)',
+      '$hello'.contains('"available":true'),
+    );
+    // Locked again: the next popup asks the app at once (Touch ID) and
+    // opens without the master password.
+    await d.click('button[title]');
+    await d.waitFor('input[type=password]');
+    await d.navigate('$base/popup.html');
+    await d.waitFor('.row', timeout: const Duration(seconds: 20));
+    check(
+      'unlocked by the desktop app (code ${app.codes})',
+      app.codes.length == 1,
+    );
+  }
 
   // The function that fills web pages.
   final source = File('static/bridge.js').readAsStringSync();

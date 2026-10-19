@@ -19,5 +19,16 @@
 	<!-- Remembers the folder for automatic backups. -->
 	<key>com.apple.security.files.bookmarks.app-scope</key>
 	<true/>
+	<!-- Browser extension: native messaging host manifests
+	     (lib/src/platform/browser_link_server.dart). -->
+	<key>com.apple.security.temporary-exception.files.home-relative-path.read-write</key>
+	<array>
+		<string>/Library/Application Support/Google/Chrome/NativeMessagingHosts/</string>
+		<string>/Library/Application Support/Chromium/NativeMessagingHosts/</string>
+		<string>/Library/Application Support/Microsoft Edge/NativeMessagingHosts/</string>
+		<string>/Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts/</string>
+		<string>/Library/Application Support/Vivaldi/NativeMessagingHosts/</string>
+		<string>/Library/Application Support/Mozilla/NativeMessagingHosts/</string>
+	</array>
 </dict>
 </plist>

@@ -3417,6 +3417,66 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Der Einrichtungscode stimmt nicht. Er steht im Protokoll des Servers; ein neuer Code ersetzt die älteren.'**
   String get errInvalidSetupCode;
+
+  /// No description provided for @browserUnlock.
+  ///
+  /// In de, this message translates to:
+  /// **'Browser-Erweiterung entsperren'**
+  String get browserUnlock;
+
+  /// No description provided for @browserUnlockHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich mit {method} über diese App statt mit dem Master-Passwort. Sixora muss dafür laufen.'**
+  String browserUnlockHint(String method);
+
+  /// No description provided for @browserUnlockHintDialog.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich nach einer Bestätigung in dieser App statt mit dem Master-Passwort. Sixora muss dafür laufen und entsperrt sein.'**
+  String get browserUnlockHintDialog;
+
+  /// No description provided for @browserUnlockOn.
+  ///
+  /// In de, this message translates to:
+  /// **'Eingerichtet für {browsers}.'**
+  String browserUnlockOn(String browsers);
+
+  /// No description provided for @browserUnlockNone.
+  ///
+  /// In de, this message translates to:
+  /// **'Kein passender Browser gefunden. Nach der Installation von Chrome, Opera, Edge, Brave, Vivaldi oder Firefox die Einstellung aus- und wieder einschalten.'**
+  String get browserUnlockNone;
+
+  /// No description provided for @browserUnlockPortBusy.
+  ///
+  /// In de, this message translates to:
+  /// **'Port {port} ist belegt, die Verbindung zum Browser lässt sich nicht einrichten.'**
+  String browserUnlockPortBusy(String port);
+
+  /// No description provided for @browserUnlockReason.
+  ///
+  /// In de, this message translates to:
+  /// **'Sixora-Erweiterung in {browser} entsperren (Code {code})'**
+  String browserUnlockReason(String browser, String code);
+
+  /// No description provided for @browserUnlockTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Erweiterung in {browser} entsperren?'**
+  String browserUnlockTitle(String browser);
+
+  /// No description provided for @browserUnlockBody.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Sixora-Erweiterung zeigt den Code {code}. Stimmt er überein, entsperrst du sie damit. Zeigt sie keinen oder einen anderen Code, hat ein anderes Programm gefragt: dann ablehnen.'**
+  String browserUnlockBody(String code);
+
+  /// No description provided for @decline.
+  ///
+  /// In de, this message translates to:
+  /// **'Ablehnen'**
+  String get decline;
 }
 
 class _AppLocalizationsDelegate

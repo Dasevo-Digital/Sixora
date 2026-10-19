@@ -2033,4 +2033,48 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errInvalidSetupCode =>
       'El código de configuración no es correcto. Aparece en el registro del servidor; un código nuevo sustituye a los anteriores.';
+
+  @override
+  String get browserUnlock => 'Desbloquear la extensión del navegador';
+
+  @override
+  String browserUnlockHint(String method) {
+    return 'La extensión de Sixora en Chrome, Opera, Edge, Brave, Vivaldi y Firefox se desbloquea con $method a través de esta app en lugar de la contraseña maestra. Sixora tiene que estar abierta.';
+  }
+
+  @override
+  String get browserUnlockHintDialog =>
+      'La extensión de Sixora en Chrome, Opera, Edge, Brave, Vivaldi y Firefox se desbloquea tras una confirmación en esta app en lugar de la contraseña maestra. Sixora tiene que estar abierta y desbloqueada.';
+
+  @override
+  String browserUnlockOn(String browsers) {
+    return 'Configurado para $browsers.';
+  }
+
+  @override
+  String get browserUnlockNone =>
+      'No se encontró ningún navegador compatible. Tras instalar Chrome, Opera, Edge, Brave, Vivaldi o Firefox, desactiva y vuelve a activar este ajuste.';
+
+  @override
+  String browserUnlockPortBusy(String port) {
+    return 'El puerto $port está ocupado; no se puede configurar la conexión con el navegador.';
+  }
+
+  @override
+  String browserUnlockReason(String browser, String code) {
+    return 'Desbloquear la extensión de Sixora en $browser (código $code)';
+  }
+
+  @override
+  String browserUnlockTitle(String browser) {
+    return '¿Desbloquear la extensión en $browser?';
+  }
+
+  @override
+  String browserUnlockBody(String code) {
+    return 'La extensión de Sixora muestra el código $code. Si coincide, la desbloqueas. Si no muestra ningún código o muestra otro, lo ha pedido otro programa: recházalo.';
+  }
+
+  @override
+  String get decline => 'Rechazar';
 }

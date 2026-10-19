@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:sixora_core/sixora_core.dart';
 
@@ -197,6 +198,17 @@ class SixoraExtension {
         api.close();
       }
       throw const ExtensionError('wrongPassword');
+    }
+  }
+
+  /// Unlocks with the user key from the desktop app (see `AppUnlock`).
+  Future<void> unlockWithUserKey(Uint8List userKey) async {
+    final s = stored;
+    if (s == null) throw const ExtensionError('app_failed');
+    try {
+      await _open(await UnlockedKeys.fromUserKey(s.account, userKey));
+    } on CryptoException {
+      throw const ExtensionError('app_failed');
     }
   }
 

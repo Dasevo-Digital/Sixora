@@ -11,6 +11,7 @@ import '../autofill/autofill.dart';
 import '../data/biometric_vault.dart';
 import '../data/local_store.dart';
 import '../l10n.dart';
+import '../platform/browser_link_server.dart';
 import '../platform/desktop_shell.dart';
 import '../platform/link_inbox.dart';
 import '../widgets/common.dart';
@@ -30,6 +31,36 @@ class SettingsScreen extends StatelessWidget {
 
   void _open(BuildContext context, Widget page) =>
       Navigator.push<void>(context, MaterialPageRoute(builder: (_) => page));
+
+  /// Starts or stops the link to the browser extension and says for which
+  /// browsers the host is registered.
+  Future<void> _setBrowserUnlock(BuildContext context, bool on) async {
+    final c = AppScope.of(context);
+    final link = BrowserLinkServer.instance;
+    if (link == null) return;
+    try {
+      final browsers = await link.setEnabled(on);
+      c.settings.browserUnlock = on;
+      await c.saveSettings();
+      if (on && context.mounted) {
+        showMessage(
+          context,
+          browsers.isEmpty
+              ? t.browserUnlockNone
+              : t.browserUnlockOn(browsers.join(', ')),
+        );
+      }
+    } on SocketException {
+      if (context.mounted) {
+        showMessage(
+          context,
+          t.browserUnlockPortBusy('${BrowserLinkServer.port}'),
+        );
+      }
+    } on Object catch (e) {
+      if (context.mounted) showError(context, e);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -205,6 +236,19 @@ class SettingsScreen extends StatelessWidget {
                     },
                   ),
                 const _LinkHandlerTile(),
+                if (!c.isLocal)
+                  SwitchListTile(
+                    secondary: const Icon(Icons.extension_outlined),
+                    title: Text(t.browserUnlock),
+                    subtitle: Text(
+                      c.biometricsAvailable
+                          ? t.browserUnlockHint(c.biometricLabel)
+                          : t.browserUnlockHintDialog,
+                    ),
+                    isThreeLine: true,
+                    value: s.browserUnlock,
+                    onChanged: (v) => _setBrowserUnlock(context, v),
+                  ),
               ],
               SectionTitle(t.sectionDisplay),
               SwitchListTile(

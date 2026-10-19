@@ -24,3 +24,10 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
+
+# Native messaging host of the browser extension: a small program of its
+# own, so a browser does not load GTK and Flutter to pass a few bytes on.
+add_executable(sixora_bridge "browser_relay.cc")
+apply_standard_settings(sixora_bridge)
+set_target_properties(sixora_bridge PROPERTIES OUTPUT_NAME "sixora-bridge")
+add_dependencies(${BINARY_NAME} sixora_bridge)

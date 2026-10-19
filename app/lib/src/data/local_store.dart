@@ -118,6 +118,9 @@ class AppSettings {
   bool clearClipboard = true;
   bool showNextCode = true;
   bool allowScreenshots = false;
+
+  /// Desktop: the browser extension may ask this app to unlock it.
+  bool browserUnlock = false;
   String themeMode = 'system';
 
   /// `system` or a language code (see `appLanguages`).
@@ -147,6 +150,7 @@ class AppSettings {
     'clearClipboard': clearClipboard,
     'showNextCode': showNextCode,
     'allowScreenshots': allowScreenshots,
+    'browserUnlock': browserUnlock,
     'themeMode': themeMode,
     'language': language,
     'backupFolder': backupFolder,
@@ -168,6 +172,7 @@ class AppSettings {
     ..clearClipboard = j['clearClipboard'] as bool? ?? true
     ..showNextCode = j['showNextCode'] as bool? ?? true
     ..allowScreenshots = j['allowScreenshots'] as bool? ?? false
+    ..browserUnlock = j['browserUnlock'] as bool? ?? false
     ..themeMode = j['themeMode'] as String? ?? 'system'
     ..language = j['language'] as String? ?? 'system'
     ..backupFolder = j['backupFolder'] as String?

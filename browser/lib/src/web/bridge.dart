@@ -17,6 +17,13 @@ extension type Bridge._(JSObject _) implements JSObject {
 
   /// "filled", "none" or "moved" (the tab no longer shows [site]).
   external JSPromise<JSString> fill(String code, String site);
+
+  /// A request to the Sixora desktop app (native messaging), as JSON.
+  external JSPromise<JSString> native(
+    String requestJson,
+    int timeoutMs,
+    String? keep,
+  );
   external JSPromise<JSAny?> openTab(String path);
   external String version();
   external String language();

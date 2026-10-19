@@ -552,5 +552,15 @@
   "autofillMismatchConfirm": "Insertar de todos modos",
   "setupCode": "Código de configuración",
   "setupCodeHint": "Aparece en el registro del servidor (journalctl -u sixora o docker logs sixora). Para crear uno nuevo: sixora-admin setup-code",
-  "errInvalidSetupCode": "El código de configuración no es correcto. Aparece en el registro del servidor; un código nuevo sustituye a los anteriores."
+  "errInvalidSetupCode": "El código de configuración no es correcto. Aparece en el registro del servidor; un código nuevo sustituye a los anteriores.",
+  "browserUnlock": "Desbloquear la extensión del navegador",
+  "browserUnlockHint": "La extensión de Sixora en Chrome, Opera, Edge, Brave, Vivaldi y Firefox se desbloquea con {method} a través de esta app en lugar de la contraseña maestra. Sixora tiene que estar abierta.",
+  "browserUnlockHintDialog": "La extensión de Sixora en Chrome, Opera, Edge, Brave, Vivaldi y Firefox se desbloquea tras una confirmación en esta app en lugar de la contraseña maestra. Sixora tiene que estar abierta y desbloqueada.",
+  "browserUnlockOn": "Configurado para {browsers}.",
+  "browserUnlockNone": "No se encontró ningún navegador compatible. Tras instalar Chrome, Opera, Edge, Brave, Vivaldi o Firefox, desactiva y vuelve a activar este ajuste.",
+  "browserUnlockPortBusy": "El puerto {port} está ocupado; no se puede configurar la conexión con el navegador.",
+  "browserUnlockReason": "Desbloquear la extensión de Sixora en {browser} (código {code})",
+  "browserUnlockTitle": "¿Desbloquear la extensión en {browser}?",
+  "browserUnlockBody": "La extensión de Sixora muestra el código {code}. Si coincide, la desbloqueas. Si no muestra ningún código o muestra otro, lo ha pedido otro programa: recházalo.",
+  "decline": "Rechazar"
 }

@@ -89,6 +89,25 @@ const _de = {
       'ein, wenn du sicher bist, dass du richtig bist.',
   'mismatchInsert': 'Trotzdem einsetzen',
   'cancel': 'Abbrechen',
+  'unlockWith': 'Mit {method} entsperren',
+  'unlockWithApp': 'Mit der Sixora-App entsperren',
+  'orPassword': 'oder mit dem Master-Passwort',
+  'confirmInApp': 'In Sixora bestätigen',
+  'confirmWithMethod':
+      'Bestätige in Sixora mit {method}. Die App zeigt denselben Code.',
+  'confirmWithDialog': 'Bestätige in der Sixora-App. Sie zeigt denselben Code.',
+  'app_not_running':
+      'Die Sixora-App läuft nicht. Starte sie oder entsperre mit dem '
+      'Master-Passwort.',
+  'app_denied': 'In Sixora abgelehnt.',
+  'app_locked':
+      'Sixora ist gesperrt. Entsperre die App oder schalte dort Touch ID '
+      'bzw. Windows Hello ein.',
+  'app_other_account': 'Die Sixora-App ist mit einem anderen Konto angemeldet.',
+  'app_busy': 'Sixora bearbeitet gerade eine andere Anfrage.',
+  'app_timeout': 'Keine Antwort von Sixora.',
+  'app_cancelled': 'Abgebrochen.',
+  'app_failed': 'Das Entsperren über die Sixora-App hat nicht geklappt.',
   'lock': 'Sperren',
   'settings': 'Einstellungen',
   'back': 'Zurück',
@@ -171,6 +190,25 @@ const _en = {
       'you are in the right place.',
   'mismatchInsert': 'Insert anyway',
   'cancel': 'Cancel',
+  'unlockWith': 'Unlock with {method}',
+  'unlockWithApp': 'Unlock with the Sixora app',
+  'orPassword': 'or with the master password',
+  'confirmInApp': 'Confirm in Sixora',
+  'confirmWithMethod':
+      'Confirm with {method} in Sixora. The app shows the same code.',
+  'confirmWithDialog': 'Confirm in the Sixora app. It shows the same code.',
+  'app_not_running':
+      'The Sixora app is not running. Start it or unlock with the master '
+      'password.',
+  'app_denied': 'Declined in Sixora.',
+  'app_locked':
+      'Sixora is locked. Unlock the app or turn on Touch ID or Windows Hello '
+      'there.',
+  'app_other_account': 'The Sixora app is signed in to a different account.',
+  'app_busy': 'Sixora is handling another request.',
+  'app_timeout': 'No answer from Sixora.',
+  'app_cancelled': 'Cancelled.',
+  'app_failed': 'Unlocking through the Sixora app did not work.',
   'lock': 'Lock',
   'settings': 'Settings',
   'back': 'Back',
@@ -255,6 +293,25 @@ const _es = {
       'solo si estás seguro de estar en el lugar correcto.',
   'mismatchInsert': 'Insertar de todos modos',
   'cancel': 'Cancelar',
+  'unlockWith': 'Desbloquear con {method}',
+  'unlockWithApp': 'Desbloquear con la app de Sixora',
+  'orPassword': 'o con la contraseña maestra',
+  'confirmInApp': 'Confirmar en Sixora',
+  'confirmWithMethod':
+      'Confirma con {method} en Sixora. La app muestra el mismo código.',
+  'confirmWithDialog': 'Confirma en la app de Sixora. Muestra el mismo código.',
+  'app_not_running':
+      'La app de Sixora no está abierta. Ábrela o desbloquea con la '
+      'contraseña maestra.',
+  'app_denied': 'Rechazado en Sixora.',
+  'app_locked':
+      'Sixora está bloqueada. Desbloquea la app o activa allí Touch ID o '
+      'Windows Hello.',
+  'app_other_account': 'La app de Sixora usa otra cuenta.',
+  'app_busy': 'Sixora está atendiendo otra solicitud.',
+  'app_timeout': 'Sixora no responde.',
+  'app_cancelled': 'Cancelado.',
+  'app_failed': 'No se pudo desbloquear con la app de Sixora.',
   'lock': 'Bloquear',
   'settings': 'Ajustes',
   'back': 'Atrás',

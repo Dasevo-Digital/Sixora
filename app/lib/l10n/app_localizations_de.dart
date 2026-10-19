@@ -2022,4 +2022,48 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get errInvalidSetupCode =>
       'Der Einrichtungscode stimmt nicht. Er steht im Protokoll des Servers; ein neuer Code ersetzt die älteren.';
+
+  @override
+  String get browserUnlock => 'Browser-Erweiterung entsperren';
+
+  @override
+  String browserUnlockHint(String method) {
+    return 'Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich mit $method über diese App statt mit dem Master-Passwort. Sixora muss dafür laufen.';
+  }
+
+  @override
+  String get browserUnlockHintDialog =>
+      'Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich nach einer Bestätigung in dieser App statt mit dem Master-Passwort. Sixora muss dafür laufen und entsperrt sein.';
+
+  @override
+  String browserUnlockOn(String browsers) {
+    return 'Eingerichtet für $browsers.';
+  }
+
+  @override
+  String get browserUnlockNone =>
+      'Kein passender Browser gefunden. Nach der Installation von Chrome, Opera, Edge, Brave, Vivaldi oder Firefox die Einstellung aus- und wieder einschalten.';
+
+  @override
+  String browserUnlockPortBusy(String port) {
+    return 'Port $port ist belegt, die Verbindung zum Browser lässt sich nicht einrichten.';
+  }
+
+  @override
+  String browserUnlockReason(String browser, String code) {
+    return 'Sixora-Erweiterung in $browser entsperren (Code $code)';
+  }
+
+  @override
+  String browserUnlockTitle(String browser) {
+    return 'Erweiterung in $browser entsperren?';
+  }
+
+  @override
+  String browserUnlockBody(String code) {
+    return 'Die Sixora-Erweiterung zeigt den Code $code. Stimmt er überein, entsperrst du sie damit. Zeigt sie keinen oder einen anderen Code, hat ein anderes Programm gefragt: dann ablehnen.';
+  }
+
+  @override
+  String get decline => 'Ablehnen';
 }

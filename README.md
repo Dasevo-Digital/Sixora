@@ -117,7 +117,8 @@ die Prüfsummen aller Dateien.
 - **Browser-Erweiterung** für Firefox, Safari und Chromium-Browser (Chrome,
   Edge, Opera, Brave, Vivaldi): zeigt die Codes, kopiert sie und setzt sie
   in das Code-Feld der Seite ein, passende Konten zuerst; bei anderen fragt
-  sie vorher nach. Sie nutzt
+  sie vorher nach. Entsperren lässt sie sich mit dem Master-Passwort oder
+  über die Desktop-App mit Touch ID bzw. Windows Hello. Sie nutzt
   denselben Kern wie die Apps (als WebAssembly) und liest nur; siehe
   [browser/README.md](browser/README.md).
 - **Ohne Server:** „Ohne Server nutzen“ auf dem Startbildschirm hält die

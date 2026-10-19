@@ -6,6 +6,18 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.28 – 19.10.2026
+- Schreibtisch: Die Browser-Erweiterung lässt sich über die App entsperren,
+  mit Touch ID bzw. Windows Hello oder, wo es das nicht gibt, mit einer
+  Bestätigung in der App. Einschalten unter Einstellungen → „Browser-
+  Erweiterung entsperren“; Sixora trägt sich dann bei Chrome, Opera, Edge,
+  Brave, Vivaldi und Firefox als Gegenstelle ein. Die App gibt den
+  Schlüssel nur verschlüsselt an einen Einmal-Schlüssel der Erweiterung
+  heraus, und beide zeigen denselben sechsstelligen Code: Fragt ein anderes
+  Programm, passt er nicht. Ist Sixora gesperrt, genügt Touch ID bzw.
+  Windows Hello, wenn das schnelle Entsperren eingeschaltet ist; die App
+  bleibt dabei gesperrt.
+
 ### 0.1.27 – 18.10.2026 (Server 0.1.6 für den Einrichtungscode)
 - Schreibtisch: Sixora sperrt sich, sobald der Bildschirm gesperrt wird
   oder der Rechner in den Ruhezustand geht, nicht erst nach der
@@ -183,6 +195,17 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
   Android, macOS, Windows und Linux.
 
 ## Browser-Erweiterung
+
+### 0.1.2 – 19.10.2026
+- „Mit Touch ID entsperren“ (bzw. Windows Hello oder „Mit der Sixora-App
+  entsperren“) statt Master-Passwort, wenn die Sixora-App auf dem Rechner
+  mit demselben Konto läuft und die Einstellung dort eingeschaltet ist.
+  Mit Touch ID oder Windows Hello fragt die Erweiterung beim Öffnen gleich
+  nach. Schließt sich das Popup, während die App fragt, öffnet die nächste
+  Erweiterung entsperrt. Für Firefox und Chromium-Browser; Safari folgt.
+- Chromium: Die Erweiterung hat jetzt eine feste ID. Eine bereits geladene
+  entpackte Fassung bitte entfernen und neu laden; danach einmal neu
+  anmelden.
 
 ### 0.1.1 – 18.10.2026
 - Vor dem Einfügen eines Codes, dessen Konto nicht erkennbar zur Seite

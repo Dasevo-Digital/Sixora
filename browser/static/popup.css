@@ -76,3 +76,6 @@ main h2 { font-size: 17px; margin: 8px 0 4px; }
 .dialog h2 { font-size: 16px; margin: 0 0 8px; }
 .dialog p { margin: 0 0 16px; }
 .dialog .buttons { display: flex; flex-direction: column; gap: 8px; }
+.bigcode { font: 600 28px/1.2 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .08em; color: var(--brand); margin: 14px 0 10px; }
+.or { color: var(--muted); font-size: 12.5px; margin: 10px 0 8px; }
+main.center button.secondary { margin-top: 14px; }

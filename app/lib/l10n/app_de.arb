@@ -1228,5 +1228,60 @@
   "autofillMismatchConfirm": "Trotzdem einsetzen",
   "setupCode": "Einrichtungscode",
   "setupCodeHint": "Steht im Protokoll des Servers (journalctl -u sixora oder docker logs sixora). Einen neuen erzeugt: sixora-admin setup-code",
-  "errInvalidSetupCode": "Der Einrichtungscode stimmt nicht. Er steht im Protokoll des Servers; ein neuer Code ersetzt die älteren."
+  "errInvalidSetupCode": "Der Einrichtungscode stimmt nicht. Er steht im Protokoll des Servers; ein neuer Code ersetzt die älteren.",
+  "browserUnlock": "Browser-Erweiterung entsperren",
+  "browserUnlockHint": "Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich mit {method} über diese App statt mit dem Master-Passwort. Sixora muss dafür laufen.",
+  "@browserUnlockHint": {
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "browserUnlockHintDialog": "Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich nach einer Bestätigung in dieser App statt mit dem Master-Passwort. Sixora muss dafür laufen und entsperrt sein.",
+  "browserUnlockOn": "Eingerichtet für {browsers}.",
+  "@browserUnlockOn": {
+    "placeholders": {
+      "browsers": {
+        "type": "String"
+      }
+    }
+  },
+  "browserUnlockNone": "Kein passender Browser gefunden. Nach der Installation von Chrome, Opera, Edge, Brave, Vivaldi oder Firefox die Einstellung aus- und wieder einschalten.",
+  "browserUnlockPortBusy": "Port {port} ist belegt, die Verbindung zum Browser lässt sich nicht einrichten.",
+  "@browserUnlockPortBusy": {
+    "placeholders": {
+      "port": {
+        "type": "String"
+      }
+    }
+  },
+  "browserUnlockReason": "Sixora-Erweiterung in {browser} entsperren (Code {code})",
+  "@browserUnlockReason": {
+    "placeholders": {
+      "browser": {
+        "type": "String"
+      },
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "browserUnlockTitle": "Erweiterung in {browser} entsperren?",
+  "@browserUnlockTitle": {
+    "placeholders": {
+      "browser": {
+        "type": "String"
+      }
+    }
+  },
+  "browserUnlockBody": "Die Sixora-Erweiterung zeigt den Code {code}. Stimmt er überein, entsperrst du sie damit. Zeigt sie keinen oder einen anderen Code, hat ein anderes Programm gefragt: dann ablehnen.",
+  "@browserUnlockBody": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "decline": "Ablehnen"
 }

@@ -149,6 +149,24 @@ globalThis.sixoraBridge = {
     }
   },
 
+  // A request to the Sixora desktop app, through background.js. |keep|
+  // names the storage.session entry that keeps the answer in case the popup
+  // closes meanwhile. Answers JSON; {"error": ...} without the app.
+  async native(requestJson, timeout, keep) {
+    try {
+      const reply = await ext.runtime.sendMessage({
+        sixora: "native",
+        request: JSON.parse(requestJson),
+        timeout,
+        keep: keep || null,
+      });
+      return JSON.stringify(reply ?? { error: "no_host" });
+    } catch (e) {
+      // Safari: no background script, no native messaging to the app.
+      return JSON.stringify({ error: "no_host" });
+    }
+  },
+
   openTab(path) {
     return ext.tabs.create({ url: ext.runtime.getURL(path) });
   },

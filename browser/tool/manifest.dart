@@ -8,6 +8,12 @@ import 'dart:io';
 /// Firefox wants its own id and runs the popup's WebAssembly from 128 on;
 /// Chromium needs WasmGC (119). Host access is asked for at sign-in, for
 /// the one server only.
+///
+/// Native messaging reaches the desktop app ("Mit Touch ID entsperren"),
+/// whose host manifest names the extension by its ID; in Chromium the
+/// public key below fixes it (dgnhcjdoiadiehcdiimmkopdhpkgfbek, also for
+/// an unpacked copy). Safari's native messaging only reaches its own
+/// wrapper app, so it goes without.
 void main(List<String> args) {
   if (args.length != 2 ||
       !{'chromium', 'firefox', 'safari'}.contains(args[0])) {
@@ -35,7 +41,18 @@ void main(List<String> args) {
       'default_title': 'Sixora',
       'default_icon': {'16': icons['16'], '32': icons['32']},
     },
-    'permissions': ['storage', 'activeTab', 'scripting', 'clipboardWrite'],
+    'permissions': [
+      'storage',
+      'activeTab',
+      'scripting',
+      'clipboardWrite',
+      if (target != 'safari') 'nativeMessaging',
+    ],
+    if (target == 'chromium') 'background': {'service_worker': 'background.js'},
+    if (target == 'firefox')
+      'background': {
+        'scripts': ['background.js'],
+      },
     'optional_host_permissions': ['https://*/*', 'http://*/*'],
     'content_security_policy': {
       'extension_pages':
@@ -48,6 +65,7 @@ void main(List<String> args) {
       },
     },
     if (target == 'chromium') 'minimum_chrome_version': '119',
+    if (target == 'chromium') 'key': _chromiumKey,
     if (target == 'firefox')
       'browser_specific_settings': {
         'gecko': {
@@ -61,3 +79,6 @@ void main(List<String> args) {
   };
   stdout.writeln(const JsonEncoder.withIndent('  ').convert(manifest));
 }
+
+const _chromiumKey =
+    'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwsp8WjyZC2ZkXRSN7Ulq4W/EJ0/b8zDqA1SCcjhjT42pgGc11bGRbUtUdsW6NZM+mGdPrmPhiyCU8Juc35HBWa8KUwV1DVUul8UZgZODykpkqlOHS8do1VH8BlhvGfYvfVIIC1Yy94bKbRAbEL8xPQCLYdN85sszyPGiMSiCSRgA5wYZqLIVzuBFb5izaX2V43QosuKMEu4cATXlnAv64QU1EMPIr9SobeOedkUqGdFAPbhxIe6RhHNFOc3ZyLq8NWcu+nTYQWHePHd1GdyEpjrHcFKApodL/cSK6ymgzys/u8Ltxp2vDpzOcY9ctIdOE+vHyW0coueEA65cqRLcHwIDAQAB';

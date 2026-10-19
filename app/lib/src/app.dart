@@ -3,10 +3,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:sixora_core/sixora_core.dart';
 
 import 'data/app_controller.dart';
 import 'data/local_store.dart';
 import 'l10n.dart';
+import 'platform/browser_link_server.dart';
 import 'platform/desktop_shell.dart';
 import 'platform/session_events.dart';
 import 'screens/home_screen.dart';
@@ -66,7 +69,61 @@ class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
     _lifecycle = AppLifecycleListener(onStateChange: _lifecycleChanged);
     WidgetsBinding.instance.addObserver(this);
     _applySecureWindow();
-    if (DesktopShell.supported) unawaited(_session.start());
+    if (DesktopShell.supported) {
+      unawaited(_session.start());
+      unawaited(_startBrowserLink());
+    }
+  }
+
+  /// The browser extension may ask this app to unlock it (switched on in
+  /// the settings). The host is registered again on each start, in case
+  /// the app moved.
+  Future<void> _startBrowserLink() async {
+    final info = await PackageInfo.fromPlatform();
+    final link = BrowserLinkServer(
+      BrowserLinkHost(
+        AppLinkDelegate(
+          c,
+          reason: (code, browser) => t.browserUnlockReason(browser, code),
+          confirm: _confirmBrowser,
+        ),
+        version: info.version,
+      ),
+    );
+    BrowserLinkServer.instance = link;
+    if (!c.settings.browserUnlock) return;
+    try {
+      await link.setEnabled(true);
+    } on Object catch (e) {
+      debugPrint('Browser-Verbindung nicht verfügbar: $e');
+    }
+  }
+
+  /// Where there is no Touch ID or Windows Hello: a dialog in the app with
+  /// the code the extension shows.
+  Future<bool> _confirmBrowser(String code, String browser) async {
+    await DesktopShell.instance?.show();
+    final context = _navigator.currentContext;
+    if (context == null || !context.mounted) return false;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.extension_outlined),
+        title: Text(t.browserUnlockTitle(browser)),
+        content: Text(t.browserUnlockBody(code)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(t.decline),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(t.unlock),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
   }
 
   @override

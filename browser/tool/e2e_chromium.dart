@@ -9,7 +9,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
+import 'package:sixora_core/sixora_core.dart';
 
 import 'e2e/common.dart';
 
@@ -19,6 +19,16 @@ Future<void> main() async {
       '/Applications/Opera.app/Contents/MacOS/Opera';
   final work = Directory.systemTemp.createTempSync('sixora-e2e-');
   final server = await TestServer.start();
+  final desktop = await FakeDesktopApp.start(server);
+  // The native messaging host: Sixora itself on macOS (Sixora Dev here).
+  final host =
+      Platform.environment['SIXORA_HOST_BINARY'] ??
+      '/Applications/Sixora Dev.app/Contents/MacOS/Sixora Dev';
+  final hostManifest = File(
+    '${Platform.environment['HOME']}/Library/Application Support/Google/'
+    'Chrome/NativeMessagingHosts/${BrowserLink.hostName}.json',
+  );
+  final hostBackup = File('${hostManifest.path}.e2e-backup');
   Process? browser;
   var failures = 0;
   try {
@@ -31,22 +41,41 @@ Future<void> main() async {
       ..['host_permissions'] = ['http://127.0.0.1/*'];
     manifest.writeAsStringSync(jsonEncode(json));
     final path = extension.resolveSymbolicLinksSync();
+    // Opera reads host manifests from Chrome's folder only (not from its
+    // profile): the test's goes there for the run, an existing one comes
+    // back afterwards.
+    hostManifest.parent.createSync(recursive: true);
+    if (hostManifest.existsSync()) hostManifest.renameSync(hostBackup.path);
+    hostManifest.writeAsStringSync(
+      jsonEncode({
+        'name': BrowserLink.hostName,
+        'description': 'Sixora',
+        'path': host,
+        'type': 'stdio',
+        'allowed_origins': ['chrome-extension://${BrowserLink.chromiumId}/'],
+      }),
+    );
     final port = 29300 + DateTime.now().millisecond % 500;
-    browser = await Process.start(app, [
-      '--headless=new',
-      '--remote-debugging-port=$port',
-      '--user-data-dir=${work.path}/profile',
-      '--load-extension=$path',
-      '--disable-features=DisableLoadExtensionCommandLineSwitch,LocalNetworkAccessChecks',
-      '--no-first-run',
-      '--no-default-browser-check',
-      'about:blank',
-    ]);
+    browser = await Process.start(
+      app,
+      environment: {'SIXORA_LINK_PORT': '${desktop.port}'},
+      [
+        '--headless=new',
+        '--remote-debugging-port=$port',
+        '--user-data-dir=${work.path}/profile',
+        '--load-extension=$path',
+        '--disable-features=DisableLoadExtensionCommandLineSwitch,LocalNetworkAccessChecks',
+        '--no-first-run',
+        '--no-default-browser-check',
+        'about:blank',
+      ],
+    );
     final cdp = await Cdp.connect(port);
     failures = await runScenario(
       cdp,
-      'chrome-extension://${_unpackedId(path)}',
+      'chrome-extension://${BrowserLink.chromiumId}',
       server.url,
+      app: File(host).existsSync() ? desktop : null,
     );
     await cdp.close();
   } on Object catch (e) {
@@ -63,6 +92,9 @@ Future<void> main() async {
       },
     );
     await server.stop();
+    await desktop.stop();
+    if (hostManifest.existsSync()) hostManifest.deleteSync();
+    if (hostBackup.existsSync()) hostBackup.renameSync(hostManifest.path);
     // The browser may still be writing its profile for a moment.
     for (var i = 0; i < 10 && work.existsSync(); i++) {
       try {
@@ -81,14 +113,6 @@ Future<void> main() async {
 
 /// Chromium names an unpacked extension after its folder: SHA-256 of the
 /// path, the first 32 hex digits written with the letters a–p.
-String _unpackedId(String path) => sha256
-    .convert(utf8.encode(path))
-    .toString()
-    .substring(0, 32)
-    .split('')
-    .map((h) => String.fromCharCode(97 + int.parse(h, radix: 16)))
-    .join();
-
 /// A minimal DevTools protocol client for one tab.
 class Cdp implements Driver {
   Cdp._(this._socket) {

@@ -552,5 +552,15 @@
   "autofillMismatchConfirm": "Insert anyway",
   "setupCode": "Setup code",
   "setupCodeHint": "Shown in the server’s log (journalctl -u sixora or docker logs sixora). To create a new one: sixora-admin setup-code",
-  "errInvalidSetupCode": "The setup code is wrong. It is in the server’s log; a new code replaces older ones."
+  "errInvalidSetupCode": "The setup code is wrong. It is in the server’s log; a new code replaces older ones.",
+  "browserUnlock": "Unlock the browser extension",
+  "browserUnlockHint": "The Sixora extension in Chrome, Opera, Edge, Brave, Vivaldi and Firefox unlocks with {method} through this app instead of the master password. Sixora has to be running.",
+  "browserUnlockHintDialog": "The Sixora extension in Chrome, Opera, Edge, Brave, Vivaldi and Firefox unlocks after a confirmation in this app instead of the master password. Sixora has to be running and unlocked.",
+  "browserUnlockOn": "Set up for {browsers}.",
+  "browserUnlockNone": "No suitable browser found. After installing Chrome, Opera, Edge, Brave, Vivaldi or Firefox, switch this setting off and on again.",
+  "browserUnlockPortBusy": "Port {port} is in use, so the connection to the browser cannot be set up.",
+  "browserUnlockReason": "Unlock the Sixora extension in {browser} (code {code})",
+  "browserUnlockTitle": "Unlock the extension in {browser}?",
+  "browserUnlockBody": "The Sixora extension shows the code {code}. If it matches, this unlocks it. If it shows no code or a different one, another program asked: decline.",
+  "decline": "Decline"
 }

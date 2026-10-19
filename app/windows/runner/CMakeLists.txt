@@ -38,3 +38,12 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# Native messaging host of the browser extension: a console program of its
+# own, because Chrome starts hosts through cmd.exe.
+add_executable(sixora_bridge "browser_relay.cpp")
+apply_standard_settings(sixora_bridge)
+set_target_properties(sixora_bridge PROPERTIES OUTPUT_NAME "sixora-bridge")
+target_compile_definitions(sixora_bridge PRIVATE "NOMINMAX" "WIN32_LEAN_AND_MEAN")
+target_link_libraries(sixora_bridge PRIVATE "ws2_32.lib")
+add_dependencies(${BINARY_NAME} sixora_bridge)

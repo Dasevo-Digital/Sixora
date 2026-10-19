@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:shelf/shelf_io.dart' as io;
+import 'package:sixora_browser/src/app_unlock.dart';
 import 'package:sixora_browser/src/extension.dart';
 import 'package:sixora_core/sixora_core.dart';
 import 'package:sixora_server/sixora_server.dart';
@@ -16,6 +20,34 @@ class MapStore implements Store {
   @override
   Future<void> write(String key, String? value) async =>
       value == null ? values.remove(key) : values[key] = value;
+}
+
+/// The desktop app's side of [BrowserLink], with the account's user key.
+class FakeApp implements BrowserLinkDelegate {
+  FakeApp(this.server, this.userId, this.userKey);
+  final Uri server;
+  final String userId;
+  final Uint8List userKey;
+  bool approves = true;
+  String? code;
+
+  @override
+  ({Uri server, String userId})? get account =>
+      (server: server, userId: userId);
+  @override
+  bool get unlocked => true;
+  @override
+  bool get unlockWhileLocked => false;
+  @override
+  String? get method => 'Touch ID';
+  @override
+  Future<Uint8List?> approve({
+    required String code,
+    required String browser,
+  }) async {
+    this.code = code;
+    return approves ? Uint8List.fromList(userKey) : null;
+  }
 }
 
 /// The extension against a real server in this process.
@@ -240,5 +272,102 @@ void main() {
       ),
       'Brave · Linux',
     );
+  });
+
+  group('unlocking with the desktop app', () {
+    late FakeApp fake;
+    late BrowserLinkHost host;
+
+    /// Like background.js: the answer also goes to storage.session.
+    Future<Map<String, Object?>> ask(
+      Map<String, Object?> request, {
+      required Duration timeout,
+      String? keep,
+    }) async {
+      final reply = await host.handle(request);
+      if (keep != null) await session.write(keep, jsonEncode(reply));
+      return reply;
+    }
+
+    Future<SixoraExtension> signedInAndLocked() async {
+      final e = extension();
+      await e.load();
+      await e.signIn(url, 'alice', password);
+      await e.lock();
+      return e;
+    }
+
+    test('Touch ID in the app unlocks the extension', () async {
+      final e = await signedInAndLocked();
+      fake = FakeApp(url, e.stored!.account.id, keys.userKey);
+      host = BrowserLinkHost(fake, version: 'test');
+      final unlock = AppUnlock(e, ask, browser: 'Firefox');
+      expect(await unlock.method(), 'Touch ID');
+      String? shown;
+      await unlock.unlock(onCode: (code) => shown = code);
+      expect(shown, fake.code);
+      expect(e.stage, Stage.unlocked);
+      expect(issuers(e), contains('GitHub'));
+      // Nothing of the request stays behind.
+      expect(session.values.keys, ['unlocked']);
+    });
+
+    test('an answer after the popup closed unlocks the next one', () async {
+      final e = await signedInAndLocked();
+      fake = FakeApp(url, e.stored!.account.id, keys.userKey);
+      host = BrowserLinkHost(fake, version: 'test');
+      // The popup closes while Touch ID is up: its request never returns,
+      // but background.js keeps the answer.
+      final closing = AppUnlock(e, (request, {required timeout, keep}) async {
+        await ask(request, timeout: timeout, keep: keep);
+        return Completer<Map<String, Object?>>().future;
+      }, browser: 'Opera');
+      unawaited(closing.unlock());
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      final next = extension();
+      await next.load();
+      expect(next.stage, Stage.locked);
+      expect(await AppUnlock(next, ask, browser: 'Opera').resume(), isTrue);
+      expect(next.stage, Stage.unlocked);
+    });
+
+    test('declined, another account, no app', () async {
+      final e = await signedInAndLocked();
+      fake = FakeApp(url, e.stored!.account.id, keys.userKey)..approves = false;
+      host = BrowserLinkHost(fake, version: 'test');
+      final unlock = AppUnlock(e, ask, browser: 'Opera');
+      await expectLater(
+        unlock.unlock(),
+        throwsA(
+          isA<ExtensionError>().having((x) => x.code, 'code', 'app_denied'),
+        ),
+      );
+      expect(e.stage, Stage.locked);
+      // Not asked again on its own.
+      expect(await unlock.declined, isTrue);
+
+      host = BrowserLinkHost(
+        FakeApp(url, 'someone-else', keys.userKey),
+        version: 'test',
+      );
+      expect(await unlock.method(), isNull);
+
+      final noApp = AppUnlock(
+        e,
+        (request, {required timeout, keep}) async => {'error': 'not_running'},
+        browser: 'Opera',
+      );
+      expect(await noApp.method(), isNull);
+      await expectLater(
+        noApp.unlock(),
+        throwsA(
+          isA<ExtensionError>().having(
+            (x) => x.code,
+            'code',
+            'app_not_running',
+          ),
+        ),
+      );
+    });
   });
 }

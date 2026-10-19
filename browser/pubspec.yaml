@@ -1,6 +1,6 @@
 name: sixora_browser
 description: Sixora browser extension for Firefox, Chromium browsers and Safari.
-version: 0.1.1
+version: 0.1.2
 publish_to: none
 
 environment:

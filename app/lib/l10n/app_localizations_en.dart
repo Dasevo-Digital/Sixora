@@ -2009,4 +2009,48 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errInvalidSetupCode =>
       'The setup code is wrong. It is in the server’s log; a new code replaces older ones.';
+
+  @override
+  String get browserUnlock => 'Unlock the browser extension';
+
+  @override
+  String browserUnlockHint(String method) {
+    return 'The Sixora extension in Chrome, Opera, Edge, Brave, Vivaldi and Firefox unlocks with $method through this app instead of the master password. Sixora has to be running.';
+  }
+
+  @override
+  String get browserUnlockHintDialog =>
+      'The Sixora extension in Chrome, Opera, Edge, Brave, Vivaldi and Firefox unlocks after a confirmation in this app instead of the master password. Sixora has to be running and unlocked.';
+
+  @override
+  String browserUnlockOn(String browsers) {
+    return 'Set up for $browsers.';
+  }
+
+  @override
+  String get browserUnlockNone =>
+      'No suitable browser found. After installing Chrome, Opera, Edge, Brave, Vivaldi or Firefox, switch this setting off and on again.';
+
+  @override
+  String browserUnlockPortBusy(String port) {
+    return 'Port $port is in use, so the connection to the browser cannot be set up.';
+  }
+
+  @override
+  String browserUnlockReason(String browser, String code) {
+    return 'Unlock the Sixora extension in $browser (code $code)';
+  }
+
+  @override
+  String browserUnlockTitle(String browser) {
+    return 'Unlock the extension in $browser?';
+  }
+
+  @override
+  String browserUnlockBody(String code) {
+    return 'The Sixora extension shows the code $code. If it matches, this unlocks it. If it shows no code or a different one, another program asked: decline.';
+  }
+
+  @override
+  String get decline => 'Decline';
 }

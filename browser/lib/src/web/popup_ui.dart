@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:sixora_core/sixora_core.dart';
 import 'package:web/web.dart' as web;
 
+import '../app_unlock.dart';
 import '../extension.dart';
 import '../format.dart';
 import '../stored_account.dart';
@@ -22,7 +24,9 @@ const _icons = {
 
 /// The popup (and the setup tab): plain DOM, rebuilt per screen.
 class PopupUi {
-  PopupUi(this.x, this.t, {required this.inTab});
+  PopupUi(this.x, this.t, {required this.inTab}) {
+    _app = AppUnlock(x, _ask, browser: x.device.name.split(' · ').first);
+  }
 
   final SixoraExtension x;
   final Texts t;
@@ -42,10 +46,16 @@ class PopupUi {
   web.HTMLElement? _status;
   web.HTMLElement? _toast;
   final _rows = <({Code code, web.HTMLElement value, web.HTMLElement bar})>[];
+  late final AppUnlock _app;
+
+  /// Asked the app on its own once in this popup (Touch ID right away).
+  bool _askedApp = false;
 
   Future<void> start() async {
     if (inTab) web.document.body?.classList.add('tab');
     await x.load();
+    // Touch ID took the focus and closed the last popup: its answer waits.
+    if (x.stage == Stage.locked) _askedApp = await _app.resume();
     _site = siteOf((await bridge.activeTabUrl().toDart)?.toDart);
     if (_site != null) _match = ServiceMatch(domain: _site);
     _render();
@@ -265,20 +275,25 @@ class PopupUi {
     ),
   ]);
 
-  void _lockScreen() {
+  void _lockScreen({String? error}) {
     final password = _input(
       t['masterPassword'],
       type: 'password',
       autocomplete: 'current-password',
     );
-    final error = _el('p', cls: 'error', attrs: {'role': 'alert'});
+    final errorText = _el(
+      'p',
+      cls: 'error',
+      text: error,
+      attrs: {'role': 'alert'},
+    );
     final submit = _el(
       'button',
       cls: 'primary',
       text: t['unlock'],
       attrs: {'type': 'submit'},
     );
-    final form = _el('form', children: [password, submit, error]);
+    final form = _el('form', children: [password, submit, errorText]);
     form.addEventListener(
       'submit',
       ((web.Event e) {
@@ -296,7 +311,7 @@ class PopupUi {
               _render();
               return;
             }
-            error.textContent = t.error(err);
+            errorText.textContent = t.error(err);
             password.value = '';
             password.focus();
             submit
@@ -307,6 +322,7 @@ class PopupUi {
       }).toJS,
     );
     final s = x.stored!;
+    final appSlot = _el('div', cls: 'app-unlock');
     _show([
       _header(),
       _el(
@@ -319,12 +335,84 @@ class PopupUi {
             cls: 'muted',
             text: '${s.account.username} · ${s.server.host}',
           ),
+          appSlot,
           form,
         ],
       ),
     ]);
     password.focus();
+    unawaited(_offerApp(appSlot));
   }
+
+  /// A request to the Sixora desktop app (background.js, native messaging).
+  Future<Map<String, Object?>> _ask(
+    Map<String, Object?> request, {
+    required Duration timeout,
+    String? keep,
+  }) async {
+    final text =
+        (await bridge
+                .native(jsonEncode(request), timeout.inMilliseconds, keep)
+                .toDart)
+            .toDart;
+    try {
+      return (jsonDecode(text) as Map).cast();
+    } on Object {
+      return {'error': 'failed'};
+    }
+  }
+
+  /// Offers "Mit Touch ID entsperren" when the Sixora app on this computer
+  /// can unlock this account; with Touch ID or Windows Hello it asks right
+  /// away (once per popup, and not after the user declined).
+  Future<void> _offerApp(web.HTMLElement slot) async {
+    final method = await _app.method();
+    if (method == null || x.stage != Stage.locked || !slot.isConnected) return;
+    final label = method.isEmpty
+        ? t['unlockWithApp']
+        : t.fill('unlockWith', {'method': method});
+    slot.append(_button(label, () => _unlockWithApp(method)));
+    slot.append(_el('p', cls: 'or', text: t['orPassword']));
+    if (method.isNotEmpty && !_askedApp && !await _app.declined) {
+      _askedApp = true;
+      unawaited(_unlockWithApp(method));
+    }
+  }
+
+  Future<void> _unlockWithApp(String method) async {
+    _askedApp = true;
+    try {
+      await _app.unlock(onCode: (code) => _waitForApp(code, method));
+      _render();
+      unawaited(_sync());
+    } on Object catch (err) {
+      if (x.stage == Stage.unlocked) return;
+      _lockScreen(error: t.error(err));
+    }
+  }
+
+  void _waitForApp(String code, String method) => _show([
+    _header(),
+    _el(
+      'main',
+      cls: 'center',
+      children: [
+        _el('h2', text: t['confirmInApp']),
+        _el('p', cls: 'bigcode', text: code),
+        _el(
+          'p',
+          cls: 'muted',
+          text: method.isEmpty
+              ? t['confirmWithDialog']
+              : t.fill('confirmWithMethod', {'method': method}),
+        ),
+        _button(t['cancel'], () async {
+          await _app.cancel();
+          _lockScreen();
+        }, cls: 'secondary'),
+      ],
+    ),
+  ]);
 
   void _main() {
     final search = _input(t['search'], type: 'search', value: _query);
@@ -348,6 +436,8 @@ class PopupUi {
       _header(
         actions: [
           _iconButton('lock', t['lock'], () async {
+            // Locked on purpose: no Touch ID prompt right away.
+            _askedApp = true;
             await x.lock();
             _render();
           }),

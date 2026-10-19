@@ -131,8 +131,13 @@ class BiometricVault {
     await _secrets.set('quickKey', null);
   }
 
-  /// Reads the user key after a successful biometric check.
-  Future<(BiometricResult, Uint8List?)> unlock() async {
+  /// Asks for Touch ID or Windows Hello without reading anything: the
+  /// confirmation of a request while Sixora is unlocked.
+  Future<BiometricResult> confirm(String reason) => _authenticate(reason);
+
+  /// Reads the user key after a successful biometric check. [reason] is
+  /// shown in the system dialog where the platform allows it.
+  Future<(BiometricResult, Uint8List?)> unlock({String? reason}) async {
     String? value;
     if (hardwareBound) {
       try {
@@ -144,7 +149,7 @@ class BiometricVault {
       }
       if (value == null) return (BiometricResult.invalidated, null);
     } else {
-      final result = await _authenticate(t.unlockSixora);
+      final result = await _authenticate(reason ?? t.unlockSixora);
       if (result != BiometricResult.unlocked) return (result, null);
       value = _secrets['quickKey'];
       if (value == null) return (BiometricResult.invalidated, null);

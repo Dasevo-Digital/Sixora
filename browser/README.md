@@ -22,6 +22,21 @@ setzt sie in das Code-Feld der aktuellen Seite ein. Konten anlegen und
   öffnet) und der eigene Server. Den Zugriff auf den Server erfragt die
   Anmeldung, und zwar nur für diese eine Adresse; Zugriff auf alle
   Websites braucht die Erweiterung nicht.
+- Entsperren über die Desktop-App („Mit Touch ID entsperren“): Ist in der
+  Sixora-App unter Einstellungen „Browser-Erweiterung entsperren“
+  eingeschaltet, fragt die Erweiterung die App per Native Messaging. Der
+  Browser startet dafür das Sixora-Programm (macOS) bzw. `sixora-bridge`
+  (Windows, Linux), das die Bytes nur an die laufende App auf 127.0.0.1
+  weiterreicht. Die App bestätigt mit Touch ID, Windows Hello oder einem
+  Dialog und schickt den Benutzerschlüssel versiegelt an einen
+  Einmal-Schlüssel der Erweiterung; beide zeigen denselben sechsstelligen
+  Code. `background.js` hält die Verbindung, weil sich das Popup schließt,
+  sobald Touch ID den Fokus nimmt; die Antwort wartet dann in
+  `storage.session` auf das nächste Popup. Safari kann per Native
+  Messaging nur seine eigene Hülle erreichen und geht deshalb ohne.
+- In Chromium-Browsern hat die Erweiterung eine feste ID
+  (`dgnhcjdoiadiehcdiimmkopdhpkgfbek`, aus dem Schlüssel im Manifest), auch
+  entpackt: Die App nennt sie in ihrem Host-Manifest.
 - Einsetzen: Der Code geht nur an die Seite, die beim Öffnen des Popups
   angezeigt wurde, und nur in Rahmen dieser Adresse, nicht in eingebettete
   Rahmen anderer Websites. Passt das Konto nicht erkennbar zur Seite, fragt
@@ -55,6 +70,13 @@ cd browser
 dart test                      # Logik gegen einen Server im Testprozess
 tool/build.sh && dart run tool/e2e_firefox.dart
 ```
+
+`e2e_chromium.dart` (Opera ohne Fenster) prüft zusätzlich das Entsperren
+über die Desktop-App: Als Gegenstelle läuft eine gespielte App im
+Testprozess, der Browser erreicht sie über das echte Sixora-Programm
+(`/Applications/Sixora Dev.app`, sonst `SIXORA_HOST_BINARY`). Das
+Host-Manifest liegt für die Dauer des Tests in Chromes Ordner, den auch
+Opera liest.
 
 `e2e_firefox.dart` startet einen Firefox ohne Fenster mit eigenem
 Wegwerf-Profil. Dort meldet sich die Erweiterung an, zeigt die Codes,

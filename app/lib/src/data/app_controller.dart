@@ -445,6 +445,42 @@ class AppController extends ChangeNotifier {
     await _afterUnlock();
   }
 
+  /// The browser extension asks to be unlocked (see `BrowserLink`). While
+  /// Sixora is unlocked the user confirms with biometrics, or with
+  /// [confirm] (a dialog) where there are none; while it is locked, quick
+  /// unlock reads the key without opening the app. Returns a copy of the
+  /// user key, or null.
+  Future<Uint8List?> approveBrowserUnlock({
+    required String reason,
+    required Future<bool> Function() confirm,
+  }) async {
+    if (phase == Phase.unlocked) {
+      final ok = biometrics.available
+          ? switch (await biometrics.confirm(reason)) {
+              BiometricResult.unlocked => true,
+              BiometricResult.password => await confirm(),
+              _ => false,
+            }
+          : await confirm();
+      final keys = _keys;
+      if (!ok || keys == null || phase != Phase.unlocked) return null;
+      return Uint8List.fromList(keys.userKey);
+    }
+    if (phase == Phase.locked && quickUnlockReady) {
+      final (result, userKey) = await biometrics.unlock(reason: reason);
+      if (result != BiometricResult.unlocked || userKey == null) return null;
+      try {
+        // Only a key that opens the account goes out.
+        final keys = await UnlockedKeys.fromUserKey(cached!.account, userKey);
+        keys.privateKey.fillRange(0, keys.privateKey.length, 0);
+      } on CryptoException {
+        return null;
+      }
+      return userKey;
+    }
+    return null;
+  }
+
   /// Null when unlocked; otherwise why not ([BiometricResult.cancelled] or
   /// [BiometricResult.password]), so the lock screen can turn to the master
   /// password.
