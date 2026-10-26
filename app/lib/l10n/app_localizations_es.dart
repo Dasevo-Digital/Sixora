@@ -2061,18 +2061,13 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String browserUnlockReason(String browser, String code) {
-    return 'Desbloquear la extensión de Sixora en $browser (código $code)';
+  String browserUnlockReason(String browser) {
+    return 'Desbloquear la extensión de Sixora en $browser';
   }
 
   @override
   String browserUnlockTitle(String browser) {
     return '¿Desbloquear la extensión en $browser?';
-  }
-
-  @override
-  String browserUnlockBody(String code) {
-    return 'La extensión de Sixora muestra el código $code. Si coincide, la desbloqueas. Si no muestra ningún código o muestra otro, lo ha pedido otro programa: recházalo.';
   }
 
   @override
@@ -2084,4 +2079,37 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get supportSixoraHint =>
       'Un café en Ko-fi ayuda a seguir desarrollando Sixora.';
+
+  @override
+  String get browserUnlockAsk =>
+      'La extensión de Sixora quiere desbloquearse con tu cuenta.';
+
+  @override
+  String browserPairTitle(String browser) {
+    return '¿Conectar la extensión en $browser?';
+  }
+
+  @override
+  String browserPairBody(String code) {
+    return 'La extensión de Sixora muestra el código $code. Si coincide, a partir de ahora podrá desbloquearse a través de esta app. Si no muestra ningún código o muestra otro, lo ha pedido otro programa: recházalo.';
+  }
+
+  @override
+  String get linkedBrowsers => 'Navegadores conectados';
+
+  @override
+  String get linkedBrowsersNone =>
+      'Ninguno todavía. La extensión pregunta aquí la primera vez.';
+
+  @override
+  String linkedSince(String date) {
+    return 'conectado el $date';
+  }
+
+  @override
+  String get disconnect => 'Desconectar';
+
+  @override
+  String get allowScreenshotsHintDesktop =>
+      'Si no, la ventana de Sixora aparece vacía en capturas, grabaciones y al compartir pantalla';
 }

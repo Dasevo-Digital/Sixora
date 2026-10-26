@@ -1256,13 +1256,10 @@
       }
     }
   },
-  "browserUnlockReason": "Sixora-Erweiterung in {browser} entsperren (Code {code})",
+  "browserUnlockReason": "Sixora-Erweiterung in {browser} entsperren",
   "@browserUnlockReason": {
     "placeholders": {
       "browser": {
-        "type": "String"
-      },
-      "code": {
         "type": "String"
       }
     }
@@ -1275,15 +1272,36 @@
       }
     }
   },
-  "browserUnlockBody": "Die Sixora-Erweiterung zeigt den Code {code}. Stimmt er überein, entsperrst du sie damit. Zeigt sie keinen oder einen anderen Code, hat ein anderes Programm gefragt: dann ablehnen.",
-  "@browserUnlockBody": {
+  "decline": "Ablehnen",
+  "supportSixora": "Sixora unterstützen",
+  "supportSixoraHint": "Ein Kaffee über Ko-fi hilft bei der Weiterentwicklung.",
+  "browserUnlockAsk": "Die Sixora-Erweiterung möchte sich mit deinem Konto entsperren.",
+  "browserPairTitle": "Erweiterung in {browser} verbinden?",
+  "@browserPairTitle": {
+    "placeholders": {
+      "browser": {
+        "type": "String"
+      }
+    }
+  },
+  "browserPairBody": "Die Sixora-Erweiterung zeigt den Code {code}. Stimmt er überein, kann sie sich künftig über diese App entsperren. Zeigt sie keinen oder einen anderen Code, hat ein anderes Programm gefragt: dann ablehnen.",
+  "@browserPairBody": {
     "placeholders": {
       "code": {
         "type": "String"
       }
     }
   },
-  "decline": "Ablehnen",
-  "supportSixora": "Sixora unterstützen",
-  "supportSixoraHint": "Ein Kaffee über Ko-fi hilft bei der Weiterentwicklung."
+  "linkedBrowsers": "Verbundene Browser",
+  "linkedBrowsersNone": "Noch keiner. Die Erweiterung fragt beim ersten Mal hier nach.",
+  "linkedSince": "verbunden am {date}",
+  "@linkedSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "disconnect": "Trennen",
+  "allowScreenshotsHintDesktop": "Sonst bleibt das Sixora-Fenster in Bildschirmfotos, Aufnahmen und bei der Bildschirmfreigabe leer"
 }

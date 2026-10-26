@@ -39,6 +39,11 @@ class FlutterWindow : public Win32Window {
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
       screen_channel_;
 
+  // "sixora/window": keeps the window out of screenshots, recordings and
+  // screen sharing unless the user allows them.
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
+      window_channel_;
+
   // "sixora/session": tells Dart when the session is locked or the computer
   // goes to sleep, so Sixora locks too.
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>

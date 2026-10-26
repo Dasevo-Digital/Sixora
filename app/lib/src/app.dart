@@ -84,8 +84,17 @@ class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
       BrowserLinkHost(
         AppLinkDelegate(
           c,
-          reason: (code, browser) => t.browserUnlockReason(browser, code),
-          confirm: _confirmBrowser,
+          reason: t.browserUnlockReason,
+          confirm: (browser) => _askBrowser(
+            title: t.browserUnlockTitle(browser),
+            body: t.browserUnlockAsk,
+            yes: t.unlock,
+          ),
+          confirmPairing: (code, browser) => _askBrowser(
+            title: t.browserPairTitle(browser),
+            body: t.browserPairBody(code),
+            yes: t.connect,
+          ),
         ),
         version: info.version,
       ),
@@ -99,9 +108,14 @@ class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
     }
   }
 
-  /// Where there is no Touch ID or Windows Hello: a dialog in the app with
-  /// the code the extension shows.
-  Future<bool> _confirmBrowser(String code, String browser) async {
+  /// A question of the browser extension, in the app's window: connecting
+  /// it (with the code it shows), or unlocking where there is no Touch ID
+  /// or Windows Hello. "Ablehnen" has the focus.
+  Future<bool> _askBrowser({
+    required String title,
+    required String body,
+    required String yes,
+  }) async {
     await DesktopShell.instance?.show();
     final context = _navigator.currentContext;
     if (context == null || !context.mounted) return false;
@@ -109,16 +123,17 @@ class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
       context: context,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.extension_outlined),
-        title: Text(t.browserUnlockTitle(browser)),
-        content: Text(t.browserUnlockBody(code)),
+        title: Text(title),
+        content: Text(body),
         actions: [
           TextButton(
+            autofocus: true,
             onPressed: () => Navigator.pop(context, false),
             child: Text(t.decline),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(t.unlock),
+            child: Text(yes),
           ),
         ],
       ),
@@ -155,10 +170,14 @@ class _SixoraAppState extends State<SixoraApp> with WidgetsBindingObserver {
     setState(() {});
   }
 
-  /// Android: no screenshots or screen recordings of the codes (FLAG_SECURE),
-  /// unless the user allows them.
+  /// No screenshots, screen recordings or screen sharing of the codes,
+  /// unless the user allows them: Android FLAG_SECURE, macOS
+  /// `NSWindow.sharingType`, Windows `WDA_EXCLUDEFROMCAPTURE`. Linux has no
+  /// such switch.
   void _applySecureWindow() {
-    if (!Platform.isAndroid) return;
+    if (!Platform.isAndroid && !Platform.isMacOS && !Platform.isWindows) {
+      return;
+    }
     final secure = !c.settings.allowScreenshots;
     if (secure == _secureWindow) return;
     _secureWindow = secure;

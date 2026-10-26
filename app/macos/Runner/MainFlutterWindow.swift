@@ -21,8 +21,23 @@ class MainFlutterWindow: NSWindow {
     MenuLanguage.register(flutterViewController.engine.binaryMessenger)
     ScreenShot.register(flutterViewController.engine.binaryMessenger)
     SessionEvents.register(flutterViewController.engine.binaryMessenger)
+    registerWindowPrivacy(flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
+  }
+
+  /// "Bildschirmfotos erlauben" off: screenshots, recordings and screen
+  /// sharing show the window empty.
+  private func registerWindowPrivacy(_ messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "sixora/window", binaryMessenger: messenger)
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "setSecure", let secure = call.arguments as? Bool else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      self?.sharingType = secure ? .none : .readOnly
+      result(nil)
+    }
   }
 
   /// Control-click is a right click on the Mac. Flutter only knows the

@@ -9,6 +9,11 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+// Windows 10 2004 and later; older SDK headers lack it.
+#ifndef WDA_EXCLUDEFROMCAPTURE
+#define WDA_EXCLUDEFROMCAPTURE 0x00000011
+#endif
+
 namespace {
 
 // The whole virtual screen (all monitors) as 32-bit BGRA pixels, top row
@@ -162,6 +167,27 @@ bool FlutterWindow::OnCreate() {
         }
         result->Success(*shot);
       });
+  window_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "sixora/window",
+          &flutter::StandardMethodCodec::GetInstance());
+  window_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                 result) {
+        const auto* secure = std::get_if<bool>(call.arguments());
+        if (call.method_name() != "setSecure" || !secure) {
+          result->NotImplemented();
+          return;
+        }
+        // Older Windows only blacks the window out (WDA_MONITOR).
+        if (!SetWindowDisplayAffinity(
+                GetHandle(), *secure ? WDA_EXCLUDEFROMCAPTURE : WDA_NONE) &&
+            *secure) {
+          SetWindowDisplayAffinity(GetHandle(), WDA_MONITOR);
+        }
+        result->Success();
+      });
   session_channel_ =
       std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
           flutter_controller_->engine()->messenger(), "sixora/session",
@@ -185,6 +211,7 @@ void FlutterWindow::OnDestroy() {
   WTSUnRegisterSessionNotification(GetHandle());
   clipboard_channel_ = nullptr;
   screen_channel_ = nullptr;
+  window_channel_ = nullptr;
   session_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;

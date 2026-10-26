@@ -380,6 +380,9 @@ void main() {
       300,
       scrollable: find.byType(Scrollable).last,
     );
+    // Built is not yet on screen: the list differs per platform.
+    await tester.ensureVisible(find.text('Mit Server verbinden'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Mit Server verbinden'));
     await _pumpUntil(tester, _field('Server-Adresse oder Einladungslink'));
     expect(find.text('Ohne Server nutzen'), findsNothing);

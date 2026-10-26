@@ -119,7 +119,6 @@ class FakeDesktopApp implements BrowserLinkDelegate {
 
   final TestServer _server;
   final ServerSocket _socket;
-  final codes = <String>[];
 
   int get port => _socket.port;
 
@@ -167,12 +166,29 @@ class FakeDesktopApp implements BrowserLinkDelegate {
   bool get unlockWhileLocked => false;
   @override
   String? get method => 'Touch ID';
+
+  final _paired = <String>{};
+
+  /// Codes of connect requests and the number of Touch ID confirmations.
+  final pairCodes = <String>[];
+  int approvals = 0;
+
   @override
-  Future<Uint8List?> approve({
+  bool isPaired(String publicKey) => _paired.contains(publicKey);
+  @override
+  Future<Uint8List?> approve({required String browser}) async {
+    approvals++;
+    return Uint8List.fromList(_server.userKey);
+  }
+
+  @override
+  Future<Uint8List?> pair({
+    required String publicKey,
     required String code,
     required String browser,
   }) async {
-    codes.add(code);
+    pairCodes.add(code);
+    _paired.add(publicKey);
     return Uint8List.fromList(_server.userKey);
   }
 }
@@ -246,23 +262,25 @@ Future<int> runScenario(
   check('lock and unlock', true);
 
   if (app != null) {
-    // The way to the app: background.js, native messaging, the host.
-    final hello = await d.script(
-      'return sixoraBridge.native(JSON.stringify({type: "hello"}), 5000, null);',
-    );
+    // The first time: "Mit der Sixora-App verbinden", the code on both
+    // sides; afterwards the popup asks at once (Touch ID) and opens
+    // without the master password.
+    await d.click('button[title]');
+    await d.navigate('$base/popup.html');
+    await d.waitFor('.app-unlock button');
+    await d.click('.app-unlock button');
+    await d.waitFor('.row', timeout: const Duration(seconds: 20));
     check(
-      'the desktop app answers ($hello)',
-      '$hello'.contains('"available":true'),
+      'connected to the desktop app (code ${app.pairCodes})',
+      app.pairCodes.length == 1 && app.approvals == 0,
     );
-    // Locked again: the next popup asks the app at once (Touch ID) and
-    // opens without the master password.
     await d.click('button[title]');
     await d.waitFor('input[type=password]');
     await d.navigate('$base/popup.html');
     await d.waitFor('.row', timeout: const Duration(seconds: 20));
     check(
-      'unlocked by the desktop app (code ${app.codes})',
-      app.codes.length == 1,
+      'unlocked by the desktop app with Touch ID',
+      app.approvals == 1 && app.pairCodes.length == 1,
     );
   }
 

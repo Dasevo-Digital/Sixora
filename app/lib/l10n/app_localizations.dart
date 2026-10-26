@@ -3457,20 +3457,14 @@ abstract class AppLocalizations {
   /// No description provided for @browserUnlockReason.
   ///
   /// In de, this message translates to:
-  /// **'Sixora-Erweiterung in {browser} entsperren (Code {code})'**
-  String browserUnlockReason(String browser, String code);
+  /// **'Sixora-Erweiterung in {browser} entsperren'**
+  String browserUnlockReason(String browser);
 
   /// No description provided for @browserUnlockTitle.
   ///
   /// In de, this message translates to:
   /// **'Erweiterung in {browser} entsperren?'**
   String browserUnlockTitle(String browser);
-
-  /// No description provided for @browserUnlockBody.
-  ///
-  /// In de, this message translates to:
-  /// **'Die Sixora-Erweiterung zeigt den Code {code}. Stimmt er überein, entsperrst du sie damit. Zeigt sie keinen oder einen anderen Code, hat ein anderes Programm gefragt: dann ablehnen.'**
-  String browserUnlockBody(String code);
 
   /// No description provided for @decline.
   ///
@@ -3489,6 +3483,54 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Ein Kaffee über Ko-fi hilft bei der Weiterentwicklung.'**
   String get supportSixoraHint;
+
+  /// No description provided for @browserUnlockAsk.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Sixora-Erweiterung möchte sich mit deinem Konto entsperren.'**
+  String get browserUnlockAsk;
+
+  /// No description provided for @browserPairTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Erweiterung in {browser} verbinden?'**
+  String browserPairTitle(String browser);
+
+  /// No description provided for @browserPairBody.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Sixora-Erweiterung zeigt den Code {code}. Stimmt er überein, kann sie sich künftig über diese App entsperren. Zeigt sie keinen oder einen anderen Code, hat ein anderes Programm gefragt: dann ablehnen.'**
+  String browserPairBody(String code);
+
+  /// No description provided for @linkedBrowsers.
+  ///
+  /// In de, this message translates to:
+  /// **'Verbundene Browser'**
+  String get linkedBrowsers;
+
+  /// No description provided for @linkedBrowsersNone.
+  ///
+  /// In de, this message translates to:
+  /// **'Noch keiner. Die Erweiterung fragt beim ersten Mal hier nach.'**
+  String get linkedBrowsersNone;
+
+  /// No description provided for @linkedSince.
+  ///
+  /// In de, this message translates to:
+  /// **'verbunden am {date}'**
+  String linkedSince(String date);
+
+  /// No description provided for @disconnect.
+  ///
+  /// In de, this message translates to:
+  /// **'Trennen'**
+  String get disconnect;
+
+  /// No description provided for @allowScreenshotsHintDesktop.
+  ///
+  /// In de, this message translates to:
+  /// **'Sonst bleibt das Sixora-Fenster in Bildschirmfotos, Aufnahmen und bei der Bildschirmfreigabe leer'**
+  String get allowScreenshotsHintDesktop;
 }
 
 class _AppLocalizationsDelegate

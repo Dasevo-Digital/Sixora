@@ -54,6 +54,9 @@ class SixoraExtension {
 
   final Store local;
   final Store session;
+
+  /// The extension's key pair for the desktop app (see `AppUnlock`).
+  static const linkKeyEntry = 'linkKey';
   final DeviceInfo device;
   final DateTime Function() _clock;
 
@@ -297,6 +300,8 @@ class SixoraExtension {
     stored = null;
     syncError = null;
     await local.write('account', null);
+    // A new account gets a new key, to be connected again.
+    await local.write(linkKeyEntry, null);
     await session.write('unlocked', null);
     stage = Stage.setup;
   }

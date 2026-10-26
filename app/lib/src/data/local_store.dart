@@ -102,6 +102,35 @@ enum AutoLock {
       values.firstWhere((a) => a.name == v, orElse: () => fiveMinutes);
 }
 
+/// A browser extension connected to this app (see `BrowserLink`).
+class LinkedBrowser {
+  const LinkedBrowser({
+    required this.publicKey,
+    required this.browser,
+    required this.added,
+  });
+
+  final String publicKey;
+
+  /// "Opera", "Firefox" …, as the extension says.
+  final String browser;
+  final DateTime added;
+
+  Map<String, Object?> toJson() => {
+    'publicKey': publicKey,
+    'browser': browser,
+    'added': added.toUtc().toIso8601String(),
+  };
+
+  factory LinkedBrowser.fromJson(Map<String, Object?> j) => LinkedBrowser(
+    publicKey: j['publicKey'] as String? ?? '',
+    browser: j['browser'] as String? ?? '',
+    added:
+        DateTime.tryParse(j['added'] as String? ?? '')?.toLocal() ??
+        DateTime.now(),
+  );
+}
+
 class AppSettings {
   AutoLock autoLock = AutoLock.fiveMinutes;
   bool hideCodes = false;
@@ -121,6 +150,10 @@ class AppSettings {
 
   /// Desktop: the browser extension may ask this app to unlock it.
   bool browserUnlock = false;
+
+  /// Browser extensions the user connected (their public keys): only these
+  /// get the user key.
+  List<LinkedBrowser> linkedBrowsers = [];
   String themeMode = 'system';
 
   /// `system` or a language code (see `appLanguages`).
@@ -151,6 +184,7 @@ class AppSettings {
     'showNextCode': showNextCode,
     'allowScreenshots': allowScreenshots,
     'browserUnlock': browserUnlock,
+    'linkedBrowsers': [for (final b in linkedBrowsers) b.toJson()],
     'themeMode': themeMode,
     'language': language,
     'backupFolder': backupFolder,
@@ -173,6 +207,10 @@ class AppSettings {
     ..showNextCode = j['showNextCode'] as bool? ?? true
     ..allowScreenshots = j['allowScreenshots'] as bool? ?? false
     ..browserUnlock = j['browserUnlock'] as bool? ?? false
+    ..linkedBrowsers = [
+      for (final b in j['linkedBrowsers'] as List? ?? const [])
+        if (b is Map) LinkedBrowser.fromJson(b.cast()),
+    ]
     ..themeMode = j['themeMode'] as String? ?? 'system'
     ..language = j['language'] as String? ?? 'system'
     ..backupFolder = j['backupFolder'] as String?

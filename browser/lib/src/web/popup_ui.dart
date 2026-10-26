@@ -362,27 +362,38 @@ class PopupUi {
     }
   }
 
-  /// Offers "Mit Touch ID entsperren" when the Sixora app on this computer
-  /// can unlock this account; with Touch ID or Windows Hello it asks right
-  /// away (once per popup, and not after the user declined).
+  /// Offers the Sixora app on this computer when it uses this account:
+  /// "Mit der Sixora-App verbinden" the first time, then "Mit Touch ID
+  /// entsperren". With Touch ID or Windows Hello it asks right away (once
+  /// per popup, and not after the user declined).
   Future<void> _offerApp(web.HTMLElement slot) async {
-    final method = await _app.method();
-    if (method == null || x.stage != Stage.locked || !slot.isConnected) return;
-    final label = method.isEmpty
+    final app = await _app.status();
+    if (app == null || x.stage != Stage.locked || !slot.isConnected) return;
+    if (!app.paired) {
+      slot.append(_button(t['connectWithApp'], () => _askApp(app)));
+      slot.append(_el('p', cls: 'or', text: t['orPassword']));
+      return;
+    }
+    final label = app.method.isEmpty
         ? t['unlockWithApp']
-        : t.fill('unlockWith', {'method': method});
-    slot.append(_button(label, () => _unlockWithApp(method)));
+        : t.fill('unlockWith', {'method': app.method});
+    slot.append(_button(label, () => _askApp(app)));
     slot.append(_el('p', cls: 'or', text: t['orPassword']));
-    if (method.isNotEmpty && !_askedApp && !await _app.declined) {
+    if (app.method.isNotEmpty &&
+        app.ready &&
+        !_askedApp &&
+        !await _app.declined) {
       _askedApp = true;
-      unawaited(_unlockWithApp(method));
+      unawaited(_askApp(app));
     }
   }
 
-  Future<void> _unlockWithApp(String method) async {
+  /// Connects this extension (the first time, with the code) or unlocks.
+  Future<void> _askApp(AppStatus app) async {
     _askedApp = true;
+    _waitForApp(app, app.paired ? null : await _app.code());
     try {
-      await _app.unlock(onCode: (code) => _waitForApp(code, method));
+      await _app.unlock();
       _render();
       unawaited(_sync());
     } on Object catch (err) {
@@ -391,20 +402,23 @@ class PopupUi {
     }
   }
 
-  void _waitForApp(String code, String method) => _show([
+  /// While the app asks: when connecting with the code it shows too.
+  void _waitForApp(AppStatus app, String? code) => _show([
     _header(),
     _el(
       'main',
       cls: 'center',
       children: [
-        _el('h2', text: t['confirmInApp']),
-        _el('p', cls: 'bigcode', text: code),
+        _el('h2', text: t[code == null ? 'confirmInApp' : 'pairInApp']),
+        if (code != null) _el('p', cls: 'bigcode', text: code),
         _el(
           'p',
           cls: 'muted',
-          text: method.isEmpty
+          text: code != null
+              ? t['pairHint']
+              : app.method.isEmpty
               ? t['confirmWithDialog']
-              : t.fill('confirmWithMethod', {'method': method}),
+              : t.fill('confirmWithMethod', {'method': app.method}),
         ),
         _button(t['cancel'], () async {
           await _app.cancel();

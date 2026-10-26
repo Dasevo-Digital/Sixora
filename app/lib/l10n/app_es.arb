@@ -559,10 +559,17 @@
   "browserUnlockOn": "Configurado para {browsers}.",
   "browserUnlockNone": "No se encontró ningún navegador compatible. Tras instalar Chrome, Opera, Edge, Brave, Vivaldi o Firefox, desactiva y vuelve a activar este ajuste.",
   "browserUnlockPortBusy": "El puerto {port} está ocupado; no se puede configurar la conexión con el navegador.",
-  "browserUnlockReason": "Desbloquear la extensión de Sixora en {browser} (código {code})",
+  "browserUnlockReason": "Desbloquear la extensión de Sixora en {browser}",
   "browserUnlockTitle": "¿Desbloquear la extensión en {browser}?",
-  "browserUnlockBody": "La extensión de Sixora muestra el código {code}. Si coincide, la desbloqueas. Si no muestra ningún código o muestra otro, lo ha pedido otro programa: recházalo.",
   "decline": "Rechazar",
   "supportSixora": "Apoyar Sixora",
-  "supportSixoraHint": "Un café en Ko-fi ayuda a seguir desarrollando Sixora."
+  "supportSixoraHint": "Un café en Ko-fi ayuda a seguir desarrollando Sixora.",
+  "browserUnlockAsk": "La extensión de Sixora quiere desbloquearse con tu cuenta.",
+  "browserPairTitle": "¿Conectar la extensión en {browser}?",
+  "browserPairBody": "La extensión de Sixora muestra el código {code}. Si coincide, a partir de ahora podrá desbloquearse a través de esta app. Si no muestra ningún código o muestra otro, lo ha pedido otro programa: recházalo.",
+  "linkedBrowsers": "Navegadores conectados",
+  "linkedBrowsersNone": "Ninguno todavía. La extensión pregunta aquí la primera vez.",
+  "linkedSince": "conectado el {date}",
+  "disconnect": "Desconectar",
+  "allowScreenshotsHintDesktop": "Si no, la ventana de Sixora aparece vacía en capturas, grabaciones y al compartir pantalla"
 }

@@ -14,11 +14,15 @@ import '../crypto/vault_crypto.dart';
 /// running app on 127.0.0.1 ([ports]) and back. Both legs use the framing of
 /// native messaging: a 4-byte little-endian length, then UTF-8 JSON.
 ///
-/// The app answers an unlock request only after the user confirms it (Touch
-/// ID, Windows Hello or a dialog) and then hands out the user key sealed to
-/// a one-time key of the extension: the relay and anything listening in see
-/// only ciphertext. Both sides show [code], so the user can tell that the
-/// request comes from their browser and not from another program.
+/// Every program on the computer can reach that port, so the app trusts
+/// only extensions the user connected once ("pairing"): the extension has a
+/// key pair of its own, and the first request makes the app ask whether to
+/// connect it, showing [code] of its public key – the extension shows the
+/// same code. Afterwards a confirmation with Touch ID, Windows Hello or a
+/// dialog is enough, and the user key goes out only sealed to a connected
+/// key: another program can claim one, but cannot open the answer. `hello`
+/// tells nothing about the account; the extension asks whether it is the
+/// same.
 abstract final class BrowserLink {
   /// Name of the native messaging host (manifest file and registry key).
   static const hostName = 'de.status403.sixora';
@@ -57,18 +61,24 @@ abstract final class BrowserLink {
     return '${s.substring(0, 3)} ${s.substring(3)}';
   }
 
-  /// Whether the app and the extension use the same account.
-  static bool sameAccount(
-    Map<String, Object?> hello,
-    Uri server,
-    String userId,
-  ) {
-    final appServer = Uri.tryParse(hello['server'] as String? ?? '');
-    return appServer != null &&
-        hello['userId'] == userId &&
-        SixoraApi.normalizeBaseUrl(appServer) ==
-            SixoraApi.normalizeBaseUrl(server);
-  }
+  /// Version of the requests and answers below.
+  static const protocol = 2;
+
+  /// Names the account without giving it away: whoever listens on the
+  /// port learns neither server nor user.
+  static String accountTag(Uri server, String userId) => base64.encode(
+    c.sha256
+        .convert(
+          utf8.encode(
+            'sixora-browser-link|${SixoraApi.normalizeBaseUrl(server)}|$userId',
+          ),
+        )
+        .bytes,
+  );
+
+  /// After the user declined to connect an extension, new requests to
+  /// connect are refused for this long: no dialog after dialog.
+  static const pairingPause = Duration(minutes: 1);
 }
 
 /// Splits a byte stream into framed messages.
@@ -118,32 +128,51 @@ abstract interface class BrowserLinkDelegate {
   /// dialog.
   String? get method;
 
-  /// Asks the user to confirm (showing [code]) and returns the user key,
-  /// or null if they decline.
-  Future<Uint8List?> approve({required String code, required String browser});
+  /// Whether the user connected the extension with this key.
+  bool isPaired(String publicKey);
+
+  /// A connected extension: the user confirms; the user key, or null.
+  Future<Uint8List?> approve({required String browser});
+
+  /// A new extension: the app asks whether to connect it, showing [code]
+  /// (the extension shows it too). On yes it remembers [publicKey] and
+  /// returns the user key. Only while the app is unlocked.
+  Future<Uint8List?> pair({
+    required String publicKey,
+    required String code,
+    required String browser,
+  });
 }
 
 /// The app's side: answers `hello` and `unlock` requests.
 class BrowserLinkHost {
-  BrowserLinkHost(this.delegate, {required this.version});
+  BrowserLinkHost(
+    this.delegate, {
+    required this.version,
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   final BrowserLinkDelegate delegate;
   final String version;
+  final DateTime Function() _clock;
   bool _busy = false;
+  DateTime? _pairingPausedUntil;
 
   Future<Map<String, Object?>> handle(Map<String, Object?> request) async {
     switch (request['type']) {
       case 'hello':
-        final account = delegate.account;
+        final same = _sameAccount(request);
+        final key = _publicKey(request);
+        final paired = same && key != null && delegate.isPaired(key);
         return {
-          'sixora': 1,
+          'sixora': BrowserLink.protocol,
           'version': version,
-          'server': account?.server.toString(),
-          'userId': account?.userId,
-          'unlocked': delegate.unlocked,
-          'available':
-              account != null &&
-              (delegate.unlocked || delegate.unlockWhileLocked),
+          'sameAccount': same,
+          'paired': paired,
+          // Whether a request would reach the user now.
+          'ready':
+              same &&
+              (delegate.unlocked || (paired && delegate.unlockWhileLocked)),
           'method': delegate.method,
         };
       case 'unlock':
@@ -153,42 +182,63 @@ class BrowserLinkHost {
     }
   }
 
-  Future<Map<String, Object?>> _unlock(Map<String, Object?> request) async {
+  bool _sameAccount(Map<String, Object?> request) {
     final account = delegate.account;
-    final publicKey = request['publicKey'];
-    final server = Uri.tryParse(request['server'] as String? ?? '');
-    if (publicKey is! String || server == null) return {'error': 'invalid'};
+    final tag = request['account'];
+    return account != null &&
+        tag is String &&
+        tag == BrowserLink.accountTag(account.server, account.userId);
+  }
+
+  static String? _publicKey(Map<String, Object?> request) {
+    final key = request['publicKey'];
+    if (key is! String) return null;
     try {
-      if (base64.decode(publicKey).length != 32) return {'error': 'invalid'};
+      return base64.decode(key).length == 32 ? key : null;
     } on FormatException {
-      return {'error': 'invalid'};
+      return null;
     }
-    if (account == null ||
-        !BrowserLink.sameAccount(
-          {'server': account.server.toString(), 'userId': account.userId},
-          server,
-          request['userId'] as String? ?? '',
-        )) {
-      return {'error': 'other_account'};
-    }
-    if (!delegate.unlocked && !delegate.unlockWhileLocked) {
+  }
+
+  Future<Map<String, Object?>> _unlock(Map<String, Object?> request) async {
+    final publicKey = _publicKey(request);
+    if (publicKey == null) return {'error': 'invalid'};
+    if (!_sameAccount(request)) return {'error': 'other_account'};
+    final paired = delegate.isPaired(publicKey);
+    if (!delegate.unlocked && !(paired && delegate.unlockWhileLocked)) {
       return {'error': 'locked'};
     }
     if (_busy) return {'error': 'busy'};
+    final pause = _pairingPausedUntil;
+    if (!paired && pause != null && _clock().isBefore(pause)) {
+      return {'error': 'denied'};
+    }
     _busy = true;
     try {
-      final browser = request['browser'];
-      final key = await delegate
-          .approve(
-            code: BrowserLink.code(publicKey),
-            browser: browser is String && browser.length <= 40
-                ? browser
-                : 'Browser',
-          )
-          .timeout(BrowserLink.confirmTimeout, onTimeout: () => null);
-      if (key == null) return {'error': 'denied'};
+      final name = request['browser'];
+      final browser = name is String && name.isNotEmpty && name.length <= 40
+          ? name
+          : 'Browser';
+      final key =
+          await (paired
+                  ? delegate.approve(browser: browser)
+                  : delegate.pair(
+                      publicKey: publicKey,
+                      code: BrowserLink.code(publicKey),
+                      browser: browser,
+                    ))
+              .timeout(BrowserLink.confirmTimeout, onTimeout: () => null);
+      if (key == null) {
+        if (!paired) {
+          _pairingPausedUntil = _clock().add(BrowserLink.pairingPause);
+        }
+        return {'error': 'denied'};
+      }
       try {
-        return {'sealedUserKey': await VaultCrypto.seal(key, publicKey)};
+        return {
+          'sealedUserKey': await VaultCrypto.seal(key, publicKey),
+          'paired': true,
+        };
       } finally {
         key.fillRange(0, key.length, 0);
       }

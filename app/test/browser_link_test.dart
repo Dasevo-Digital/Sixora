@@ -20,7 +20,13 @@ class _App implements BrowserLinkDelegate {
   @override
   String? get method => null;
   @override
-  Future<Uint8List?> approve({
+  bool isPaired(String publicKey) => true;
+  @override
+  Future<Uint8List?> approve({required String browser}) async =>
+      Uint8List.fromList(key);
+  @override
+  Future<Uint8List?> pair({
+    required String publicKey,
     required String code,
     required String browser,
   }) async => Uint8List.fromList(key);
@@ -60,16 +66,27 @@ void main() {
     socket.listen((data) => reader.add(data).forEach(replies.add));
     final answers = StreamIterator(replies.stream);
 
-    socket.add(BrowserLink.frame({'type': 'hello'}));
-    expect(await answers.moveNext(), isTrue);
-    expect(answers.current['available'], isTrue);
-
     final ext = await VaultCrypto.newKeyPair();
     socket.add(
       BrowserLink.frame({
+        'type': 'hello',
+        'account': BrowserLink.accountTag(
+          Uri.parse('https://sixora.example.org'),
+          'u1',
+        ),
+        'publicKey': ext.publicKey,
+      }),
+    );
+    expect(await answers.moveNext(), isTrue);
+    expect(answers.current['ready'], isTrue);
+
+    socket.add(
+      BrowserLink.frame({
         'type': 'unlock',
-        'server': 'https://sixora.example.org',
-        'userId': 'u1',
+        'account': BrowserLink.accountTag(
+          Uri.parse('https://sixora.example.org'),
+          'u1',
+        ),
         'publicKey': ext.publicKey,
         'browser': 'Opera',
       }),

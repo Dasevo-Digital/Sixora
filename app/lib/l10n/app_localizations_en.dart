@@ -2037,18 +2037,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String browserUnlockReason(String browser, String code) {
-    return 'Unlock the Sixora extension in $browser (code $code)';
+  String browserUnlockReason(String browser) {
+    return 'Unlock the Sixora extension in $browser';
   }
 
   @override
   String browserUnlockTitle(String browser) {
     return 'Unlock the extension in $browser?';
-  }
-
-  @override
-  String browserUnlockBody(String code) {
-    return 'The Sixora extension shows the code $code. If it matches, this unlocks it. If it shows no code or a different one, another program asked: decline.';
   }
 
   @override
@@ -2059,4 +2054,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get supportSixoraHint => 'A coffee on Ko-fi helps keep Sixora going.';
+
+  @override
+  String get browserUnlockAsk =>
+      'The Sixora extension wants to unlock with your account.';
+
+  @override
+  String browserPairTitle(String browser) {
+    return 'Connect the extension in $browser?';
+  }
+
+  @override
+  String browserPairBody(String code) {
+    return 'The Sixora extension shows the code $code. If it matches, the extension can unlock through this app from now on. If it shows no code or a different one, another program asked: decline.';
+  }
+
+  @override
+  String get linkedBrowsers => 'Connected browsers';
+
+  @override
+  String get linkedBrowsersNone =>
+      'None yet. The extension asks here the first time.';
+
+  @override
+  String linkedSince(String date) {
+    return 'connected on $date';
+  }
+
+  @override
+  String get disconnect => 'Disconnect';
+
+  @override
+  String get allowScreenshotsHintDesktop =>
+      'Otherwise the Sixora window stays blank in screenshots, recordings and screen sharing';
 }

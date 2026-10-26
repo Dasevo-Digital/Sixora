@@ -29,7 +29,9 @@ class FakeApp implements BrowserLinkDelegate {
   final String userId;
   final Uint8List userKey;
   bool approves = true;
-  String? code;
+  final paired = <String>{};
+  String? pairCode;
+  int approvals = 0;
 
   @override
   ({Uri server, String userId})? get account =>
@@ -41,12 +43,23 @@ class FakeApp implements BrowserLinkDelegate {
   @override
   String? get method => 'Touch ID';
   @override
-  Future<Uint8List?> approve({
+  bool isPaired(String publicKey) => paired.contains(publicKey);
+  @override
+  Future<Uint8List?> approve({required String browser}) async {
+    approvals++;
+    return approves ? Uint8List.fromList(userKey) : null;
+  }
+
+  @override
+  Future<Uint8List?> pair({
+    required String publicKey,
     required String code,
     required String browser,
   }) async {
-    this.code = code;
-    return approves ? Uint8List.fromList(userKey) : null;
+    pairCode = code;
+    if (!approves) return null;
+    paired.add(publicKey);
+    return Uint8List.fromList(userKey);
   }
 }
 
@@ -294,28 +307,37 @@ void main() {
       await e.load();
       await e.signIn(url, 'alice', password);
       await e.lock();
+      fake = FakeApp(url, e.stored!.account.id, keys.userKey);
+      host = BrowserLinkHost(fake, version: 'test');
       return e;
     }
 
-    test('Touch ID in the app unlocks the extension', () async {
+    test('connected once, then Touch ID unlocks the extension', () async {
       final e = await signedInAndLocked();
-      fake = FakeApp(url, e.stored!.account.id, keys.userKey);
-      host = BrowserLinkHost(fake, version: 'test');
       final unlock = AppUnlock(e, ask, browser: 'Firefox');
-      expect(await unlock.method(), 'Touch ID');
-      String? shown;
-      await unlock.unlock(onCode: (code) => shown = code);
-      expect(shown, fake.code);
+      var status = (await unlock.status())!;
+      expect(status.paired, isFalse);
+      expect(status.method, 'Touch ID');
+      final code = await unlock.code();
+      await unlock.unlock();
+      expect(fake.pairCode, code);
+      expect(fake.approvals, 0);
       expect(e.stage, Stage.unlocked);
       expect(issuers(e), contains('GitHub'));
       // Nothing of the request stays behind.
       expect(session.values.keys, ['unlocked']);
+
+      await e.lock();
+      status = (await unlock.status())!;
+      expect(status.paired, isTrue);
+      expect(status.ready, isTrue);
+      await unlock.unlock();
+      expect(fake.approvals, 1);
+      expect(e.stage, Stage.unlocked);
     });
 
     test('an answer after the popup closed unlocks the next one', () async {
       final e = await signedInAndLocked();
-      fake = FakeApp(url, e.stored!.account.id, keys.userKey);
-      host = BrowserLinkHost(fake, version: 'test');
       // The popup closes while Touch ID is up: its request never returns,
       // but background.js keeps the answer.
       final closing = AppUnlock(e, (request, {required timeout, keep}) async {
@@ -331,10 +353,9 @@ void main() {
       expect(next.stage, Stage.unlocked);
     });
 
-    test('declined, another account, no app', () async {
+    test('declined, another account, no app, signed out', () async {
       final e = await signedInAndLocked();
-      fake = FakeApp(url, e.stored!.account.id, keys.userKey)..approves = false;
-      host = BrowserLinkHost(fake, version: 'test');
+      fake.approves = false;
       final unlock = AppUnlock(e, ask, browser: 'Opera');
       await expectLater(
         unlock.unlock(),
@@ -343,6 +364,7 @@ void main() {
         ),
       );
       expect(e.stage, Stage.locked);
+      expect(fake.paired, isEmpty);
       // Not asked again on its own.
       expect(await unlock.declined, isTrue);
 
@@ -350,14 +372,14 @@ void main() {
         FakeApp(url, 'someone-else', keys.userKey),
         version: 'test',
       );
-      expect(await unlock.method(), isNull);
+      expect(await unlock.status(), isNull);
 
       final noApp = AppUnlock(
         e,
         (request, {required timeout, keep}) async => {'error': 'not_running'},
         browser: 'Opera',
       );
-      expect(await noApp.method(), isNull);
+      expect(await noApp.status(), isNull);
       await expectLater(
         noApp.unlock(),
         throwsA(
@@ -368,6 +390,11 @@ void main() {
           ),
         ),
       );
+
+      // Signing out forgets the key; the next account connects anew.
+      expect(await local.read(SixoraExtension.linkKeyEntry), isNotNull);
+      await e.signOut();
+      expect(await local.read(SixoraExtension.linkKeyEntry), isNull);
     });
   });
 }

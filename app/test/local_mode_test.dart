@@ -124,6 +124,41 @@ void main() {
     expect(issuers(), ['GitHub', 'GitLab']);
   });
 
+  test('browser extensions are connected and disconnected', () async {
+    await startLocal();
+    final key = (await VaultCrypto.newKeyPair()).publicKey;
+    // Declined: nothing remembered, nothing handed out.
+    expect(
+      await c.pairBrowser(
+        publicKey: key,
+        browser: 'Opera',
+        confirm: () async => false,
+      ),
+      isNull,
+    );
+    expect(c.isLinkedBrowser(key), isFalse);
+    final userKey = await c.pairBrowser(
+      publicKey: key,
+      browser: 'Opera',
+      confirm: () async => true,
+    );
+    expect(userKey, hasLength(32));
+    expect(c.isLinkedBrowser(key), isTrue);
+    expect(c.settings.linkedBrowsers.single.browser, 'Opera');
+    await c.unlinkBrowser(key);
+    expect(c.isLinkedBrowser(key), isFalse);
+    // Locked: no connecting.
+    c.lock();
+    expect(
+      await c.pairBrowser(
+        publicKey: key,
+        browser: 'Opera',
+        confirm: () async => true,
+      ),
+      isNull,
+    );
+  });
+
   test('moving to a new account on a server', () async {
     await startLocal();
     final r = await c.moveToServer(

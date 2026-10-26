@@ -6,6 +6,25 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### 0.1.30 – 26.10.2026 (Erweiterung 0.1.3)
+- Browser-Erweiterung entsperren: Eine Erweiterung wird jetzt einmal mit
+  der App verbunden. Bisher nahm die App Anfragen jedes Programms auf dem
+  Rechner an (auch anderer Benutzerkonten); geschützt hat nur der Vergleich
+  des Codes, und bei Touch ID achtet man darauf kaum. Jetzt fragt die App
+  beim ersten Mal in ihrem Fenster, ob sie die Erweiterung verbinden soll,
+  und zeigt denselben Code wie die Erweiterung. Danach genügt Touch ID bzw.
+  Windows Hello, und der Schlüssel geht nur noch verschlüsselt an diese
+  eine Erweiterung: Ein anderes Programm kann ihn nicht öffnen. Verbundene
+  Browser stehen unter Einstellungen und lassen sich dort trennen; nach
+  einer Ablehnung fragt die App eine Minute lang nicht erneut.
+- Die App verrät über diese Verbindung nicht mehr, mit welchem Server und
+  Konto sie angemeldet ist; die Erweiterung schickt nur einen Prüfwert.
+- macOS und Windows: Ohne „Bildschirmfotos erlauben“ bleibt das
+  Sixora-Fenster in Bildschirmfotos, Aufnahmen und bei der
+  Bildschirmfreigabe leer, wie unter Android.
+- Bibliotheken auf aktuelle Versionen, darunter die für Bilder (QR-Codes
+  aus Dateien), ZIP-Archive (Importe) und SQLite.
+
 ### 0.1.29 – 19.10.2026
 - Einstellungen → Über: „Sixora unterstützen“ öffnet die Ko-fi-Seite im
   Browser. Die App selbst sendet dafür nichts.
@@ -200,6 +219,13 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## Browser-Erweiterung
 
+### 0.1.3 – 26.10.2026
+- Entsperren über die Desktop-App: Beim ersten Mal „Mit der Sixora-App
+  verbinden“; die App fragt in ihrem Fenster nach und zeigt denselben Code.
+  Danach entsperrt Touch ID bzw. Windows Hello wie bisher. Die Erweiterung
+  hat dafür einen eigenen Schlüssel; Server und Konto gehen nur als
+  Prüfwert an die App. Braucht App 0.1.30.
+
 ### 0.1.2 – 19.10.2026
 - „Mit Touch ID entsperren“ (bzw. Windows Hello oder „Mit der Sixora-App
   entsperren“) statt Master-Passwort, wenn die Sixora-App auf dem Rechner
@@ -234,6 +260,14 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
   Tab, wenn man sie öffnet.
 
 ## Server
+
+### 0.1.7 – 26.10.2026
+- Fehlversuche bei der Anmeldung zählen pro Konto und Adresse. Bisher
+  sperrten 10 falsche Versuche das Konto für alle; wer einen Benutzernamen
+  kannte, konnte dessen Inhaber so aussperren. Jetzt sperren sie nur die
+  Adresse, von der sie kamen; aus allen Adressen zusammen bleiben es
+  höchstens 100 Versuche in 15 Minuten.
+- Bibliotheken auf aktuelle Versionen (SQLite, shelf).
 
 ### 0.1.6 – 18.10.2026
 - Das erste Konto braucht einen Einrichtungscode. Bisher wurde Administrator,

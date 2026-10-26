@@ -36,6 +36,45 @@ class SettingsScreen extends StatelessWidget {
   void _open(BuildContext context, Widget page) =>
       Navigator.push<void>(context, MaterialPageRoute(builder: (_) => page));
 
+  /// The connected browser extensions; "Trennen" takes one's access away.
+  Future<void> _showLinkedBrowsers(BuildContext context) => showDialog<void>(
+    context: context,
+    builder: (context) {
+      final c = AppScope.of(context);
+      final linked = c.settings.linkedBrowsers;
+      return AlertDialog(
+        title: Text(t.linkedBrowsers),
+        content: SizedBox(
+          width: 400,
+          child: linked.isEmpty
+              ? Text(t.linkedBrowsersNone)
+              : ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final b in linked)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.extension_outlined),
+                        title: Text(b.browser),
+                        subtitle: Text(t.linkedSince(formatDate(b.added))),
+                        trailing: TextButton(
+                          onPressed: () => c.unlinkBrowser(b.publicKey),
+                          child: Text(t.disconnect),
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t.close),
+          ),
+        ],
+      );
+    },
+  );
+
   /// Starts or stops the link to the browser extension and says for which
   /// browsers the host is registered.
   Future<void> _setBrowserUnlock(BuildContext context, bool on) async {
@@ -45,6 +84,8 @@ class SettingsScreen extends StatelessWidget {
     try {
       final browsers = await link.setEnabled(on);
       c.settings.browserUnlock = on;
+      // Switched off: connected extensions have to ask again next time.
+      if (!on) c.settings.linkedBrowsers = [];
       await c.saveSettings();
       if (on && context.mounted) {
         showMessage(
@@ -169,11 +210,15 @@ class SettingsScreen extends StatelessWidget {
                   c.saveSettings();
                 },
               ),
-              if (Theme.of(context).platform == TargetPlatform.android)
+              if (Platform.isAndroid || Platform.isMacOS || Platform.isWindows)
                 SwitchListTile(
                   secondary: const Icon(Icons.screenshot_outlined),
                   title: Text(t.allowScreenshots),
-                  subtitle: Text(t.allowScreenshotsHint),
+                  subtitle: Text(
+                    Platform.isAndroid
+                        ? t.allowScreenshotsHint
+                        : t.allowScreenshotsHintDesktop,
+                  ),
                   value: s.allowScreenshots,
                   onChanged: (v) {
                     s.allowScreenshots = v;
@@ -252,6 +297,19 @@ class SettingsScreen extends StatelessWidget {
                     isThreeLine: true,
                     value: s.browserUnlock,
                     onChanged: (v) => _setBrowserUnlock(context, v),
+                  ),
+                if (!c.isLocal && s.browserUnlock)
+                  ListTile(
+                    leading: const Icon(Icons.link),
+                    title: Text(t.linkedBrowsers),
+                    subtitle: Text(
+                      s.linkedBrowsers.isEmpty
+                          ? t.linkedBrowsersNone
+                          : s.linkedBrowsers.map((b) => b.browser).join(', '),
+                    ),
+                    onTap: s.linkedBrowsers.isEmpty
+                        ? null
+                        : () => _showLinkedBrowsers(context),
                   ),
               ],
               SectionTitle(t.sectionDisplay),

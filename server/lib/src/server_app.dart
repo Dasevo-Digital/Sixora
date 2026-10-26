@@ -21,7 +21,7 @@ part 'server_auth.dart';
 part 'server_sync.dart';
 part 'server_vaults.dart';
 
-const serverVersion = '0.1.6';
+const serverVersion = '0.1.7';
 const apiVersion = 1;
 
 /// Error answered as `{"error": code, "message": text}`.
@@ -98,8 +98,15 @@ class SixoraServerApp {
   /// Longest wait of a sync request for changes (long poll).
   static const maxSyncWait = Duration(seconds: 30);
 
+  // Failed sign-ins per account and address: whoever guesses locks out
+  // only their own address, not the owner of the account.
   final _userFailures = FailureLimiter(
     max: 10,
+    window: const Duration(minutes: 15),
+  );
+  // Per account from all addresses together: a cap on guessing from many.
+  final _accountFailures = FailureLimiter(
+    max: 100,
     window: const Duration(minutes: 15),
   );
   final _ipFailures = FailureLimiter(
@@ -489,8 +496,11 @@ class SixoraServerApp {
     required String failEvent,
   }) {
     final ip = _ip(request);
-    final userKey = 'user:${username.toLowerCase()}';
-    if (_userFailures.blocked(userKey) || _ipFailures.blocked('ip:$ip')) {
+    final accountKey = 'user:${username.toLowerCase()}';
+    final userKey = '$accountKey|ip:$ip';
+    if (_userFailures.blocked(userKey) ||
+        _accountFailures.blocked(accountKey) ||
+        _ipFailures.blocked('ip:$ip')) {
       throw const ApiError(
         429,
         'rate_limited',
@@ -501,6 +511,7 @@ class SixoraServerApp {
     final hash = sha256Hex(secret);
     if (user == null || !constantTimeEquals(hash, user[column] as String)) {
       _userFailures.fail(userKey);
+      _accountFailures.fail(accountKey);
       _ipFailures.fail('ip:$ip');
       if (user != null) {
         _audit(

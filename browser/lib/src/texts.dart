@@ -93,9 +93,13 @@ const _de = {
   'unlockWithApp': 'Mit der Sixora-App entsperren',
   'orPassword': 'oder mit dem Master-Passwort',
   'confirmInApp': 'In Sixora bestätigen',
-  'confirmWithMethod':
-      'Bestätige in Sixora mit {method}. Die App zeigt denselben Code.',
-  'confirmWithDialog': 'Bestätige in der Sixora-App. Sie zeigt denselben Code.',
+  'confirmWithMethod': 'Bestätige in Sixora mit {method}.',
+  'confirmWithDialog': 'Bestätige in der Sixora-App.',
+  'connectWithApp': 'Mit der Sixora-App verbinden',
+  'pairInApp': 'In Sixora verbinden',
+  'pairHint':
+      'Sixora fragt, ob sich diese Erweiterung künftig über die App '
+      'entsperren darf. Verbinde nur, wenn dort derselbe Code steht.',
   'app_not_running':
       'Die Sixora-App läuft nicht. Starte sie oder entsperre mit dem '
       'Master-Passwort.',
@@ -194,9 +198,13 @@ const _en = {
   'unlockWithApp': 'Unlock with the Sixora app',
   'orPassword': 'or with the master password',
   'confirmInApp': 'Confirm in Sixora',
-  'confirmWithMethod':
-      'Confirm with {method} in Sixora. The app shows the same code.',
-  'confirmWithDialog': 'Confirm in the Sixora app. It shows the same code.',
+  'confirmWithMethod': 'Confirm with {method} in Sixora.',
+  'confirmWithDialog': 'Confirm in the Sixora app.',
+  'connectWithApp': 'Connect to the Sixora app',
+  'pairInApp': 'Connect in Sixora',
+  'pairHint':
+      'Sixora asks whether this extension may unlock through the app from '
+      'now on. Only connect if it shows the same code.',
   'app_not_running':
       'The Sixora app is not running. Start it or unlock with the master '
       'password.',
@@ -297,9 +305,13 @@ const _es = {
   'unlockWithApp': 'Desbloquear con la app de Sixora',
   'orPassword': 'o con la contraseña maestra',
   'confirmInApp': 'Confirmar en Sixora',
-  'confirmWithMethod':
-      'Confirma con {method} en Sixora. La app muestra el mismo código.',
-  'confirmWithDialog': 'Confirma en la app de Sixora. Muestra el mismo código.',
+  'confirmWithMethod': 'Confirma con {method} en Sixora.',
+  'confirmWithDialog': 'Confirma en la app de Sixora.',
+  'connectWithApp': 'Conectar con la app de Sixora',
+  'pairInApp': 'Conectar en Sixora',
+  'pairHint':
+      'Sixora pregunta si esta extensión podrá desbloquearse a través de la '
+      'app a partir de ahora. Conecta solo si muestra el mismo código.',
   'app_not_running':
       'La app de Sixora no está abierta. Ábrela o desbloquea con la '
       'contraseña maestra.',

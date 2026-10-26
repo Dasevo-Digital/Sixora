@@ -181,6 +181,39 @@ void main() {
     },
   );
 
+  test('guessing locks out only the guesser, not the owner', () async {
+    await h.stop();
+    h = Harness();
+    await h.start(trustProxy: true);
+    final alice = await TestUser.register(h, 'alice');
+    final pre = await h.api().prelogin('alice');
+    final right = (await derivePasswordKeysAsync(
+      alice.password,
+      pre.salt,
+      KdfParams.fromJson(pre.kdf),
+    )).authKeyB64;
+    final wrong = base64.encode(List.filled(32, 1));
+    final client = HttpClient();
+    addTearDown(client.close);
+    Future<int> login(String from, String authKey) async {
+      final request = await client.postUrl(h.url.resolve('api/v1/auth/login'));
+      request.headers.contentType = ContentType.json;
+      request.headers.set('X-Forwarded-For', from);
+      request.write(jsonEncode({'username': 'alice', 'authKey': authKey}));
+      final response = await request.close();
+      await response.drain<void>();
+      return response.statusCode;
+    }
+
+    for (var i = 0; i < 10; i++) {
+      expect(await login('203.0.113.7', wrong), 401);
+    }
+    // The guesser is blocked, even with the right password …
+    expect(await login('203.0.113.7', right), 429);
+    // … alice from her own address is not.
+    expect(await login('198.51.100.9', right), 200);
+  });
+
   test('closed and open registration', () async {
     await h.stop();
     h = Harness();

@@ -60,6 +60,11 @@ class BrowserLinkServer {
 /// Answers framed requests on [client] in order. When the other side is
 /// done sending, open requests are still answered before it closes.
 void serveLink(BrowserLinkHost host, Socket client) {
+  // The socket listens on 127.0.0.1 only; this guards against mistakes.
+  if (!client.remoteAddress.isLoopback) {
+    client.destroy();
+    return;
+  }
   final reader = FrameReader();
   var pending = Future<void>.value();
   client.done.ignore();
@@ -92,15 +97,23 @@ void serveLink(BrowserLinkHost host, Socket client) {
 /// What the link knows about the app: account, lock state and how the user
 /// confirms.
 class AppLinkDelegate implements BrowserLinkDelegate {
-  AppLinkDelegate(this.c, {required this.reason, required this.confirm});
+  AppLinkDelegate(
+    this.c, {
+    required this.reason,
+    required this.confirm,
+    required this.confirmPairing,
+  });
 
   final AppController c;
 
   /// Text for the Touch ID / Windows Hello dialog.
-  final String Function(String code, String browser) reason;
+  final String Function(String browser) reason;
 
   /// Dialog in the app where there is no biometric check.
-  final Future<bool> Function(String code, String browser) confirm;
+  final Future<bool> Function(String browser) confirm;
+
+  /// Dialog in the app: connect this extension (showing its code)?
+  final Future<bool> Function(String code, String browser) confirmPairing;
 
   @override
   ({Uri server, String userId})? get account {
@@ -119,11 +132,25 @@ class AppLinkDelegate implements BrowserLinkDelegate {
   String? get method => c.biometricsAvailable ? c.biometricLabel : null;
 
   @override
-  Future<Uint8List?> approve({required String code, required String browser}) =>
+  bool isPaired(String publicKey) => c.isLinkedBrowser(publicKey);
+
+  @override
+  Future<Uint8List?> approve({required String browser}) =>
       c.approveBrowserUnlock(
-        reason: reason(code, browser),
-        confirm: () => confirm(code, browser),
+        reason: reason(browser),
+        confirm: () => confirm(browser),
       );
+
+  @override
+  Future<Uint8List?> pair({
+    required String publicKey,
+    required String code,
+    required String browser,
+  }) => c.pairBrowser(
+    publicKey: publicKey,
+    browser: browser,
+    confirm: () => confirmPairing(code, browser),
+  );
 }
 
 /// Registers Sixora's native messaging host with the browsers: a manifest

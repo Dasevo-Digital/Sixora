@@ -24,13 +24,16 @@ setzt sie in das Code-Feld der aktuellen Seite ein. Konten anlegen und
   Websites braucht die Erweiterung nicht.
 - Entsperren über die Desktop-App („Mit Touch ID entsperren“): Ist in der
   Sixora-App unter Einstellungen „Browser-Erweiterung entsperren“
-  eingeschaltet, fragt die Erweiterung die App per Native Messaging. Der
+  eingeschaltet, fragt die Erweiterung die App per Native Messaging. Beim
+  ersten Mal verbindet die App die Erweiterung (beide zeigen denselben
+  Code); dafür hat die Erweiterung ein eigenes Schlüsselpaar in
+  `storage.local`. Danach gibt die App den Benutzerschlüssel nur noch an
+  diesen Schlüssel versiegelt heraus, und Server und Konto gehen nur als
+  Prüfwert über die Verbindung. Der
   Browser startet dafür das Sixora-Programm (macOS) bzw. `sixora-bridge`
   (Windows, Linux), das die Bytes nur an die laufende App auf 127.0.0.1
   weiterreicht. Die App bestätigt mit Touch ID, Windows Hello oder einem
-  Dialog und schickt den Benutzerschlüssel versiegelt an einen
-  Einmal-Schlüssel der Erweiterung; beide zeigen denselben sechsstelligen
-  Code. `background.js` hält die Verbindung, weil sich das Popup schließt,
+  Dialog. `background.js` hält die Verbindung, weil sich das Popup schließt,
   sobald Touch ID den Fokus nimmt; die Antwort wartet dann in
   `storage.session` auf das nächste Popup. Safari kann per Native
   Messaging nur seine eigene Hülle erreichen und geht deshalb ohne.

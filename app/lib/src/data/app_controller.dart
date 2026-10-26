@@ -445,11 +445,53 @@ class AppController extends ChangeNotifier {
     await _afterUnlock();
   }
 
-  /// The browser extension asks to be unlocked (see `BrowserLink`). While
-  /// Sixora is unlocked the user confirms with biometrics, or with
-  /// [confirm] (a dialog) where there are none; while it is locked, quick
-  /// unlock reads the key without opening the app. Returns a copy of the
-  /// user key, or null.
+  /// Most extensions kept as connected; the oldest goes first.
+  static const maxLinkedBrowsers = 10;
+
+  /// A browser extension asks to be connected (see `BrowserLink`): only
+  /// while Sixora is unlocked, and only if the user agrees in [confirm]
+  /// (a dialog showing the extension's code). Remembers its [publicKey]
+  /// and returns a copy of the user key, or null.
+  Future<Uint8List?> pairBrowser({
+    required String publicKey,
+    required String browser,
+    required Future<bool> Function() confirm,
+  }) async {
+    if (phase != Phase.unlocked || !await confirm()) return null;
+    final keys = _keys;
+    if (keys == null || phase != Phase.unlocked) return null;
+    final linked = [
+      for (final b in settings.linkedBrowsers)
+        if (b.publicKey != publicKey) b,
+      LinkedBrowser(
+        publicKey: publicKey,
+        browser: browser,
+        added: DateTime.now(),
+      ),
+    ];
+    settings.linkedBrowsers = linked.length > maxLinkedBrowsers
+        ? linked.sublist(linked.length - maxLinkedBrowsers)
+        : linked;
+    await saveSettings();
+    return Uint8List.fromList(keys.userKey);
+  }
+
+  bool isLinkedBrowser(String publicKey) =>
+      settings.linkedBrowsers.any((b) => b.publicKey == publicKey);
+
+  Future<void> unlinkBrowser(String publicKey) async {
+    settings.linkedBrowsers = [
+      for (final b in settings.linkedBrowsers)
+        if (b.publicKey != publicKey) b,
+    ];
+    await saveSettings();
+  }
+
+  /// A connected browser extension asks to be unlocked. While Sixora is
+  /// unlocked the user confirms with biometrics, or with [confirm] (a
+  /// dialog) where there are none; while it is locked, quick unlock reads
+  /// the key without opening the app. Returns a copy of the user key, or
+  /// null.
   Future<Uint8List?> approveBrowserUnlock({
     required String reason,
     required Future<bool> Function() confirm,
@@ -667,6 +709,8 @@ class AppController extends ChangeNotifier {
     settings.biometricsOffered = false;
     // The key belongs to this account; the folder may stay.
     settings.backupKey = null;
+    // Connected extensions were connected to this account.
+    settings.linkedBrowsers = [];
     await store.saveSettings(settings);
     notifyListeners();
   }

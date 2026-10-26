@@ -17,16 +17,30 @@ class _App implements BrowserLinkDelegate {
   String? method = 'Touch ID';
 
   bool approves = true;
+  final paired = <String>{};
   final userKey = Uint8List.fromList(List.generate(32, (i) => i));
-  String? shownCode;
+  String? pairCode;
+  int approvals = 0;
 
   @override
-  Future<Uint8List?> approve({
+  bool isPaired(String publicKey) => paired.contains(publicKey);
+
+  @override
+  Future<Uint8List?> approve({required String browser}) async {
+    approvals++;
+    return approves ? Uint8List.fromList(userKey) : null;
+  }
+
+  @override
+  Future<Uint8List?> pair({
+    required String publicKey,
     required String code,
     required String browser,
   }) async {
-    shownCode = code;
-    return approves ? Uint8List.fromList(userKey) : null;
+    pairCode = code;
+    if (!approves) return null;
+    paired.add(publicKey);
+    return Uint8List.fromList(userKey);
   }
 }
 
@@ -64,68 +78,107 @@ void main() {
     late _App app;
     late BrowserLinkHost host;
     late ({String publicKey, Uint8List privateKey}) ext;
-    Map<String, Object?> request({String userId = 'u1'}) => {
-      'type': 'unlock',
-      'server': 'https://sixora.example.org',
-      'userId': userId,
+    var now = DateTime(2026, 10, 26, 12);
+    Map<String, Object?> request(String type, {String userId = 'u1'}) => {
+      'type': type,
+      'account': BrowserLink.accountTag(
+        Uri.parse('https://sixora.example.org'),
+        userId,
+      ),
       'publicKey': ext.publicKey,
       'browser': 'Opera',
     };
 
     setUp(() async {
       app = _App();
-      host = BrowserLinkHost(app, version: '0.1.28');
+      host = BrowserLinkHost(app, version: '0.1.30', clock: () => now);
       ext = await VaultCrypto.newKeyPair();
     });
 
-    test('says who it is', () async {
-      final hello = await host.handle({'type': 'hello'});
-      expect(hello['available'], isTrue);
-      expect(hello['method'], 'Touch ID');
+    test('tells only whether the account is the same', () async {
+      final hello = await host.handle(request('hello'));
+      expect(hello['sameAccount'], isTrue);
+      expect(hello['paired'], isFalse);
+      expect(hello['ready'], isTrue);
+      expect(hello.containsKey('server'), isFalse);
+      expect(hello.containsKey('userId'), isFalse);
+      final other = await host.handle(request('hello', userId: 'u2'));
+      expect(other['sameAccount'], isFalse);
+      expect(other['ready'], isFalse);
+      // Someone else asking without an account learns nothing either.
+      expect((await host.handle({'type': 'hello'}))['sameAccount'], isFalse);
+    });
+
+    test('connects a new extension once, then Touch ID suffices', () async {
+      final first = await host.handle(request('unlock'));
+      expect(app.pairCode, BrowserLink.code(ext.publicKey));
+      expect(app.approvals, 0);
       expect(
-        BrowserLink.sameAccount(
-          hello,
-          Uri.parse('https://sixora.example.org'),
-          'u1',
+        await VaultCrypto.unseal(
+          first['sealedUserKey']! as String,
+          ext.privateKey,
+          ext.publicKey,
         ),
-        isTrue,
+        app.userKey,
       );
+      expect((await host.handle(request('hello')))['paired'], isTrue);
+
+      app.pairCode = null;
+      final again = await host.handle(request('unlock'));
+      expect(app.pairCode, isNull);
+      expect(app.approvals, 1);
       expect(
-        BrowserLink.sameAccount(
-          hello,
-          Uri.parse('https://other.example.org'),
-          'u1',
+        await VaultCrypto.unseal(
+          again['sealedUserKey']! as String,
+          ext.privateKey,
+          ext.publicKey,
         ),
-        isFalse,
+        app.userKey,
       );
     });
 
-    test('hands out the user key sealed to the extension', () async {
-      final reply = await host.handle(request());
-      expect(app.shownCode, BrowserLink.code(ext.publicKey));
-      final key = await VaultCrypto.unseal(
-        reply['sealedUserKey']! as String,
-        ext.privateKey,
-        ext.publicKey,
+    test('a locked app opens only for connected extensions', () async {
+      app.unlocked = false;
+      app.unlockWhileLocked = true;
+      // Connecting needs the app unlocked.
+      expect((await host.handle(request('unlock')))['error'], 'locked');
+      expect((await host.handle(request('hello')))['ready'], isFalse);
+      app.paired.add(ext.publicKey);
+      expect((await host.handle(request('hello')))['ready'], isTrue);
+      expect(
+        (await host.handle(request('unlock')))['sealedUserKey'],
+        isA<String>(),
       );
-      expect(key, app.userKey);
+      app.unlockWhileLocked = false;
+      expect((await host.handle(request('unlock')))['error'], 'locked');
     });
 
-    test('refuses other accounts, locked apps and declined requests', () async {
+    test('refuses other accounts, declined requests and bad keys', () async {
       expect(
-        (await host.handle(request(userId: 'u2')))['error'],
+        (await host.handle(request('unlock', userId: 'u2')))['error'],
         'other_account',
       );
-      app.unlocked = false;
-      expect((await host.handle(request()))['error'], 'locked');
-      expect((await host.handle({'type': 'hello'}))['available'], isFalse);
-      app.unlockWhileLocked = true;
       app.approves = false;
-      expect((await host.handle(request()))['error'], 'denied');
-      app.account = null;
-      expect((await host.handle(request()))['error'], 'other_account');
+      expect((await host.handle(request('unlock')))['error'], 'denied');
+      expect(app.paired, isEmpty);
+      // No dialog after dialog: a minute without asking again.
+      app.approves = true;
+      app.pairCode = null;
+      expect((await host.handle(request('unlock')))['error'], 'denied');
+      expect(app.pairCode, isNull);
+      now = now.add(const Duration(minutes: 2));
       expect(
-        (await host.handle({...request(), 'publicKey': 'kurz'}))['error'],
+        (await host.handle(request('unlock')))['sealedUserKey'],
+        isA<String>(),
+      );
+      app.approves = false;
+      app.account = null;
+      expect((await host.handle(request('unlock')))['error'], 'other_account');
+      expect(
+        (await host.handle({
+          ...request('unlock'),
+          'publicKey': 'kurz',
+        }))['error'],
         'invalid',
       );
     });
