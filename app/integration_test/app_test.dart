@@ -354,6 +354,10 @@ void main() {
     expect(_field('Benutzername'), findsNothing);
     await tester.enterText(_field('Master-Passwort'), _password);
     await tester.enterText(_field('Master-Passwort wiederholen'), _password);
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Konto erstellen'),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Konto erstellen'));
     await _pumpUntil(
       tester,
