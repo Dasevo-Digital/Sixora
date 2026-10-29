@@ -35,6 +35,12 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
+      - name: Resolve package language versions
+        run: |
+          (cd packages/sixora_core && dart pub get)
+          (cd server && dart pub get)
+          (cd browser && dart pub get)
+          (cd app && flutter pub get)
       - name: Formatting
         run: >-
           dart format --output=none --set-exit-if-changed
@@ -44,14 +50,14 @@ jobs:
           app/lib app/test app/integration_test
       - name: Core
         working-directory: packages/sixora_core
-        run: dart pub get && dart analyze --fatal-infos && dart test
+        run: dart analyze --fatal-infos && dart test
       - name: Server
         working-directory: server
-        run: dart pub get && dart analyze --fatal-infos && dart test
+        run: dart analyze --fatal-infos && dart test
       - name: Browser extension
         working-directory: browser
         run: |
-          dart pub get && dart analyze --fatal-infos && dart test
+          dart analyze --fatal-infos && dart test
           tool/build.sh
       - name: Server image builds
         run: docker build -t sixora-server:ci .

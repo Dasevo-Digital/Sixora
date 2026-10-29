@@ -64,7 +64,7 @@ void main() {
     expect(
       find.bySemanticsLabel(
         RegExp(
-          r'^GitHub, alice@example\.org, Code( \d){6}, noch \d+ Sekunden$',
+          r'^GitHub, alice@example\.org, Code( \d){6}, noch \d+ Sekunden?$',
         ),
       ),
       findsOneWidget,
