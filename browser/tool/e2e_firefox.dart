@@ -67,6 +67,7 @@ Future<void> main() async {
     await m.cmd('Addon:Install', {'path': addon, 'temporary': true});
     failures = await runScenario(m, 'moz-extension://$addonHost', server.url);
     await m.cmd('WebDriver:DeleteSession');
+    await m.close();
   } on Object catch (e) {
     stderr.writeln('FEHLER: $e');
     failures++;
@@ -145,6 +146,10 @@ class Marionette implements Driver {
     final body = utf8.encode(jsonEncode([0, id, name, params]));
     _socket.add([...ascii.encode('${body.length}:'), ...body]);
     return done.future.timeout(const Duration(seconds: 30));
+  }
+
+  Future<void> close() async {
+    await _socket.close();
   }
 
   @override

@@ -45,10 +45,13 @@ void main(List<String> args) {
       'storage',
       'activeTab',
       'scripting',
+      'alarms',
+      if (target != 'safari') 'clipboardRead',
       'clipboardWrite',
+      if (target == 'chromium') 'offscreen',
       if (target != 'safari') 'nativeMessaging',
     ],
-    if (target == 'chromium') 'background': {'service_worker': 'background.js'},
+    if (target != 'firefox') 'background': {'service_worker': 'background.js'},
     if (target == 'firefox')
       'background': {
         'scripts': ['background.js'],

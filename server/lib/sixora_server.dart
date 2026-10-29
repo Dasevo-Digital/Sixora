@@ -4,5 +4,5 @@ library;
 export 'src/backup_check.dart';
 export 'src/config.dart';
 export 'src/database.dart';
-export 'src/security.dart' show normalizeInviteCode;
+export 'src/security.dart' show FailureLimiter, normalizeInviteCode;
 export 'src/server_app.dart';

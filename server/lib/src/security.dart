@@ -49,29 +49,61 @@ String normalizeInviteCode(String code) =>
 
 /// Counts failed attempts per key (user name, IP) in a sliding window.
 class FailureLimiter {
-  FailureLimiter({required this.max, required this.window});
+  FailureLimiter({
+    required this.max,
+    required this.window,
+    this.maxKeys = 50000,
+  }) : assert(maxKeys > 0);
+
   final int max;
   final Duration window;
+  final int maxKeys;
   final _failures = <String, List<DateTime>>{};
+  DateTime? _nextSweep;
 
   bool blocked(String key, [DateTime? now]) {
-    final list = _prune(key, now ?? DateTime.now());
-    return list.length >= max;
+    final list = _bucket(key, now ?? DateTime.now(), create: false);
+    return (list?.length ?? 0) >= max;
   }
 
   void fail(String key, [DateTime? now]) {
     final t = now ?? DateTime.now();
-    _prune(key, t).add(t);
+    _bucket(key, t, create: true)!.add(t);
   }
 
   void reset(String key) => _failures.remove(key);
 
-  List<DateTime> _prune(String key, DateTime now) {
-    final list = _failures.putIfAbsent(key, () => []);
-    list.removeWhere((t) => now.difference(t) > window);
-    if (_failures.length > 50000) {
-      _failures.removeWhere((_, v) => v.isEmpty);
+  List<DateTime>? _bucket(String key, DateTime now, {required bool create}) {
+    _sweep(now);
+    // Remove and reinsert active keys so insertion order is also LRU order.
+    final list = _failures.remove(key);
+    if (list != null) {
+      _removeExpired(list, now);
+      if (list.isNotEmpty) {
+        _failures[key] = list;
+        return list;
+      }
     }
-    return list;
+    if (!create) return null;
+    final fresh = <DateTime>[];
+    _failures[key] = fresh;
+    while (_failures.length > maxKeys) {
+      _failures.remove(_failures.keys.first);
+    }
+    return fresh;
+  }
+
+  void _sweep(DateTime now) {
+    final next = _nextSweep;
+    if (next != null && now.isBefore(next)) return;
+    _failures.removeWhere((_, failures) {
+      _removeExpired(failures, now);
+      return failures.isEmpty;
+    });
+    _nextSweep = now.add(window);
+  }
+
+  void _removeExpired(List<DateTime> failures, DateTime now) {
+    failures.removeWhere((failure) => now.difference(failure) > window);
   }
 }

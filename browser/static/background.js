@@ -7,6 +7,10 @@
 
 const ext = globalThis.browser ?? globalThis.chrome;
 const HOST = "de.status403.sixora";
+const CLIPBOARD_ALARM = "sixora-clear-clipboard";
+const CLIPBOARD_KEY = "sixoraPendingClipboard";
+let pendingClipboard = null;
+let creatingOffscreen = null;
 
 function ask(request, timeout) {
   return new Promise((resolve) => {
@@ -36,8 +40,86 @@ function ask(request, timeout) {
   });
 }
 
+async function rememberClipboard(code) {
+  pendingClipboard = code;
+  if (ext.storage.session) {
+    await ext.storage.session.set({ [CLIPBOARD_KEY]: code });
+  }
+}
+
+async function pendingCode() {
+  if (ext.storage.session) {
+    const stored = await ext.storage.session.get(CLIPBOARD_KEY);
+    return stored[CLIPBOARD_KEY] ?? null;
+  }
+  return pendingClipboard;
+}
+
+async function forgetClipboard() {
+  pendingClipboard = null;
+  if (ext.storage.session) await ext.storage.session.remove(CLIPBOARD_KEY);
+}
+
+async function ensureOffscreenDocument() {
+  if (!ext.offscreen) return false;
+  if (await ext.offscreen.hasDocument()) return true;
+  if (!creatingOffscreen) {
+    creatingOffscreen = ext.offscreen.createDocument({
+      url: "offscreen.html",
+      reasons: ["CLIPBOARD"],
+      justification: "Einmal-Code nach 30 Sekunden aus der Zwischenablage entfernen",
+    }).finally(() => creatingOffscreen = null);
+  }
+  await creatingOffscreen;
+  return true;
+}
+
+async function clearClipboardIfUnchanged(code) {
+  // Chromium service workers have no clipboard; their offscreen document
+  // performs the same comparison without opening a visible page.
+  if (await ensureOffscreenDocument()) {
+    return await ext.runtime.sendMessage({
+      sixora: "clipboard-clear",
+      code,
+    }) === true;
+  }
+  const clipboard = globalThis.navigator?.clipboard;
+  if (!clipboard?.readText || !clipboard?.writeText) return false;
+  const current = await clipboard.readText();
+  if (current !== code) return false;
+  await clipboard.writeText("");
+  return true;
+}
+
+async function scheduleClipboardClear(code) {
+  if (typeof code !== "string" || code.length === 0 || code.length > 64) {
+    return false;
+  }
+  await rememberClipboard(code);
+  await ext.alarms.create(CLIPBOARD_ALARM, { delayInMinutes: 0.5 });
+  return true;
+}
+
+ext.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== CLIPBOARD_ALARM) return;
+  const code = await pendingCode();
+  if (code == null) return;
+  try {
+    await clearClipboardIfUnchanged(code);
+  } catch (e) {
+    // Some browser/OS combinations deny background clipboard access.
+  } finally {
+    await forgetClipboard();
+  }
+});
+
 ext.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (sender.id !== ext.runtime.id || message?.sixora !== "native") return false;
+  if (sender.id !== ext.runtime.id) return false;
+  if (message?.sixora === "clipboard-schedule") {
+    scheduleClipboardClear(message.code).then(sendResponse, () => sendResponse(false));
+    return true;
+  }
+  if (message?.sixora !== "native") return false;
   ask(message.request, message.timeout ?? 5000).then(async (reply) => {
     const keep = message.keep;
     if (keep) await ext.storage.session.set({ [keep]: JSON.stringify(reply) });

@@ -57,7 +57,7 @@ die Prüfsummen aller Dateien.
 
 - **Codes:** TOTP (SHA-1/256/512, 4–10 Stellen, beliebiges Intervall), HOTP
   mit Zähler, Steam Guard. Countdown, Vorschau auf den nächsten Code, Kopieren
-  per Tippen; die Zwischenablage wird nach 30 s geleert.
+  per Tippen; die Apps leeren einen unveränderten kopierten Code nach 30 s.
 - **Hinzufügen:** QR-Code mit der Kamera (Android, iOS, macOS), QR-Code aus
   einem Bild oder Screenshot (alle Plattformen), QR-Code direkt vom
   Bildschirm (macOS: Fenster wählen, Linux: Bereich wählen, Windows: ganzer
@@ -89,10 +89,14 @@ die Prüfsummen aller Dateien.
   Fingerabdruck oder Windows Hello (auf iPhone und Android ist der Schlüssel
   an die Biometrie gebunden), verborgene Codes, Bildschirmschutz unter
   Android, Sichtschutz im App-Umschalter, angemeldete Geräte verwalten,
-  Aktivitätsprotokoll. Kopierte Codes gelten als vertraulich: kein
-  Zwischenablage-Verlauf, keine Übertragung auf andere Geräte. Meldet sich
-  ein neues Gerät an, zeigen alle anderen das sofort an, mit der
-  Möglichkeit, es abzumelden.
+  Aktivitätsprotokoll. Die Apps markieren kopierte Codes, wo das System es
+  unterstützt, als vertraulich und leeren sie nach 30 Sekunden. Die
+  Browser-Erweiterung kann Verlauf und Geräteabgleich des Systems nicht
+  abschalten; Firefox und Chromium löschen ihren Code nach 30 Sekunden nur
+  dann, wenn inzwischen nichts anderes kopiert wurde. Safari erlaubt diese
+  Prüfung im Hintergrund derzeit nicht zuverlässig. Meldet sich ein neues
+  Gerät an, zeigen alle anderen das sofort an, mit der Möglichkeit, es
+  abzumelden.
 - **Automatische Sicherung:** täglich eine verschlüsselte Sicherung in einen
   Ordner nach Wahl (z. B. iCloud Drive, Nextcloud, USB-Stick), unabhängig
   vom Server; die letzten 14 bleiben. Jede Datei wird nach dem Schreiben

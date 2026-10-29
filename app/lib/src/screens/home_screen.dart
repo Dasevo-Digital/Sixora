@@ -23,6 +23,62 @@ import 'settings_screen.dart';
 
 enum _Filter { all, favorites, vault, group }
 
+/// The add menu is a list rather than a fixed column: compact desktop
+/// windows and large accessibility text can scroll instead of overflowing.
+Future<String?> showAddMethodSheet(
+  BuildContext context, {
+  required bool hasCamera,
+  required bool screenCaptureSupported,
+}) => showModalBottomSheet<String>(
+  context: context,
+  showDragHandle: true,
+  builder: (context) => SafeArea(
+    child: ListView(
+      shrinkWrap: true,
+      children: [
+        if (hasCamera)
+          ListTile(
+            leading: const Icon(Icons.qr_code_scanner),
+            title: Text(t.scanQrCode),
+            subtitle: Text(t.withCamera),
+            onTap: () => Navigator.pop(context, 'scan'),
+          ),
+        if (screenCaptureSupported)
+          ListTile(
+            leading: const Icon(Icons.screenshot_monitor_outlined),
+            title: Text(t.qrFromScreen),
+            subtitle: Text(ScreenCapture.hint),
+            onTap: () => Navigator.pop(context, 'screen'),
+          ),
+        ListTile(
+          leading: const Icon(Icons.image_outlined),
+          title: Text(t.qrFromImage),
+          subtitle: Text(t.qrFromImageHint),
+          onTap: () => Navigator.pop(context, 'image'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.content_paste),
+          title: Text(t.linkFromClipboard),
+          subtitle: Text(t.linkFromClipboardHint),
+          onTap: () => Navigator.pop(context, 'paste'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.keyboard_outlined),
+          title: Text(t.enterManually),
+          subtitle: Text(t.enterManuallyHint),
+          onTap: () => Navigator.pop(context, 'manual'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.file_download_outlined),
+          title: Text(t.importAction),
+          subtitle: Text(t.importHint),
+          onTap: () => Navigator.pop(context, 'import'),
+        ),
+      ],
+    ),
+  ),
+);
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -159,54 +215,10 @@ class _HomeScreenState extends State<HomeScreen> {
       Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
 
   Future<void> _add() async {
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_hasCamera)
-              ListTile(
-                leading: const Icon(Icons.qr_code_scanner),
-                title: Text(t.scanQrCode),
-                subtitle: Text(t.withCamera),
-                onTap: () => Navigator.pop(context, 'scan'),
-              ),
-            if (ScreenCapture.supported)
-              ListTile(
-                leading: const Icon(Icons.screenshot_monitor_outlined),
-                title: Text(t.qrFromScreen),
-                subtitle: Text(ScreenCapture.hint),
-                onTap: () => Navigator.pop(context, 'screen'),
-              ),
-            ListTile(
-              leading: const Icon(Icons.image_outlined),
-              title: Text(t.qrFromImage),
-              subtitle: Text(t.qrFromImageHint),
-              onTap: () => Navigator.pop(context, 'image'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.content_paste),
-              title: Text(t.linkFromClipboard),
-              subtitle: Text(t.linkFromClipboardHint),
-              onTap: () => Navigator.pop(context, 'paste'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.keyboard_outlined),
-              title: Text(t.enterManually),
-              subtitle: Text(t.enterManuallyHint),
-              onTap: () => Navigator.pop(context, 'manual'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.file_download_outlined),
-              title: Text(t.importAction),
-              subtitle: Text(t.importHint),
-              onTap: () => Navigator.pop(context, 'import'),
-            ),
-          ],
-        ),
-      ),
+    final choice = await showAddMethodSheet(
+      context,
+      hasCamera: _hasCamera,
+      screenCaptureSupported: ScreenCapture.supported,
     );
     if (!mounted || choice == null) return;
     switch (choice) {

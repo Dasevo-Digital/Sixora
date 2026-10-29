@@ -147,14 +147,19 @@ class AppController extends ChangeNotifier {
   final _rotationFailed = <String>{};
   Future<void> _applying = Future.value();
 
-  /// For widget tests: data in [dir], no keystore, no server.
+  /// For tests: data in [dir], no keystore and an optional played server.
   @visibleForTesting
-  factory AppController.forTest(Directory dir) {
+  factory AppController.forTest(
+    Directory dir, {
+    CachedAccount? cached,
+    SixoraApi? api,
+  }) {
     final store = LocalStore(dir);
     final secrets = SecretStore.inFolder(dir);
     LocalServer.folder = Directory(p.join(dir.path, 'local'));
-    return AppController._(store, secrets, store.loadSettings(), null)
-      ..phase = Phase.setup
+    return AppController._(store, secrets, store.loadSettings(), cached)
+      ..phase = cached == null ? Phase.setup : Phase.locked
+      .._api = api
       ..biometrics = BiometricVault.none(secrets);
   }
 
@@ -437,8 +442,22 @@ class AppController extends ChangeNotifier {
           device: await deviceInfo(),
         );
         await secrets.set('token', result.token);
-      } on ApiException {
-        // Offline: codes work anyway, sync later.
+      } on ApiException catch (e) {
+        if (e.offline) {
+          // A real connection failure is harmless: codes work offline and
+          // the next sync can create a session later.
+        } else {
+          _wipeKeys();
+          if (e.unauthorized || e.code == 'disabled') {
+            await logout(
+              notice: e.code == 'disabled'
+                  ? t.accountDisabledNotice
+                  : t.deviceSignedOutNotice,
+            );
+            throw UserError(t.signedOut);
+          }
+          rethrow;
+        }
       }
     }
     _offerBiometrics();
@@ -727,7 +746,7 @@ class AppController extends ChangeNotifier {
     try {
       return await action(api);
     } on ApiException catch (e) {
-      if (e.unauthorized) {
+      if (e.unauthorized || e.code == 'disabled') {
         await logout(
           notice: e.code == 'disabled'
               ? t.accountDisabledNotice

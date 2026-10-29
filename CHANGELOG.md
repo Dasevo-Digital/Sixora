@@ -22,6 +22,11 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 - macOS und Windows: Ohne „Bildschirmfotos erlauben“ bleibt das
   Sixora-Fenster in Bildschirmfotos, Aufnahmen und bei der
   Bildschirmfreigabe leer, wie unter Android.
+- Das Menü zum Hinzufügen lässt sich in kleinen Fenstern und bei sehr großer
+  Schrift scrollen. Bisher lief es am unteren Fensterrand über.
+- Fehlt die gespeicherte Sitzung, öffnet die App den Tresor offline nur noch
+  bei einem echten Verbindungsfehler. Lehnt der Server die Anmeldung ab oder
+  ist das Konto gesperrt, entfernt die App die veralteten lokalen Sitzungsdaten.
 - Bibliotheken auf aktuelle Versionen, darunter die für Bilder (QR-Codes
   aus Dateien), ZIP-Archive (Importe) und SQLite.
 
@@ -225,6 +230,10 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
   Danach entsperrt Touch ID bzw. Windows Hello wie bisher. Die Erweiterung
   hat dafür einen eigenen Schlüssel; Server und Konto gehen nur als
   Prüfwert an die App. Braucht App 0.1.30.
+- Firefox und Chromium entfernen kopierte Codes nach 30 Sekunden aus der
+  Zwischenablage, sofern dort noch derselbe Code steht. Später kopierte
+  Inhalte bleiben unangetastet. Safari erlaubt die dafür nötige Prüfung im
+  Hintergrund derzeit nicht zuverlässig.
 
 ### 0.1.2 – 19.10.2026
 - „Mit Touch ID entsperren“ (bzw. Windows Hello oder „Mit der Sixora-App
@@ -268,6 +277,9 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
   Adresse, von der sie kamen; aus allen Adressen zusammen bleiben es
   höchstens 100 Versuche in 15 Minuten.
 - Bibliotheken auf aktuelle Versionen (SQLite, shelf).
+- Der Speicher für fehlgeschlagene Anmeldungen entfernt abgelaufene Einträge
+  jetzt global und hat eine feste Obergrenze. Viele wechselnde Adressen oder
+  Benutzernamen können ihn dadurch nicht mehr unbegrenzt wachsen lassen.
 
 ### 0.1.6 – 18.10.2026
 - Das erste Konto braucht einen Einrichtungscode. Bisher wurde Administrator,

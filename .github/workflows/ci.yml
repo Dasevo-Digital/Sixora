@@ -1,9 +1,8 @@
-# Checks only: analyze, test and build on Linux runners. Publishes nothing;
+# Checks only: analyze, test and build. Publishes nothing;
 # releases are created by hand from the local release folder.
 #
-# Every push stays on Linux, which is quick. Windows, macOS and iOS are
-# built for a release tag or by hand (release-build.yml); macOS runners
-# also count ten times and Windows twice whenever the repo is private.
+# The native macOS integration test protects the complete registration,
+# vault and UI flow. Other release builds stay in release-build.yml.
 name: CI
 
 on:
@@ -90,3 +89,22 @@ jobs:
       - if: matrix.target == 'android'
         working-directory: app/android
         run: ./gradlew :app:testProdDebugUnitTest --no-daemon -q
+
+  macos-integration:
+    name: macOS integration
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: Server dependencies
+        working-directory: server
+        run: dart pub get
+      - name: App dependencies
+        working-directory: app
+        run: flutter pub get
+      - name: Isolated macOS integration test
+        run: tool/integration_test.sh macos

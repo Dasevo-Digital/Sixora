@@ -600,9 +600,29 @@ class PopupUi {
   }
 
   Future<void> _copy(Code c) async {
-    await web.window.navigator.clipboard.writeText(c.entry.code()).toDart;
+    await _writeClipboard(c.entry.code());
     unawaited(x.touch());
     _say(t['copied']);
+  }
+
+  Future<void> _writeClipboard(String code) async {
+    await web.window.navigator.clipboard.writeText(code).toDart;
+    try {
+      await bridge.scheduleClipboardClear(code).toDart;
+    } on Object {
+      // The background page is the durable path. If a browser does not
+      // provide it, the timer below still works while the popup stays open.
+    }
+    Timer(const Duration(seconds: 30), () async {
+      try {
+        final current = await web.window.navigator.clipboard.readText().toDart;
+        if (current == code) {
+          await web.window.navigator.clipboard.writeText('').toDart;
+        }
+      } on Object {
+        // Clipboard access can be revoked after the user gesture.
+      }
+    });
   }
 
   Future<void> _insert(Code c) async {
@@ -624,7 +644,7 @@ class PopupUi {
       case 'moved':
         _say(t['siteChanged']);
       default:
-        await web.window.navigator.clipboard.writeText(code).toDart;
+        await _writeClipboard(code);
         _say(t['noField']);
     }
   }

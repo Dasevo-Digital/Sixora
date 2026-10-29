@@ -18,6 +18,10 @@ extension type Bridge._(JSObject _) implements JSObject {
   /// "filled", "none" or "moved" (the tab no longer shows [site]).
   external JSPromise<JSString> fill(String code, String site);
 
+  /// Clears this exact code from the clipboard after 30 seconds, provided
+  /// the user has not copied something else meanwhile.
+  external JSPromise<JSBoolean> scheduleClipboardClear(String code);
+
   /// A request to the Sixora desktop app (native messaging), as JSON.
   external JSPromise<JSString> native(
     String requestJson,

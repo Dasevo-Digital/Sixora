@@ -19,9 +19,18 @@ setzt sie in das Code-Feld der aktuellen Seite ein. Konten anlegen und
   nur im Arbeitsspeicher und vergisst ihn beim Beenden. Nach der
   eingestellten Zeit sperrt die Erweiterung wieder.
 - Berechtigungen: Speicher, der aktive Tab (erst wenn man die Erweiterung
-  öffnet) und der eigene Server. Den Zugriff auf den Server erfragt die
-  Anmeldung, und zwar nur für diese eine Adresse; Zugriff auf alle
-  Websites braucht die Erweiterung nicht.
+  öffnet), Zwischenablage und Zeitgeber sowie der eigene Server. Den Zugriff
+  auf den Server erfragt die Anmeldung, und zwar nur für diese eine Adresse;
+  Zugriff auf alle Websites braucht die Erweiterung nicht. Chromium nutzt
+  zum zeitversetzten Leeren zusätzlich ein unsichtbares Erweiterungsdokument.
+- Kopiert Sixora einen Code, merkt sich die Erweiterung ihn 30 Sekunden im
+  flüchtigen Sitzungsspeicher. Danach liest sie die Zwischenablage und leert
+  sie nur, wenn dort noch genau dieser Code steht. Später kopierte Inhalte
+  bleiben erhalten. Das ist in Firefox und Chromium geprüft. Safari erlaubt
+  das Lesen der Zwischenablage im Hintergrund derzeit nicht; dort kann die
+  Erweiterung das zeitversetzte sichere Leeren nicht garantieren. Browser
+  können außerdem den Verlauf oder die geräteübergreifende Zwischenablage
+  des Betriebssystems nicht abschalten.
 - Entsperren über die Desktop-App („Mit Touch ID entsperren“): Ist in der
   Sixora-App unter Einstellungen „Browser-Erweiterung entsperren“
   eingeschaltet, fragt die Erweiterung die App per Native Messaging. Beim

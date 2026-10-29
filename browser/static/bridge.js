@@ -149,6 +149,17 @@ globalThis.sixoraBridge = {
     }
   },
 
+  async scheduleClipboardClear(code) {
+    try {
+      return await ext.runtime.sendMessage({
+        sixora: "clipboard-schedule",
+        code,
+      }) === true;
+    } catch (e) {
+      return false;
+    }
+  },
+
   // A request to the Sixora desktop app, through background.js. |keep|
   // names the storage.session entry that keeps the answer in case the popup
   // closes meanwhile. Answers JSON; {"error": ...} without the app.
@@ -162,7 +173,7 @@ globalThis.sixoraBridge = {
       });
       return JSON.stringify(reply ?? { error: "no_host" });
     } catch (e) {
-      // Safari: no background script, no native messaging to the app.
+      // Safari has no native messaging connection to the desktop app.
       return JSON.stringify({ error: "no_host" });
     }
   },

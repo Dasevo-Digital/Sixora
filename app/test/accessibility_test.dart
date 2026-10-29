@@ -10,7 +10,7 @@ import 'package:sixora/src/widgets/otp_tile.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 /// Screen readers and large text: what is read out, and that nothing
-/// overflows at 200 % on a small phone.
+/// overflows at 200-300 % on a small phone.
 void main() {
   late Directory dir;
   late AppController controller;
@@ -89,40 +89,50 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('200 % text on a small phone does not overflow', (tester) async {
-    tester.view.physicalSize = const Size(320, 640);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    for (final it in [
-      item(),
-      item(issuer: 'Ein sehr langer Dienstname GmbH & Co. KG'),
-      item(type: OtpType.hotp),
-      item(type: OtpType.steam),
-    ]) {
-      await show(tester, it, scale: 2);
-      expect(tester.takeException(), isNull, reason: it.entry.issuer);
-    }
-  });
-
-  testWidgets('the welcome screen fits 200 % text on a small phone', (
+  testWidgets('200-300 % text on a small phone does not overflow', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      AppScope(
-        controller: controller,
-        child: const MaterialApp(
-          home: MediaQuery(
-            data: MediaQueryData(textScaler: TextScaler.linear(2)),
-            child: WelcomeScreen(),
+    for (final scale in [2.0, 3.0]) {
+      for (final it in [
+        item(),
+        item(issuer: 'Ein sehr langer Dienstname GmbH & Co. KG'),
+        item(type: OtpType.hotp),
+        item(type: OtpType.steam),
+      ]) {
+        await show(tester, it, scale: scale);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${it.entry.issuer}, ${scale * 100} %',
+        );
+      }
+    }
+  });
+
+  testWidgets('the welcome screen fits 200-300 % text on a small phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    for (final scale in [2.0, 3.0]) {
+      await tester.pumpWidget(
+        AppScope(
+          controller: controller,
+          child: MaterialApp(
+            home: MediaQuery(
+              data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+              child: const WelcomeScreen(),
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
-    expect(tester.takeException(), isNull);
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull, reason: '${scale * 100} %');
+    }
   });
 
   testWidgets('read out in Spanish and English as well', (tester) async {

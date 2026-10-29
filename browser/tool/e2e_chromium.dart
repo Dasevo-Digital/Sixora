@@ -76,6 +76,11 @@ Future<void> main() async {
       'chrome-extension://${BrowserLink.chromiumId}',
       server.url,
       app: File(host).existsSync() ? desktop : null,
+      // Chromium enforces a 30-second minimum for extension alarms. Firefox
+      // also covers the separate "newer clipboard content" branch quickly.
+      clipboardAlarmMinutes: 0.5,
+      clipboardAlarmWait: const Duration(seconds: 31),
+      checkClipboardPreservation: false,
     );
     await cdp.close();
   } on Object catch (e) {

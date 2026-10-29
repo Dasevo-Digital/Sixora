@@ -202,6 +202,9 @@ Future<int> runScenario(
   String base,
   String serverUrl, {
   FakeDesktopApp? app,
+  double clipboardAlarmMinutes = 0.01,
+  Duration clipboardAlarmWait = const Duration(milliseconds: 1200),
+  bool checkClipboardPreservation = true,
 }) async {
   var failures = 0;
   void check(String what, bool ok) {
@@ -252,6 +255,65 @@ Future<int> runScenario(
         !stored.contains(secret) &&
         !stored.contains('GitHub'),
   );
+
+  // Clipboard cleanup: use the same alarm and handler as production, but
+  // move the alarm forward so the end-to-end check does not wait 30 seconds.
+  Future<void> fireClipboardAlarmSoon() async {
+    await d.script(
+      'const w = window.wrappedJSObject ?? window;'
+      'const ext = w.browser ?? w.chrome;'
+      'await ext.alarms.create("sixora-clear-clipboard", '
+      '{delayInMinutes: arguments[0]});',
+      [clipboardAlarmMinutes],
+    );
+    await Future<void>.delayed(clipboardAlarmWait);
+  }
+
+  await d.click('.row');
+  await Future<void>.delayed(const Duration(milliseconds: 200));
+  final copied = await d.script('return navigator.clipboard.readText();');
+  check(
+    'copy puts the code on the clipboard',
+    copied is String && copied.length == 6,
+  );
+  if (checkClipboardPreservation) {
+    await d.script('await navigator.clipboard.writeText("später kopiert");');
+    await fireClipboardAlarmSoon();
+    final kept = await d.script('return navigator.clipboard.readText();');
+    check(
+      'clipboard cleanup preserves newer content ($kept)',
+      kept == 'später kopiert',
+    );
+    await d.click('.row');
+  }
+  await fireClipboardAlarmSoon();
+  final clipboardState = await d.script(
+    'const w = window.wrappedJSObject ?? window;'
+    'const ext = w.browser ?? w.chrome;'
+    'const pending = await ext.storage.session.get("sixoraPendingClipboard");'
+    'const alarm = await ext.alarms.get("sixora-clear-clipboard");'
+    'return [await navigator.clipboard.readText(), '
+    'pending.sixoraPendingClipboard ?? null, '
+    'alarm?.scheduledTime ? alarm.scheduledTime - Date.now() : null];',
+  );
+  check(
+    'clipboard cleanup removes an unchanged code ($clipboardState)',
+    clipboardState is List && clipboardState.first == '',
+  );
+  if (!checkClipboardPreservation) {
+    final preserved = await d.script(
+      'const w = window.wrappedJSObject ?? window;'
+      'const ext = w.browser ?? w.chrome;'
+      'await navigator.clipboard.writeText("später kopiert");'
+      'await ext.runtime.sendMessage({sixora: "clipboard-clear", '
+      'code: "123456"});'
+      'return navigator.clipboard.readText();',
+    );
+    check(
+      'clipboard cleanup preserves newer content ($preserved)',
+      preserved == 'später kopiert',
+    );
+  }
 
   // Locking and unlocking.
   await d.click('button[title]');

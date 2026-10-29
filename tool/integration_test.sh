@@ -4,11 +4,24 @@
 # The app runs with SIXORA_ENV=test: own data folder and no keychain, so the
 # real app and its data stay untouched.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$root"
 device="${1:-macos}"
 port=18081
 data="$(mktemp -d)"
-trap 'kill "$server" 2>/dev/null || true; rm -rf "$data"' EXIT
+server=""
+cleanup() {
+  if [ -n "$server" ]; then kill "$server" 2>/dev/null || true; fi
+  rm -rf "$data"
+  # flutter test leaves a real-looking app bundle behind. Remove only the
+  # test build products so Spotlight can never open them as the user's app.
+  for builds in "$root/app/build" "$root/app/build.noindex"; do
+    [ ! -d "$builds" ] || find "$builds" -type d \
+      \( -name 'Sixora.app' -o -name 'Sixora Dev.app' \) -prune \
+      -exec rm -rf -- {} +
+  done
+}
+trap cleanup EXIT
 
 # The test registers the first account with this setup code.
 (cd server && SIXORA_DATA_DIR="$data" SIXORA_HOST=127.0.0.1 SIXORA_PORT=$port \
