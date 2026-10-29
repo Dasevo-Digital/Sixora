@@ -1,8 +1,8 @@
 # Checks that every platform builds for a release tag and keeps the
 # Windows, Linux and server packages as artifacts. It publishes nothing:
 # releases and their files are created by hand from the local release
-# folder (macOS and Android are built there, Android with the same key as
-# every earlier APK).
+# folder. Android is built here, then re-signed locally with the same key as
+# every earlier APK; the runner's temporary debug signature is not released.
 name: Release build check
 
 on:
@@ -22,6 +22,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - target: android
+            runner: ubuntu-24.04
           - target: windows
             runner: windows-latest
           - target: linux
@@ -42,6 +44,11 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
+      - if: matrix.target == 'android'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
       - if: matrix.target == 'linux'
         run: |
           sudo apt-get update
@@ -60,6 +67,19 @@ jobs:
             [ -f "$dll" ] || { echo "::error::$dll fehlt im Paket"; exit 1; }
           done
           7z a "$GITHUB_WORKSPACE/Sixora-$VERSION-windows-x64.zip" .
+      - name: Android
+        if: matrix.target == 'android'
+        run: |
+          flutter build apk --release --flavor prod --split-per-abi
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-prod-release.apk \
+            "$GITHUB_WORKSPACE/Sixora-$VERSION-android-arm64.apk"
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-prod-release.apk \
+            "$GITHUB_WORKSPACE/Sixora-$VERSION-android-armv7.apk"
+          cp build/app/outputs/flutter-apk/app-x86_64-prod-release.apk \
+            "$GITHUB_WORKSPACE/Sixora-$VERSION-android-x86_64.apk"
+          tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 \
+            -type d | sort -V | tail -n 1)
+          cp "$tools/lib/apksigner.jar" "$GITHUB_WORKSPACE/apksigner.jar"
       - name: Linux
         if: matrix.target == 'linux'
         run: |
@@ -76,7 +96,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sixora-${{ matrix.target }}
-          path: Sixora-*.*
+          path: |
+            Sixora-*.*
+            apksigner.jar
 
   server:
     strategy:
