@@ -4,6 +4,21 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseKeystorePath = providers.environmentVariable("SIXORA_ANDROID_KEYSTORE").orNull
+val releaseKeyAlias = providers.environmentVariable("SIXORA_ANDROID_KEY_ALIAS").orNull
+val releaseStorePassword = providers.environmentVariable("SIXORA_ANDROID_STORE_PASSWORD").orNull
+val releaseKeyPassword = providers.environmentVariable("SIXORA_ANDROID_KEY_PASSWORD").orNull
+val releaseSigningValues = listOf(
+    releaseKeystorePath,
+    releaseKeyAlias,
+    releaseStorePassword,
+    releaseKeyPassword,
+)
+val releaseSigningConfigured = releaseSigningValues.all { !it.isNullOrBlank() }
+if (!releaseSigningConfigured && releaseSigningValues.any { !it.isNullOrBlank() }) {
+    throw GradleException("Die Android-Release-Signierung ist unvollständig konfiguriert.")
+}
+
 android {
     namespace = "de.status403.sixora"
     compileSdk = flutter.compileSdkVersion
@@ -27,6 +42,20 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("sixoraRelease") {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     // prod = the real app; dev = own application id and data, for tests on
     // devices that also run the real app (flutter run --flavor dev).
     flavorDimensions += "env"
@@ -39,15 +68,30 @@ android {
             dimension = "env"
             applicationIdSuffix = ".dev"
             resValue("string", "app_name", "Sixora Dev")
+            // Development releases are separate from the installed product.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("sixoraRelease")
+            }
         }
+    }
+}
+
+gradle.taskGraph.whenReady {
+    val buildsProductRelease = allTasks.any {
+        it.name.contains("ProdRelease", ignoreCase = true)
+    }
+    if (buildsProductRelease && !releaseSigningConfigured) {
+        throw GradleException(
+            "Produkt-Release abgebrochen: SIXORA_ANDROID_KEYSTORE, " +
+                "SIXORA_ANDROID_KEY_ALIAS, SIXORA_ANDROID_STORE_PASSWORD und " +
+                "SIXORA_ANDROID_KEY_PASSWORD müssen gesetzt sein.",
+        )
     }
 }
 

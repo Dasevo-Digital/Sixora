@@ -60,7 +60,7 @@ List<(OtpEntry, {bool team})> _demo(Random r) {
     e('Nextcloud', 'alex', group: 'Privat', favorite: true),
     e('Cloudflare', 'admin@example.org', group: 'Arbeit', team: true),
     e('Hetzner', 'K0815', group: 'Arbeit', team: true),
-    e('Mastodon', '@alex@example.social', group: 'Privat'),
+    e('Mastodon', '@alex@social.example', group: 'Privat'),
     e('PayPal', 'alex@example.org', group: 'Privat'),
     e('Discord', 'alex#4711', group: 'Privat'),
     e('Dropbox', 'alex@example.org', group: 'Privat'),

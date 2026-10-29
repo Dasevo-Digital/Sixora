@@ -6,6 +6,24 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
+### Nächste Version
+- Importdateien und QR-Bilder haben jetzt Grenzen für Anzahl, Einzelgröße,
+  Gesamtgröße und Bildpunkte. Bisher konnte eine absichtlich riesige oder
+  stark komprimierte Datei beim vollständigen Einlesen den Arbeitsspeicher
+  aufbrauchen und die App beenden.
+- macOS und Linux setzen für das lokale App-Verzeichnis und seine Dateien
+  zusätzlich feste private Zugriffsrechte. Die Betriebssystemordner waren
+  bereits benutzerspezifisch; die Rechte hängen nun nicht mehr von der
+  jeweiligen Standardmaske des Systems ab.
+- Android-Produkt-Builds brechen jetzt ab, wenn kein vollständiger
+  Release-Schlüssel zur Laufzeit bereitsteht. Bisher verwendete die
+  eingecheckte Gradle-Konfiguration zunächst einen Debugschlüssel; ein
+  ausgelassener manueller Signierschritt hätte dadurch nicht aktualisierbare
+  APKs erzeugt.
+- Das Symbol im Infobereich verwendet die aktuelle native Bibliothek. Die alte
+  Übergangskette enthielt bereits eingestellte Pakete und hätte spätere
+  Flutter-Versionen blockiert.
+
 ### 0.1.30 – 26.10.2026 (Erweiterung 0.1.3)
 - Browser-Erweiterung entsperren: Eine Erweiterung wird jetzt einmal mit
   der App verbunden. Bisher nahm die App Anfragen jedes Programms auf dem

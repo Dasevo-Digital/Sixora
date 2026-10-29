@@ -48,7 +48,10 @@ void main() {
     expect(icons.forEntry(entry('Google', icon: OtpEntry.noIcon)), isNull);
     expect(icons.forEntry(entry('Firma', icon: 'github'))?.slug, 'github');
     // Without issuer the domain of the account helps.
-    expect(icons.forEntry(entry('', account: 'me@gitlab.com'))?.slug, 'gitlab');
+    expect(
+      icons.forEntry(entry('', account: 'me@gitlab.example'))?.slug,
+      'gitlab',
+    );
   });
 
   test('search finds by prefix first', () {

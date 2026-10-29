@@ -9,6 +9,7 @@ import 'package:sixora_core/sixora_core.dart';
 import 'package:zxing2/qrcode.dart' hide BarcodeFormat;
 
 import '../l10n.dart';
+import 'import_limits.dart';
 
 /// Reads the QR codes in image files (screenshots, photos, saved codes).
 ///
@@ -17,23 +18,52 @@ import '../l10n.dart';
 /// photos) and copes with photos of screens. Elsewhere, or if it finds
 /// nothing, a pure Dart decoder takes over. Returns the codes in file order,
 /// without duplicates; throws [FormatException] if no image could be opened.
-Future<List<String>> readQrCodes(List<PlatformFile> files) =>
-    readQrImages([for (final f in files) (path: f.path, bytes: f.readAsBytes)]);
+Future<List<String>> readQrCodes(
+  List<PlatformFile> files, {
+  ImportBudget? budget,
+}) async {
+  final selected = budget ?? ImportBudget(files.length);
+  final images = <({String? path, Future<Uint8List> Function() bytes})>[];
+  for (final file in files) {
+    final bytes = await selected.read(file, maxBytes: maxImportImageBytes);
+    images.add((path: file.path, bytes: () async => bytes));
+  }
+  return readQrImages(images);
+}
 
 /// [readQrCodes] for any image source: a file path (for the system
 /// detection) and a way to load the bytes (for the Dart decoder).
 Future<List<String>> readQrImages(
   List<({String? path, Future<Uint8List> Function() bytes})> images,
 ) async {
+  if (images.length > maxImportFiles) {
+    throw FormatException(t.importTooManyFiles(maxImportFiles));
+  }
   final codes = <String>{};
   var unreadable = 0;
+  var totalBytes = 0;
   for (final image in images) {
+    final bytes = await image.bytes();
+    totalBytes += bytes.length;
+    if (bytes.length > maxImportImageBytes) {
+      throw FormatException(
+        t.importFileTooLarge(
+          t.importImageLabel,
+          maxImportImageBytes ~/ (1024 * 1024),
+        ),
+      );
+    }
+    if (totalBytes > maxImportTotalBytes) {
+      throw FormatException(
+        t.importSelectionTooLarge(maxImportTotalBytes ~/ (1024 * 1024)),
+      );
+    }
+    validateEncodedQrImage(bytes);
     final native = await _readNative(image.path);
     if (native.isNotEmpty) {
       codes.addAll(native);
       continue;
     }
-    final bytes = await image.bytes();
     final result = await Isolate.run(() => _decodeAll(bytes));
     if (result == null) {
       unreadable++;
@@ -45,6 +75,32 @@ Future<List<String>> readQrImages(
     throw FormatException(t.imageNotOpenable);
   }
   return codes.toList();
+}
+
+@visibleForTesting
+void validateEncodedQrImage(Uint8List bytes) {
+  if (bytes.length > maxImportImageBytes) {
+    throw FormatException(
+      t.importFileTooLarge(
+        t.importImageLabel,
+        maxImportImageBytes ~/ (1024 * 1024),
+      ),
+    );
+  }
+  try {
+    final decoder = img.findDecoderForData(bytes);
+    final info = decoder?.startDecode(bytes);
+    if (info != null &&
+        info.width * info.height * info.numFrames > maxImportImagePixels) {
+      throw FormatException(
+        t.importImageTooLarge(maxImportImagePixels ~/ 1000000),
+      );
+    }
+  } on FormatException {
+    rethrow;
+  } on Object {
+    // Invalid images are handled by the normal decoder below.
+  }
 }
 
 @visibleForTesting
@@ -84,23 +140,31 @@ String? _decodeAll(Uint8List bytes) {
 /// A screen picture as BGRA pixels (Windows). Tried at full size first: on
 /// a large screen the code is small.
 Future<String?> readQrPixels(int width, int height, Uint8List bgra) =>
-    Isolate.run(
-      () => _decodeImage(
-        img.Image.fromBytes(
-          width: width,
-          height: height,
-          bytes: bgra.buffer,
-          numChannels: 4,
-          order: img.ChannelOrder.bgra,
+    width <= 0 ||
+        height <= 0 ||
+        width * height > maxImportImagePixels ||
+        bgra.length != width * height * 4
+    ? throw FormatException(
+        t.importImageTooLarge(maxImportImagePixels ~/ 1000000),
+      )
+    : Isolate.run(
+        () => _decodeImage(
+          img.Image.fromBytes(
+            width: width,
+            height: height,
+            bytes: bgra.buffer,
+            numChannels: 4,
+            order: img.ChannelOrder.bgra,
+          ),
+          fullSize: true,
         ),
-        fullSize: true,
-      ),
-    );
+      );
 
 /// Pure Dart decoding of an encoded image (PNG, JPEG, …); null if no code
 /// was found.
 @visibleForTesting
 String? decodeQrImageSync(Uint8List bytes) {
+  validateEncodedQrImage(bytes);
   final image = img.decodeImage(bytes);
   return image == null ? null : _decodeImage(image);
 }

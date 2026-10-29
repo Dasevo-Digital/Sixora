@@ -1607,6 +1607,29 @@ class AppLocalizationsEn extends AppLocalizations {
       'The image cannot be opened. Please save it as PNG or JPEG (e.g. a screenshot instead of a HEIC photo).';
 
   @override
+  String get importImageLabel => 'Image file';
+
+  @override
+  String importTooManyFiles(int max) {
+    return 'Too many files selected. Choose no more than $max files at once.';
+  }
+
+  @override
+  String importFileTooLarge(String name, int max) {
+    return '“$name” is too large. The limit is $max MiB.';
+  }
+
+  @override
+  String importSelectionTooLarge(int max) {
+    return 'The selected files are too large together. The limit is $max MiB.';
+  }
+
+  @override
+  String importImageTooLarge(int max) {
+    return 'The image has too many pixels or frames. The total limit is $max megapixels.';
+  }
+
+  @override
   String codeListOfSize(Object list, Object size) {
     return '$list of $size';
   }

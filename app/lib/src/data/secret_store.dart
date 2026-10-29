@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 
 import '../environment.dart';
+import 'file_permissions.dart';
 
 /// Secrets of this device: the session token and, if quick unlock is
 /// enabled, the user key.
@@ -104,12 +105,18 @@ class SecretStore {
       if (file.existsSync()) file.deleteSync();
       return;
     }
-    // Restrict the permissions before the token is written. Windows has no
-    // chmod; there the user's AppData folder is private already.
-    if (!file.existsSync()) {
-      file.createSync(recursive: true);
-      if (!Platform.isWindows) await Process.run('chmod', ['600', file.path]);
+    // On POSIX the private parent directory makes the temporary file safe
+    // before chmod. Rename replaces the old contents atomically.
+    if (Platform.isLinux || Platform.isMacOS) {
+      final tmp = File(
+        '${file.path}.${pid}_${DateTime.now().microsecondsSinceEpoch}.tmp',
+      );
+      await tmp.writeAsString(raw, flush: true);
+      await ensurePrivateFile(tmp);
+      await tmp.rename(file.path);
+    } else {
+      // Windows protects the user's AppData directory and cannot chmod.
+      await file.writeAsString(raw, flush: true);
     }
-    file.writeAsStringSync(raw, flush: true);
   }
 }

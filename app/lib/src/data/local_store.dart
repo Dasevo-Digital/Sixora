@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:sixora_core/sixora_core.dart';
 
+import 'file_permissions.dart';
+
 import '../l10n.dart';
 
 /// What this device keeps between starts: the account's wrapped key
@@ -276,6 +278,7 @@ class LocalStore {
     final tmp = File('${file.path}.${pid}_${_serial++}.tmp');
     final done = _queue.then((_) async {
       await tmp.writeAsString(text, flush: true);
+      await ensurePrivateFile(tmp);
       await tmp.rename(file.path);
     });
     // A failed write must not block the ones after it.

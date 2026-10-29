@@ -20,7 +20,7 @@ import 'secure_clipboard.dart';
 /// * „Suchen …“ and ⌥⌘O (macOS) / Strg+Alt+O bring the window to the front
 ///   with the search field focused.
 /// * Closing the window keeps Sixora running in the menu bar, if wanted.
-class DesktopShell with TrayListener, WindowListener {
+class DesktopShell with WindowListener {
   DesktopShell._(this.c);
 
   static DesktopShell? instance;
@@ -38,6 +38,11 @@ class DesktopShell with TrayListener, WindowListener {
   final AppController c;
   String _menuState = '';
   HotKey? _hotKey;
+  TrayIcon? _trayIcon;
+  Image? _trayImage;
+  Menu? _menu;
+  List<MenuItem> _menuItems = const [];
+  ListenerId? _trayListener;
 
   static String? _menuLanguage;
 
@@ -61,18 +66,31 @@ class DesktopShell with TrayListener, WindowListener {
       await windowManager.ensureInitialized();
       windowManager.addListener(shell);
       await windowManager.setPreventClose(c.settings.keepInTray);
-      await trayManager.setIcon(
+      final tray = TrayIcon.createWithIdentifier('de.status403.sixora');
+      if (tray == null) throw StateError('Menüleistensymbol nicht verfügbar');
+      shell._trayIcon = tray;
+      final image = ImageAsset.fromAsset(
         Platform.isMacOS
             ? 'assets/tray/tray_template.png'
             : Platform.isWindows
             ? 'assets/tray/tray.ico'
             : 'assets/tray/tray.png',
-        isTemplate: true,
       );
-      if (!Platform.isLinux) await trayManager.setToolTip('Sixora');
-      trayManager.addListener(shell);
+      if (image == null) throw StateError('Menüleistensymbol fehlt');
+      shell._trayImage = image;
+      tray
+        ..icon = image
+        ..isIconTemplate = Platform.isMacOS
+        ..setTooltip(Platform.isLinux ? null : 'Sixora')
+        ..setContextMenuTrigger(
+          Platform.isMacOS
+              ? ContextMenuTrigger.clicked
+              : ContextMenuTrigger.rightClicked,
+        );
+      shell._trayListener = tray.addListener(shell._onTrayEvent);
       c.addListener(shell._changed);
       await shell._updateMenu();
+      tray.setVisible(true);
       await shell.applySettings();
     } on Object catch (e) {
       debugPrint('Menüleiste nicht verfügbar: $e');
@@ -114,7 +132,22 @@ class DesktopShell with TrayListener, WindowListener {
   Future<void> quit() async {
     await windowManager.setPreventClose(false);
     await hotKeyManager.unregisterAll();
-    await trayManager.destroy();
+    c.removeListener(_changed);
+    final tray = _trayIcon;
+    final listener = _trayListener;
+    if (tray != null && listener != null) tray.removeListener(listener);
+    tray?.setContextMenu(null);
+    for (final item in _menuItems) {
+      item.dispose();
+    }
+    _menu?.dispose();
+    tray?.setVisible(false);
+    tray?.dispose();
+    _trayImage?.dispose();
+    _trayIcon = null;
+    _trayImage = null;
+    _menu = null;
+    _menuItems = const [];
     await windowManager.destroy();
   }
 
@@ -136,57 +169,71 @@ class DesktopShell with TrayListener, WindowListener {
   Future<void> _updateMenu() async {
     final unlocked = c.phase == Phase.unlocked;
     final quick = unlocked ? _quick : const <Item>[];
-    await trayManager.setContextMenu(
-      Menu(
-        items: [
-          MenuItem(key: 'open', label: t.openSixora),
-          if (unlocked) ...[
-            MenuItem(
-              key: 'search',
-              label: hasShortcut
-                  ? t.searchWithShortcut(shortcutLabel)
-                  : t.searchEllipsis,
-            ),
-            MenuItem.separator(),
-            if (quick.isEmpty)
-              MenuItem(label: t.favoritesHint, disabled: true)
-            else ...[
-              MenuItem(label: t.copyCode, disabled: true),
-              for (final item in quick)
-                MenuItem(
-                  key: 'copy:${item.id}',
-                  label:
-                      '${item.entry.displayName}'
-                      '${item.entry.issuer.isNotEmpty && item.entry.account.isNotEmpty ? ' (${item.entry.account})' : ''}',
-                ),
-            ],
-            MenuItem.separator(),
-            MenuItem(key: 'lock', label: t.lock),
-          ] else if (c.phase == Phase.locked)
-            MenuItem(key: 'open', label: t.unlockEllipsis),
-          MenuItem.separator(),
-          MenuItem(key: 'quit', label: t.quitSixora),
-        ],
-      ),
-    );
+    final menu = Menu.create();
+    if (menu == null) throw StateError('Menü nicht verfügbar');
+    final items = <MenuItem>[];
+    MenuItem add(String label, String key, {bool enabled = true}) {
+      final item = MenuItem.createWithLabelAndType(label, MenuItemType.normal);
+      if (item == null) throw StateError('Menüeintrag nicht verfügbar');
+      item.isEnabled = enabled;
+      item.addListener((event) {
+        if (event is MenuItemClickedEvent) _onMenuItem(key);
+      });
+      menu.addItem(item);
+      items.add(item);
+      return item;
+    }
+
+    add(t.openSixora, 'open');
+    if (unlocked) {
+      add(
+        hasShortcut ? t.searchWithShortcut(shortcutLabel) : t.searchEllipsis,
+        'search',
+      );
+      menu.addSeparator();
+      if (quick.isEmpty) {
+        add(t.favoritesHint, '', enabled: false);
+      } else {
+        add(t.copyCode, '', enabled: false);
+        for (final item in quick) {
+          add(
+            '${item.entry.displayName}'
+                '${item.entry.issuer.isNotEmpty && item.entry.account.isNotEmpty ? ' (${item.entry.account})' : ''}',
+            'copy:${item.id}',
+          );
+        }
+      }
+      menu.addSeparator();
+      add(t.lock, 'lock');
+    } else if (c.phase == Phase.locked) {
+      add(t.unlockEllipsis, 'open');
+    }
+    menu.addSeparator();
+    add(t.quitSixora, 'quit');
+
+    final oldMenu = _menu;
+    final oldItems = _menuItems;
+    _trayIcon?.setContextMenu(menu);
+    _menu = menu;
+    _menuItems = items;
+    for (final item in oldItems) {
+      item.dispose();
+    }
+    oldMenu?.dispose();
   }
 
-  @override
-  void onTrayIconMouseDown() {
-    // macOS: a click opens the menu; elsewhere it shows the window.
-    if (Platform.isMacOS) {
-      trayManager.popUpContextMenu();
-    } else {
-      unawaited(show());
+  void _onTrayEvent(TrayIconEvent event) {
+    switch (event) {
+      case TrayIconClickedEvent():
+        if (!Platform.isMacOS) unawaited(show());
+      case TrayIconRightClickedEvent():
+        if (Platform.isMacOS) _trayIcon?.openContextMenu();
+      case TrayIconDoubleClickedEvent():
+        if (!Platform.isMacOS) unawaited(show());
     }
   }
 
-  @override
-  void onTrayIconRightMouseDown() => trayManager.popUpContextMenu();
-
-  @override
-  void onTrayMenuItemClick(MenuItem menuItem) {
-    final key = menuItem.key ?? '';
+  void _onMenuItem(String key) {
     switch (key) {
       case 'open':
         unawaited(show());

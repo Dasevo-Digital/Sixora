@@ -1,0 +1,28 @@
+name: Repository governance
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: governance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  privacy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Privacy scanner regression tests
+        run: tool/test_repo_privacy_check.sh
+      - name: Published-history privacy check
+        run: tool/repo_privacy_check.sh
+      - name: Whitespace errors
+        run: git diff --check

@@ -2764,6 +2764,36 @@ abstract class AppLocalizations {
   /// **'Das Bild lässt sich nicht öffnen. Bitte als PNG oder JPEG speichern (z. B. einen Screenshot statt eines HEIC-Fotos).'**
   String get imageNotOpenable;
 
+  /// No description provided for @importImageLabel.
+  ///
+  /// In de, this message translates to:
+  /// **'Bilddatei'**
+  String get importImageLabel;
+
+  /// No description provided for @importTooManyFiles.
+  ///
+  /// In de, this message translates to:
+  /// **'Zu viele Dateien ausgewählt. Höchstens {max} Dateien auf einmal.'**
+  String importTooManyFiles(int max);
+
+  /// No description provided for @importFileTooLarge.
+  ///
+  /// In de, this message translates to:
+  /// **'„{name}“ ist zu groß. Höchstens {max} MiB.'**
+  String importFileTooLarge(String name, int max);
+
+  /// No description provided for @importSelectionTooLarge.
+  ///
+  /// In de, this message translates to:
+  /// **'Die ausgewählten Dateien sind zusammen zu groß. Höchstens {max} MiB.'**
+  String importSelectionTooLarge(int max);
+
+  /// No description provided for @importImageTooLarge.
+  ///
+  /// In de, this message translates to:
+  /// **'Das Bild hat zu viele Bildpunkte oder Einzelbilder. Höchstens {max} Megapixel insgesamt.'**
+  String importImageTooLarge(int max);
+
   /// No description provided for @codeListOfSize.
   ///
   /// In de, this message translates to:

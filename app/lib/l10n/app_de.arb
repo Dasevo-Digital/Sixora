@@ -991,6 +991,42 @@
   "unlockEllipsis": "Entsperren …",
   "quitSixora": "Sixora beenden",
   "imageNotOpenable": "Das Bild lässt sich nicht öffnen. Bitte als PNG oder JPEG speichern (z. B. einen Screenshot statt eines HEIC-Fotos).",
+  "importImageLabel": "Bilddatei",
+  "importTooManyFiles": "Zu viele Dateien ausgewählt. Höchstens {max} Dateien auf einmal.",
+  "@importTooManyFiles": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "importFileTooLarge": "„{name}“ ist zu groß. Höchstens {max} MiB.",
+  "@importFileTooLarge": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "importSelectionTooLarge": "Die ausgewählten Dateien sind zusammen zu groß. Höchstens {max} MiB.",
+  "@importSelectionTooLarge": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "importImageTooLarge": "Das Bild hat zu viele Bildpunkte oder Einzelbilder. Höchstens {max} Megapixel insgesamt.",
+  "@importImageTooLarge": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
   "codeListOfSize": "{list} von {size}",
   "@codeListOfSize": {
     "placeholders": {

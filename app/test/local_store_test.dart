@@ -18,5 +18,8 @@ void main() {
     expect(dir.listSync().map((f) => f.uri.pathSegments.last), [
       'settings.json',
     ]);
+    if (!Platform.isWindows) {
+      expect(File('${dir.path}/settings.json').statSync().mode & 0x1ff, 0x180);
+    }
   });
 }

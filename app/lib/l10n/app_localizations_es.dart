@@ -1623,6 +1623,29 @@ class AppLocalizationsEs extends AppLocalizations {
       'No se puede abrir la imagen. Guárdala como PNG o JPEG (p. ej. una captura en lugar de una foto HEIC).';
 
   @override
+  String get importImageLabel => 'Archivo de imagen';
+
+  @override
+  String importTooManyFiles(int max) {
+    return 'Se han seleccionado demasiados archivos. Elige como máximo $max archivos a la vez.';
+  }
+
+  @override
+  String importFileTooLarge(String name, int max) {
+    return '«$name» es demasiado grande. El límite es de $max MiB.';
+  }
+
+  @override
+  String importSelectionTooLarge(int max) {
+    return 'Los archivos seleccionados son demasiado grandes en conjunto. El límite es de $max MiB.';
+  }
+
+  @override
+  String importImageTooLarge(int max) {
+    return 'La imagen tiene demasiados píxeles o fotogramas. El límite total es de $max megapíxeles.';
+  }
+
+  @override
   String codeListOfSize(Object list, Object size) {
     return '$list de $size';
   }

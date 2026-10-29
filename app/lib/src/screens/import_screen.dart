@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../l10n.dart';
+import '../platform/import_limits.dart';
 import '../platform/qr_image.dart';
 import '../widgets/common.dart';
 import '../widgets/otp_tile.dart';
@@ -61,10 +62,19 @@ class _ImportScreenState extends State<ImportScreen> {
   final _texts = <String>[];
 
   Future<void> _pickFiles() async {
+    try {
+      await _pickFilesUnchecked();
+    } on Object catch (e) {
+      if (mounted) showError(context, e);
+    }
+  }
+
+  Future<void> _pickFilesUnchecked() async {
     final files = await FilePicker.pickFiles(
       dialogTitle: t.chooseExportFilesOrImages,
     );
     if (files.isEmpty || !mounted) return;
+    final budget = ImportBudget(files.length);
     final images = [
       for (final f in files)
         if (_imageTypes.contains(f.extension?.toLowerCase())) f,
@@ -72,13 +82,18 @@ class _ImportScreenState extends State<ImportScreen> {
     final texts = <String>[];
     for (final f in files) {
       if (images.contains(f)) continue;
-      texts.add(utf8.decode(await f.readAsBytes(), allowMalformed: true));
+      texts.add(
+        utf8.decode(
+          await budget.read(f, maxBytes: maxImportTextBytes),
+          allowMalformed: true,
+        ),
+      );
     }
     if (!mounted) return;
     if (images.isNotEmpty) {
       final codes = await runBusy(
         context,
-        () => readQrCodes(images),
+        () => readQrCodes(images, budget: budget),
         message: images.length == 1
             ? t.searchingQr
             : t.searchingQrInImages(images.length),

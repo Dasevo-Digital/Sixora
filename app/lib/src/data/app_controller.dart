@@ -13,9 +13,14 @@ import '../l10n.dart';
 import '../platform/backup_folder.dart';
 import 'biometric_vault.dart';
 import 'error_texts.dart';
+import 'file_permissions.dart';
 import 'local_server.dart';
 import 'local_store.dart';
 import 'secret_store.dart';
+
+part 'app_controller_backup.dart';
+part 'app_controller_move.dart';
+part 'app_controller_sessions.dart';
 
 enum Phase { loading, setup, locked, unlocked }
 
@@ -165,8 +170,8 @@ class AppController extends ChangeNotifier {
 
   static Future<AppController> create({bool passive = false}) async {
     final base = await getApplicationSupportDirectory();
-    final dir = Directory(p.join(base.path, AppEnv.dataFolder))
-      ..createSync(recursive: true);
+    final dir = Directory(p.join(base.path, AppEnv.dataFolder));
+    await ensurePrivateDirectory(dir);
     final store = LocalStore(dir);
     final secrets = await SecretStore.open(dir);
     LocalServer.folder = Directory(p.join(dir.path, 'local'));
@@ -229,6 +234,8 @@ class AppController extends ChangeNotifier {
     return set.toList()
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   }
+
+  void _notify() => notifyListeners();
 
   Future<void> saveSettings() async {
     await store.saveSettings(settings);
@@ -819,204 +826,6 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  // --- Automatic backup -----------------------------------------------------
-
-  static final _backupName = RegExp(
-    r'^Sixora-Sicherung-\d{4}-\d{2}-\d{2}\.json$',
-  );
-
-  bool get autoBackup =>
-      settings.backupFolder != null && settings.backupKey != null;
-
-  String _backupAad(String accountId) => 'sixora-backup-key|$accountId';
-
-  /// Backs up to [folder] from now on, encrypted with [password].
-  Future<void> enableAutoBackup(FolderRef folder, String password) async {
-    final key = await BackupKey.derive(password);
-    settings
-      ..backupFolder = folder.ref
-      ..backupFolderLabel = folder.label;
-    await _storeBackupKey(key);
-    await backupNow();
-  }
-
-  /// Keeps the key of the backup password, wrapped with the user key.
-  Future<void> _storeBackupKey(BackupKey key) async {
-    final id = account!.id;
-    settings
-      ..backupKey = {
-        'account': id,
-        'kdf': key.kdf.toJson(),
-        'salt': key.salt,
-        'key': await VaultCrypto.encrypt(
-          _keys!.userKey,
-          key.key,
-          aad: _backupAad(id),
-        ),
-      }
-      ..lastBackupCursor = -1
-      ..backupError = null;
-    await saveSettings();
-  }
-
-  Future<void> disableAutoBackup() async {
-    _backupTimer?.cancel();
-    settings
-      ..backupFolder = null
-      ..backupFolderLabel = ''
-      ..backupKey = null
-      ..backupError = null;
-    await saveSettings();
-    notifyListeners();
-  }
-
-  /// After changes: one backup a little later, not one per keystroke.
-  void _scheduleBackup() {
-    if (!autoBackup || phase != Phase.unlocked) return;
-    if (settings.lastBackupCursor == cached?.cursor) return;
-    _backupTimer?.cancel();
-    _backupTimer = Timer(const Duration(seconds: 15), () async {
-      try {
-        await backupNow();
-      } on Object catch (e) {
-        debugPrint('Automatische Sicherung fehlgeschlagen: $e');
-      }
-    });
-  }
-
-  /// Writes today's file (replacing an earlier one of the same day) and
-  /// keeps the newest [AppSettings.backupKeep] files.
-  Future<void> backupNow() async {
-    final folder = settings.backupFolder;
-    final c = cached;
-    if (folder == null || c == null || _keys == null) return;
-    try {
-      final key = await _backupKey();
-      if (key == null) return;
-      final cursor = c.cursor;
-      final entries = [for (final i in items) i.entry];
-      final text = await SixoraBackup.encryptWithKey(entries, key);
-      final now = DateTime.now();
-      String two(int v) => v.toString().padLeft(2, '0');
-      final name =
-          'Sixora-Sicherung-${now.year}-${two(now.month)}-${two(now.day)}.json';
-      await BackupFolder.write(folder, name, text);
-      // Read it back: a file that cannot be opened is no backup.
-      final back = await SixoraBackup.decryptWithKey(
-        await BackupFolder.read(folder, name),
-        key,
-      );
-      if (back.length != entries.length) {
-        throw UserError(t.backupWrittenMismatch(back.length, entries.length));
-      }
-      final names = [
-        for (final n in await BackupFolder.list(folder))
-          if (_backupName.hasMatch(n)) n,
-      ]..sort();
-      for (final old in names.take(
-        (names.length - settings.backupKeep).clamp(0, names.length),
-      )) {
-        await BackupFolder.delete(folder, old);
-      }
-      settings
-        ..lastBackup = now
-        ..lastBackupCursor = cursor
-        ..backupError = null;
-    } on PlatformException catch (e) {
-      settings.backupError = e.message ?? e.code;
-      throw UserError(t.backupFailed(settings.backupError!));
-    } on Object catch (e) {
-      settings.backupError = errorText(e);
-      rethrow;
-    } finally {
-      await saveSettings();
-      notifyListeners();
-    }
-  }
-
-  /// The stored key of the backup password, opened with the user key.
-  Future<BackupKey?> _backupKey() async {
-    final stored = settings.backupKey;
-    final keys = _keys;
-    final c = cached;
-    if (stored == null || keys == null || c == null) return null;
-    if (stored['account'] != c.account.id) {
-      throw UserError(t.backupOtherAccount);
-    }
-    return BackupKey(
-      kdf: KdfParams.fromJson((stored['kdf']! as Map).cast()),
-      salt: stored['salt']! as String,
-      key: await VaultCrypto.decrypt(
-        keys.userKey,
-        stored['key']! as String,
-        aad: _backupAad(c.account.id),
-      ),
-    );
-  }
-
-  /// Opens the newest backup in the folder like a restore would: decrypts
-  /// it and compares it with the accounts here.
-  Future<BackupVerification> verifyBackup() async {
-    final folder = settings.backupFolder;
-    final key = await _backupKey();
-    if (folder == null || key == null) {
-      throw UserError(t.backupNotSetUp);
-    }
-    try {
-      final names = [
-        for (final n in await BackupFolder.list(folder))
-          if (_backupName.hasMatch(n)) n,
-      ]..sort();
-      if (names.isEmpty) {
-        throw UserError(t.noBackupInFolder);
-      }
-      final entries = await SixoraBackup.decryptWithKey(
-        await BackupFolder.read(folder, names.last),
-        key,
-      );
-      final missing = [
-        for (final i in items)
-          if (!entries.any((e) => e.sameKeyAs(i.entry))) i.entry.displayName,
-      ];
-      return BackupVerification(
-        file: names.last,
-        files: names.length,
-        accounts: entries.length,
-        missing: missing,
-      );
-    } on PlatformException catch (e) {
-      throw UserError(t.backupUnreadable(e.message ?? e.code));
-    }
-  }
-
-  // --- Sign-ins ------------------------------------------------------------
-
-  /// Sign-ins of other devices this device has not seen before: somebody
-  /// with the master password – or the user on a new device.
-  List<SessionDto> get unknownSessions {
-    final c = cached;
-    final known = c?.knownSessions;
-    if (c == null || known == null) return const [];
-    return [
-      for (final s in c.sessions)
-        if (!s.current && !known.contains(s.id)) s,
-    ];
-  }
-
-  Future<void> acknowledgeSession(String id) async {
-    final c = cached!;
-    (c.knownSessions ??= {}).add(id);
-    await store.saveAccount(c);
-    notifyListeners();
-  }
-
-  /// Signs the unknown device out.
-  Future<void> revokeSession(String id) async {
-    await _online((api) => api.revokeSession(id));
-    await acknowledgeSession(id);
-    await sync();
-  }
-
   // --- Key rotation ----------------------------------------------------------
 
   /// A member left one of my vaults: replace its key, so the old one opens
@@ -1525,135 +1334,6 @@ class AppController extends ChangeNotifier {
   /// Accounts of the local mode on their way to a server. Plaintext, so
   /// only in memory, and dropped when the app locks.
   List<({OtpEntry entry, String vault, bool personal})>? _moving;
-
-  /// The move to a server is under way or stopped half way.
-  bool get moving => _moving != null;
-
-  /// Moves the local mode to a server: signs in there ([create]: with a
-  /// new account) and stores every account there, encrypted for the
-  /// account there. Accounts the server account already has (same secret)
-  /// are skipped. The local database is deleted only once everything
-  /// arrived; if the move stops half way it throws [MoveIncomplete] and
-  /// [finishMove] goes on. Returns the recovery key of a new account.
-  Future<({int moved, String? recoveryKey})> moveToServer({
-    required Uri server,
-    required String serverName,
-    required String username,
-    required String password,
-    required bool create,
-    String? inviteCode,
-    void Function(int done, int total)? progress,
-  }) async {
-    if (!isLocal || _keys == null) throw StateError('not in local mode');
-    final carried = [
-      for (final i in items)
-        (
-          entry: i.entry,
-          vault: _vaults[i.vaultId]!.name,
-          personal: _vaults[i.vaultId]!.personal,
-        ),
-    ];
-    BackupKey? backup;
-    try {
-      backup = await _backupKey();
-    } on Object {
-      backup = null;
-    }
-    final localKeys = _keys!;
-    final localVaults = _vaults.values.toList();
-    _stopWatching();
-    _backupTimer?.cancel();
-    String? recoveryKey;
-    try {
-      if (create) {
-        recoveryKey = await register(
-          server: server,
-          serverName: serverName,
-          username: username,
-          password: password,
-          inviteCode: inviteCode,
-        );
-      } else {
-        await login(
-          server: server,
-          serverName: serverName,
-          username: username,
-          password: password,
-        );
-      }
-    } on Object {
-      if (isLocal && phase == Phase.unlocked) _startWatching();
-      rethrow;
-    }
-    // From here on the account on the server is the one of this app.
-    localKeys.userKey.fillRange(0, localKeys.userKey.length, 0);
-    localKeys.privateKey.fillRange(0, localKeys.privateKey.length, 0);
-    for (final v in localVaults) {
-      _vaults.remove(v.id);
-      v.key.fillRange(0, v.key.length, 0);
-    }
-    try {
-      // Not enter(): its offer of Face ID & co. would open a dialog over
-      // the move and swallow its result. The move screen points to the
-      // settings instead (the old quick unlock belonged to the local
-      // account).
-      if (create) await _afterUnlock();
-      offerBiometrics = false;
-      // The automatic backup goes on, now with the account there.
-      if (backup != null) await _storeBackupKey(backup);
-      await _syncNow();
-      _moving = [
-        for (final c in carried)
-          if (!items.any((i) => i.entry.sameKeyAs(c.entry))) c,
-      ];
-      return (
-        moved: await finishMove(progress: progress),
-        recoveryKey: recoveryKey,
-      );
-    } on Object catch (e) {
-      throw MoveIncomplete(t.moveIncomplete(errorText(e)), recoveryKey);
-    }
-  }
-
-  /// Stores the rest of an interrupted move; returns how many arrived.
-  Future<int> finishMove({void Function(int done, int total)? progress}) async {
-    final pending = _moving;
-    if (pending == null) return 0;
-    final total = pending.length;
-    var done = 0;
-    while (pending.isNotEmpty) {
-      final next = pending.first;
-      await saveEntry(
-        next.entry,
-        vaultId: await _moveTarget(next.vault, next.personal),
-      );
-      pending.removeAt(0);
-      done++;
-      progress?.call(done, total);
-    }
-    _moving = null;
-    LocalServer.delete();
-    notifyListeners();
-    return done;
-  }
-
-  /// The personal vault for personal accounts, else a vault of the same
-  /// name (created if needed).
-  Future<String> _moveTarget(String name, bool personal) async {
-    final own = [
-      for (final v in _vaults.values)
-        if (v.canWrite) v,
-    ];
-    if (personal) {
-      for (final v in own) {
-        if (v.personal) return v.id;
-      }
-    }
-    for (final v in own) {
-      if (!v.personal && v.name == name) return v.id;
-    }
-    return createVault(name);
-  }
 
   @override
   void dispose() {

@@ -1616,6 +1616,29 @@ class AppLocalizationsDe extends AppLocalizations {
       'Das Bild lässt sich nicht öffnen. Bitte als PNG oder JPEG speichern (z. B. einen Screenshot statt eines HEIC-Fotos).';
 
   @override
+  String get importImageLabel => 'Bilddatei';
+
+  @override
+  String importTooManyFiles(int max) {
+    return 'Zu viele Dateien ausgewählt. Höchstens $max Dateien auf einmal.';
+  }
+
+  @override
+  String importFileTooLarge(String name, int max) {
+    return '„$name“ ist zu groß. Höchstens $max MiB.';
+  }
+
+  @override
+  String importSelectionTooLarge(int max) {
+    return 'Die ausgewählten Dateien sind zusammen zu groß. Höchstens $max MiB.';
+  }
+
+  @override
+  String importImageTooLarge(int max) {
+    return 'Das Bild hat zu viele Bildpunkte oder Einzelbilder. Höchstens $max Megapixel insgesamt.';
+  }
+
+  @override
   String codeListOfSize(Object list, Object size) {
     return '$list von $size';
   }

@@ -43,7 +43,7 @@ Die fertigen Apps und das Server-Paket liegen bei den
 | `Sixora-<version>-android-arm64.apk` | Android 7 und neuer, fast alle Geräte (`-armv7` für sehr alte, `-x86_64` für Emulatoren) |
 | `Sixora-<version>-macOS.zip` | macOS 12 und neuer, Apple Silicon und Intel |
 | `Sixora-<version>-windows-x64.zip` | Windows 10 und 11 (entpacken, `sixora.exe` starten) |
-| `Sixora-<version>-linux-x64.tar.gz` | Linux x86_64 mit GTK 3, libayatana-appindicator3 und einem Secret-Service (GNOME Keyring, KWallet) |
+| `Sixora-<version>-linux-x64.tar.gz` | Linux x86_64 mit GTK 3, X11/Xi und einem Secret-Service (GNOME Keyring, KWallet) |
 | `sixora-server-<version>-linux-<arch>.tar.gz` | Server ohne Docker, siehe [unten](#ohne-docker-proxmox-lxc-oder-debian) |
 
 Die Builds sind nicht von Apple oder Microsoft beglaubigt. macOS öffnet die
@@ -158,8 +158,12 @@ Master-Schlüssel ──HKDF──► Anmeldeschlüssel (geht an den Server)
                              └──► entschlüsseln die Einträge (XChaCha20-Poly1305)
 ```
 
-- Der Server bekommt nur den Anmeldeschlüssel und speichert davon nur einen
-  Hash. Aus ihm lässt sich der Schlüssel für die Daten nicht ableiten.
+- Der Server bekommt keinen Master-, Benutzer- oder Tresorschlüssel und keine
+  Klartext-Codes. Zur Anmeldung erhält er einen abgeleiteten Anmeldeschlüssel
+  und speichert davon nur einen Hash. Aus ihm lässt sich der Schlüssel für die
+  Daten nicht ableiten. Sichtbar bleiben betriebsnotwendige Metadaten wie
+  Benutzername, Gerätebezeichnung, Plattform, IP-Adresse, Zeitpunkte,
+  Tresormitgliedschaften und die Größe bzw. Häufigkeit verschlüsselter Daten.
 - Jeder Eintrag ist mit seiner Tresor- und Eintrags-ID als zusätzlichen
   authentifizierten Daten verschlüsselt. Der Server kann Einträge also weder
   vertauschen noch zwischen Tresoren verschieben, ohne dass die Apps es
@@ -175,9 +179,15 @@ Master-Schlüssel ──HKDF──► Anmeldeschlüssel (geht an den Server)
 - Wird ein Mitglied aus einem Tresor entfernt, verliert es den Zugriff auf
   den Server. Codes, die es schon gesehen hat, kennt es aber weiterhin. Bei
   Bedarf die Zwei-Faktor-Anmeldung beim jeweiligen Dienst neu einrichten.
-- Der Server begrenzt Anmeldeversuche (10 je Konto und 30 je Adresse in 15
-  Minuten). Bei unbekannten Benutzernamen antwortet er so, dass sich nicht
-  herausfinden lässt, welche Konten es gibt.
+- Der Server begrenzt Anmeldeversuche in 15 Minuten auf 10 je Kombination aus
+  Konto und Adresse, 100 je Konto über alle Adressen und 30 je Adresse. Bei
+  unbekannten Benutzernamen antwortet er so, dass sich nicht herausfinden
+  lässt, welche Konten es gibt.
+
+Das vollständige [Bedrohungsmodell](docs/THREAT_MODEL.md), die technische
+[Datenschutzbeschreibung](PRIVACY.md) und der Weg für
+[Sicherheitsmeldungen](SECURITY.md) beschreiben Grenzen und verbleibende
+Metadaten genauer.
 
 ## Server einrichten
 
@@ -290,16 +300,20 @@ App berühren:
   Schlüsselbund-Eintrag an. `SIXORA_ENV=test` nutzt gar keinen
   Schlüsselbund.
 - Android: `flutter run --flavor dev` (App-ID `de.status403.sixora.dev`).
-  Release-APKs je Architektur bauen: `flutter build apk --release --flavor
-  prod --split-per-abi` (arm64 ca. ein Drittel der Größe einer
-  Universal-APK; die meisten Geräte brauchen `app-arm64-v8a-prod-release.apk`).
+  Produkt-APKs verlangen die vier Laufzeitvariablen aus
+  [`app/android/RELEASE_SIGNING.md`](app/android/RELEASE_SIGNING.md), damit
+  kein Build versehentlich einen anderen Schlüssel erhält. Je Architektur
+  baut `flutter build apk --release --flavor prod --split-per-abi` (arm64 ca.
+  ein Drittel der Größe einer Universal-APK; die meisten Geräte brauchen
+  `app-arm64-v8a-prod-release.apk`).
 - macOS: `app/tool/mac_install.sh dev` baut „Sixora Dev“ und installiert die
   App, `app/tool/mac_install.sh` dasselbe für die echte App. Beide werden mit
   `app/tool/sign_macos.sh` signiert, damit der Schlüsselbund „Immer
   erlauben“ über Updates hinweg behält.
-- Linux braucht zum Bauen `libsecret-1-dev` (Schlüsselbund) und
-  `libayatana-appindicator3-dev` (Symbol im Infobereich), zur Laufzeit einen
-  Secret-Service (GNOME Keyring, KWallet) und `libayatana-appindicator3-1`.
+- Linux braucht zum Bauen `libsecret-1-dev` (Schlüsselbund), `libgtk-3-dev`,
+  `libx11-dev` und `libxi-dev` (Symbol im Infobereich), zur Laufzeit einen
+  Secret-Service (GNOME Keyring, KWallet) sowie die entsprechenden GTK-,
+  X11- und Xi-Bibliotheken.
   Ein globales Tastenkürzel gibt es unter Linux nicht (Wayland erlaubt
   Apps keine globalen Tasten). Gezeichnet wird mit Skia, weil Impeller auf
   virtueller Grafik (z. B. VMware) Formen falsch füllt; `SIXORA_IMPELLER=1`

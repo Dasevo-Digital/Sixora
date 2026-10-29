@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 import '../autofill/autofill.dart';
+import '../data/app_controller.dart';
 import '../data/biometric_vault.dart';
 import '../data/local_store.dart';
 import '../l10n.dart';

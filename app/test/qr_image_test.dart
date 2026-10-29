@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:qr/qr.dart';
 import 'package:sixora/src/platform/qr_image.dart';
+import 'package:sixora/src/platform/import_limits.dart';
 import 'package:sixora_core/sixora_core.dart';
 
 /// A screenshot-like image: [data] as QR code on a white area in the
@@ -115,5 +116,12 @@ void main() {
     const uri =
         'otpauth://totp/GitHub:me?secret=JBSWY3DPEHPK3PXP&issuer=GitHub';
     expect(decodeQrImageSync(screenshot(uri)), uri);
+  });
+
+  test('oversized pixel buffers are rejected before decoding', () async {
+    expect(
+      () => readQrPixels(maxImportImagePixels + 1, 1, Uint8List(0)),
+      throwsFormatException,
+    );
   });
 }

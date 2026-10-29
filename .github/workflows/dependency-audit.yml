@@ -1,0 +1,31 @@
+name: Dependency audit
+
+on:
+  push:
+    paths:
+      - "**/pubspec.yaml"
+      - "**/pubspec.lock"
+      - "tool/dependency_audit.*"
+      - ".github/workflows/dependency-audit.yml"
+  schedule:
+    - cron: "30 4 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pub:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: "3.47.6"
+          channel: stable
+      - run: tool/dependency_audit.sh
