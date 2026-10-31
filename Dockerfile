@@ -1,7 +1,7 @@
 # Sixora server image. Build from the repository root:
 #   docker build -t sixora-server .
 # Pinned multi-architecture image digests make release builds reproducible.
-FROM dart:3.12.2@sha256:5ac89dbcae4327278b257920e2786df0f22c87adc630017266b67cfcceef8348 AS build
+FROM dart:3.13.7@sha256:ca3ef5fe9194012074a24b03515b2c5b58dd7d4ae8c87bf463d61b5d0647f426 AS build
 WORKDIR /src
 # The core package is only a dev dependency (tests), but pub resolves it.
 COPY packages/sixora_core packages/sixora_core

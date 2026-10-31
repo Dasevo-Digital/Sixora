@@ -23,6 +23,10 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 - Das Symbol im Infobereich verwendet die aktuelle native Bibliothek. Die alte
   Übergangskette enthielt bereits eingestellte Pakete und hätte spätere
   Flutter-Versionen blockiert.
+- Gebaut wird mit Flutter 3.47.9 und Dart 3.13.7. Das Dart-Update sperrt
+  kompromittierte Zwischenzertifikate und nutzt unter Android 14 und neuer
+  den aktualisierbaren Zertifikatsspeicher des Systems, sodass widerrufene
+  Zertifikate nicht mehr bis zum nächsten App-Update gültig bleiben.
 
 ### 0.1.30 – 26.10.2026 (Erweiterung 0.1.3)
 - Browser-Erweiterung entsperren: Eine Erweiterung wird jetzt einmal mit
@@ -287,6 +291,11 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
   Tab, wenn man sie öffnet.
 
 ## Server
+
+### Nächste Version
+- Das Server-Image baut mit Dart 3.13.7 statt 3.12.2. Es enthält ein
+  Sicherheitsupdate der TLS-Bibliothek, die kompromittierte
+  Zwischenzertifikate sperrt.
 
 ### 0.1.7 – 26.10.2026
 - Fehlversuche bei der Anmeldung zählen pro Konto und Adresse. Bisher
