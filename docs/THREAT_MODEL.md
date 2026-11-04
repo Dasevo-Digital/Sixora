@@ -19,9 +19,19 @@ Vollständigkeit verschlüsselter Tresordaten.
 - **Transport und Reverse-Proxy:** TLS schützt Daten und Sitzungstoken auf dem
   Weg. Ein falsch konfigurierter vertrauenswürdiger Proxy kann IP-basierte
   Grenzen umgehen oder falsche Adressen protokollieren.
-- **Browser-Erweiterung:** Bekommt nur einen für ihren einmaligen öffentlichen
-  Schlüssel versiegelten Kontoschlüssel. Eine neue Erweiterung muss in der
-  Desktop-App anhand eines übereinstimmenden Codes bestätigt werden.
+- **Browser-Erweiterung:** Hat ein eigenes Schlüsselpaar in ihrem lokalen
+  Browser-Speicher. Eine neue Erweiterung muss in der Desktop-App anhand eines
+  übereinstimmenden Codes bestätigt werden; danach bekommt sie den
+  Kontoschlüssel nur versiegelt für diesen öffentlichen Schlüssel. Sie darf die
+  Zwischenablage lesen, um einen kopierten Code nach 30 Sekunden nur dann zu
+  entfernen, wenn dort noch derselbe steht.
+- **Lokale Verbindung zur Desktop-App:** Die App lauscht auf 127.0.0.1; jedes
+  Programm des Rechners, auch anderer Benutzerkonten, kann sie erreichen. Sie
+  verrät dort weder Server noch Konto (nur ein Prüfwert wird verglichen),
+  fragt nach einer abgelehnten Kopplung eine Minute lang nicht erneut und
+  gibt den Kontoschlüssel nur an bestätigte Schlüssel heraus. Ein Programm
+  desselben Benutzers kann den Schlüssel einer Erweiterung aus dem
+  Browser-Profil lesen und fällt unter „kompromittiertes Gerät“.
 - **Sicherungen:** Enthalten verschlüsselte Codes und brauchen ein eigenes
   Passwort. Verlust des Sicherungspassworts oder Wiederherstellungsschlüssels
   ist nicht rückgängig zu machen.

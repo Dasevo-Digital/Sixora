@@ -27,6 +27,11 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
   kompromittierte Zwischenzertifikate und nutzt unter Android 14 und neuer
   den aktualisierbaren Zertifikatsspeicher des Systems, sodass widerrufene
   Zertifikate nicht mehr bis zum nächsten App-Update gültig bleiben.
+- Bibliotheken für Dateiauswahl, Kamera-Scan, ZIP-Archive und das Symbol im
+  Infobereich auf die aktuellen Fehlerbehebungs-Versionen. Die neuen
+  Hauptversionen für Fensterverwaltung und globales Tastenkürzel stellen
+  diese Teile auf eine andere native Grundlage um; sie kommen erst nach einem
+  Test am Bildschirm auf macOS, Windows und Linux.
 
 ### 0.1.30 – 26.10.2026 (Erweiterung 0.1.3)
 - Browser-Erweiterung entsperren: Eine Erweiterung wird jetzt einmal mit

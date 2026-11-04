@@ -16,6 +16,22 @@ ALLOWED_DISCONTINUED = {
     "screen_retriever_windows",
     # Current hotkey_manager uses this compatibility package.
     "uni_platform",
+    # The platform packages of hotkey_manager 0.2, until the move to 0.3
+    # (see DEFERRED_UPGRADES).
+    "hotkey_manager_macos",
+    "hotkey_manager_platform_interface",
+    "hotkey_manager_windows",
+}
+
+# Newer major versions that are known and deliberately not taken yet, with
+# the version prefix that is deferred. A still newer version fails the audit
+# again, and security advisories fail it for these packages as well.
+DEFERRED_UPGRADES = {
+    # Both move to nativeapi: closing, quitting, the menu bar and the global
+    # shortcut change underneath and need a test by hand on macOS, Windows
+    # and Linux before a release.
+    "window_manager": "0.6.",
+    "hotkey_manager": "0.3.",
 }
 
 root = Path(sys.argv[1])
@@ -36,14 +52,17 @@ for report in sorted(root.glob("*.json")):
             if name not in ALLOWED_DISCONTINUED:
                 failures.append(f"{report.stem}: eingestelltes Paket {name}")
         resolvable = package.get("resolvable")
+        newer = resolvable.get("version") if resolvable else None
+        deferred = DEFERRED_UPGRADES.get(name)
         if (
             package.get("kind") in {"direct", "dev"}
-            and resolvable
-            and current.get("version") != resolvable.get("version")
+            and newer
+            and current.get("version") != newer
+            and not (deferred and newer.startswith(deferred))
         ):
             failures.append(
                 f"{report.stem}: {name} kann von {current.get('version')} "
-                f"auf {resolvable.get('version')} aktualisiert werden"
+                f"auf {newer} aktualisiert werden"
             )
 
 if failures:
