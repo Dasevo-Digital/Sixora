@@ -21,7 +21,7 @@ part 'server_auth.dart';
 part 'server_sync.dart';
 part 'server_vaults.dart';
 
-const serverVersion = '0.1.7';
+const serverVersion = '0.1.8';
 const apiVersion = 1;
 
 /// Error answered as `{"error": code, "message": text}`.

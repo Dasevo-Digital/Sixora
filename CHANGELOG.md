@@ -6,7 +6,7 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## App
 
-### Nächste Version
+### 0.1.31 – 04.11.2026 (Server 0.1.8)
 - Importdateien und QR-Bilder haben jetzt Grenzen für Anzahl, Einzelgröße,
   Gesamtgröße und Bildpunkte. Bisher konnte eine absichtlich riesige oder
   stark komprimierte Datei beim vollständigen Einlesen den Arbeitsspeicher
@@ -297,7 +297,7 @@ funktionieren weiter, nur ohne die jeweils neuen Funktionen.
 
 ## Server
 
-### Nächste Version
+### 0.1.8 – 04.11.2026
 - Das Server-Image baut mit Dart 3.13.7 statt 3.12.2. Es enthält ein
   Sicherheitsupdate der TLS-Bibliothek, die kompromittierte
   Zwischenzertifikate sperrt.
