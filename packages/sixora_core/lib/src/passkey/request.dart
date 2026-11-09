@@ -21,9 +21,14 @@ class PasskeyRequest {
     this.allow = const [],
     this.clientDataHash,
     this.androidPackage,
+    this.relatedOrigin = false,
   });
 
-  factory PasskeyRequest.fromJson(String origin, Map<String, Object?> j) {
+  factory PasskeyRequest.fromJson(
+    String origin,
+    Map<String, Object?> j, {
+    bool relatedOrigin = false,
+  }) {
     final uri = Uri.parse(origin);
     final user = (j['user'] as Map?)?.cast<String, Object?>() ?? const {};
     List<String> ids(Object? list) => [
@@ -47,6 +52,7 @@ class PasskeyRequest {
       ],
       exclude: ids(j['exclude']),
       allow: ids(j['allow']),
+      relatedOrigin: relatedOrigin,
     );
   }
 
@@ -57,6 +63,7 @@ class PasskeyRequest {
     required bool create,
     List<int>? clientDataHash,
     String? androidPackage,
+    bool relatedOrigin = false,
   }) {
     final j = (jsonDecode(requestJson) as Map).cast<String, Object?>();
     final rp = (j['rp'] as Map?)?.cast<String, Object?>() ?? const {};
@@ -90,6 +97,7 @@ class PasskeyRequest {
       allow: ids(j['allowCredentials']),
       clientDataHash: clientDataHash,
       androidPackage: androidPackage,
+      relatedOrigin: relatedOrigin,
     );
   }
 
@@ -117,6 +125,10 @@ class PasskeyRequest {
   /// The calling app on Android, unless a browser asks for a website.
   final String? androidPackage;
 
+  /// The site [rpId] names [origin] in its `/.well-known/webauthn`, as
+  /// openai.com does for chatgpt.com. Set by whoever fetched that list.
+  final bool relatedOrigin;
+
   static const appOriginPrefix = 'android:apk-key-hash:';
 
   /// An Android app asks, not a website: it has no address to compare the
@@ -125,21 +137,23 @@ class PasskeyRequest {
 
   String get host => fromApp ? rpId : Uri.parse(origin).host;
 
+  /// [rpId] is this address or a parent domain of it.
+  bool get rpIdFitsOrigin => WebAuthn.rpIdFits(rpId, host);
+
   bool get wantsVerification => userVerification != 'discouraged';
 
   /// The DOMException name the page gets if this must not go on: what a
   /// browser refuses on its own, as this path bypasses its checks.
   String? get problem {
-    if (fromApp) {
-      if (!WebAuthn.rpIdFits(rpId, rpId)) return 'SecurityError';
-    } else {
+    // Apps and related origins were checked against the site's own files.
+    final vouched = fromApp || relatedOrigin;
+    if (!WebAuthn.rpIdFits(rpId, vouched ? rpId : host)) return 'SecurityError';
+    if (!fromApp) {
       final uri = Uri.parse(origin);
       final secure =
           uri.scheme == 'https' ||
           (uri.scheme == 'http' && uri.host == 'localhost');
-      if (!secure || !WebAuthn.rpIdFits(rpId, uri.host)) {
-        return 'SecurityError';
-      }
+      if (!secure) return 'SecurityError';
     }
     if (challenge.isEmpty) return 'TypeError';
     if (create) {
@@ -229,6 +243,13 @@ Map<String, Object?> passkeyAuthenticationJson(Map<String, Object?> signedIn) =>
       },
       'clientExtensionResults': const <String, Object?>{},
     };
+
+/// Whether a site's `/.well-known/webauthn` lets [origin] use its passkeys.
+bool relatedOriginsAllow(Object? document, String origin) {
+  if (document is! Map) return false;
+  final origins = document['origins'];
+  return origins is List && origins.contains(origin);
+}
 
 /// Whether a site's Digital Asset Links let this Android app use its
 /// passkeys. [statements] is the parsed `/.well-known/assetlinks.json`,

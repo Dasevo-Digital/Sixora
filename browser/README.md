@@ -108,7 +108,9 @@ Der Browser fragt dann nach Zugriff auf alle https-Seiten und `localhost`.
   `navigator.credentials`. Es kennt weder Schlüssel noch Konten.
   `passkey_relay.js` reicht die Anfragen an `background.js` weiter.
 - Welche Website fragt, sagt der Browser (`sender`), nie die Seite. Eine
-  fremde `rpId` geht an den Browser zurück und verrät nichts.
+  fremde `rpId` geht an den Browser zurück und verrät nichts, außer die
+  Website nennt die Adresse selbst in ihrer `/.well-known/webauthn` (so gibt
+  openai.com seine Passkeys für chatgpt.com frei).
 - Jede Anfrage öffnet ein eigenes Fenster, in dem man entscheidet. Pro Tab
   gibt es nur eins; nach einer Ablehnung bleibt der Tab zehn Sekunden still.
 - „Anderen Weg nutzen“ gibt die Anfrage an den Browser zurück, ebenso jede
@@ -121,6 +123,10 @@ Der Browser fragt dann nach Zugriff auf alle https-Seiten und `localhost`.
 - Das Flag „Nutzer verifiziert“ wird nur gesetzt, wenn in diesem Vorgang das
   Master-Passwort, Touch ID oder Windows Hello abgefragt wurde. Der
   Signaturzähler bleibt 0, wie bei allen synchronisierten Passkeys.
+
+Neben anderen Passwort-Managern fragt Sixora zuerst: Es setzt sich kurz vor
+jedem Klick wieder an die erste Stelle, und „Anderen Weg nutzen“ reicht die
+Anfrage an den nächsten weiter.
 
 Grenzen: Vorschläge im Anmeldefeld (Conditional UI) und Anfragen aus Frames
 bleiben beim Browser. Ein auf einem anderen Gerät angelegter Passkey ist da,

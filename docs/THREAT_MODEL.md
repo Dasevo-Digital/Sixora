@@ -27,9 +27,10 @@ die Verfügbarkeit und Vollständigkeit verschlüsselter Tresordaten.
   entfernen, wenn dort noch derselbe steht.
 - **Websites bei eingeschalteten Passkeys:** Nicht vertrauenswürdig. Das
   Skript in der Seite hält keine Schlüssel. Die Herkunft einer Anfrage stammt
-  vom Browser; eine Seite erreicht nur Passkeys ihrer eigenen Domain oder
-  deren übergeordneter Domains und kann nicht erfahren, ob für andere Websites
-  welche existieren. Jede Nutzung braucht eine Bestätigung in einem Fenster der
+  vom Browser; eine Seite erreicht nur Passkeys ihrer eigenen Domain, deren
+  übergeordneter Domains oder einer Website, die sie in ihrer
+  `/.well-known/webauthn` ausdrücklich freigibt. Sie kann nicht erfahren, ob für
+  andere Websites welche existieren. Jede Nutzung braucht eine Bestätigung in einem Fenster der
   Erweiterung, das die vom Browser genannte Adresse zeigt.
 - **Aufrufer von Passkeys unter Android:** Nicht vertrauenswürdig. Jede App kann
   eine Website-Adresse behaupten. Sixora glaubt sie nur Browsern, deren Paketname

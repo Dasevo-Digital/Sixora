@@ -51,41 +51,50 @@ class PasskeyCall {
       b.toRadixString(16).padLeft(2, '0').toUpperCase(),
   ].join(':');
 
-  PasskeyRequest parse() => PasskeyRequest.fromWebAuthn(
-    origin ??
-        '${PasskeyRequest.appOriginPrefix}${Base64Url.encode(certificate)}',
-    requestJson,
-    create: create,
-    clientDataHash: clientDataHash,
-    androidPackage: origin == null ? package : null,
-  );
+  PasskeyRequest parse({bool relatedOrigin = false}) =>
+      PasskeyRequest.fromWebAuthn(
+        origin ??
+            '${PasskeyRequest.appOriginPrefix}${Base64Url.encode(certificate)}',
+        requestJson,
+        create: create,
+        clientDataHash: clientDataHash,
+        androidPackage: origin == null ? package : null,
+        relatedOrigin: relatedOrigin,
+      );
 }
 
 /// Whether the website [rpId] lets the calling app use its passkeys
 /// (Digital Asset Links). No answer means no.
-Future<bool> appMayUsePasskeysOf(String rpId, PasskeyCall call) async {
+Future<bool> appMayUsePasskeysOf(String rpId, PasskeyCall call) async =>
+    assetLinksAllow(
+      await _siteFile(rpId, '/.well-known/assetlinks.json'),
+      package: call.package,
+      fingerprint: call.fingerprint,
+    );
+
+/// Whether the website [rpId] names [origin] as using its passkeys, as
+/// openai.com does for chatgpt.com. No answer means no.
+Future<bool> originMayUsePasskeysOf(String rpId, String origin) async =>
+    relatedOriginsAllow(await _siteFile(rpId, '/.well-known/webauthn'), origin);
+
+/// A site's own JSON file, without following redirects; null if unusable.
+Future<Object?> _siteFile(String rpId, String path) async {
   const limit = 512 * 1024;
   const wait = Duration(seconds: 8);
   final client = HttpClient()..connectionTimeout = wait;
   try {
-    final request = await client
-        .getUrl(Uri.https(rpId, '/.well-known/assetlinks.json'))
-        .timeout(wait);
+    final request = await client.getUrl(Uri.https(rpId, path)).timeout(wait);
     request.followRedirects = false;
     final response = await request.close().timeout(wait);
-    if (response.statusCode != HttpStatus.ok) return false;
+    if (response.statusCode != HttpStatus.ok) return null;
     final bytes = BytesBuilder(copy: false);
     await for (final chunk in response.timeout(wait)) {
       bytes.add(chunk);
-      if (bytes.length > limit) return false;
+      if (bytes.length > limit) return null;
     }
-    return assetLinksAllow(
-      jsonDecode(utf8.decode(bytes.takeBytes())),
-      package: call.package,
-      fingerprint: call.fingerprint,
-    );
+    return jsonDecode(utf8.decode(bytes.takeBytes()));
   } on Object {
-    return false;
+    return null;
   } finally {
     client.close(force: true);
   }

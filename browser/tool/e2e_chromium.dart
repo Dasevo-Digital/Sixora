@@ -14,6 +14,10 @@ import 'package:sixora_core/sixora_core.dart';
 import 'e2e/common.dart';
 import 'e2e/passkeys.dart';
 
+const _relatedApp = 'app.sixora-e2e.example';
+const _relatedRp = 'rp.sixora-e2e.example';
+const _unlistedRp = 'unlisted.sixora-e2e.example';
+
 Future<void> main() async {
   final app =
       Platform.environment['CHROMIUM_APP'] ??
@@ -31,6 +35,7 @@ Future<void> main() async {
   );
   final hostBackup = File('${hostManifest.path}.e2e-backup');
   Process? browser;
+  HttpServer? secure;
   var failures = 0;
   try {
     // A copy whose host permission for the test server is already granted:
@@ -61,6 +66,49 @@ Future<void> main() async {
         'allowed_origins': ['chrome-extension://${BrowserLink.chromiumId}/'],
       }),
     );
+    // HTTPS under names of their own, for related origins.
+    final tls = Directory('${work.path}/tls')..createSync();
+    await Process.run('openssl', [
+      'req',
+      '-x509',
+      '-newkey',
+      'rsa:2048',
+      '-nodes',
+      '-days',
+      '2',
+      '-subj',
+      '/CN=sixora-e2e',
+      '-keyout',
+      '${tls.path}/key.pem',
+      '-out',
+      '${tls.path}/cert.pem',
+    ]);
+    secure = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      SecurityContext()
+        ..useCertificateChain('${tls.path}/cert.pem')
+        ..usePrivateKey('${tls.path}/key.pem'),
+    );
+    secure.listen((request) {
+      final response = request.response;
+      if (request.uri.path != '/.well-known/webauthn') {
+        response
+          ..headers.contentType = ContentType.html
+          ..write(passkeyTestPage);
+      } else if (request.headers.host == _relatedRp) {
+        response
+          ..headers.contentType = ContentType.json
+          ..write(
+            jsonEncode({
+              'origins': ['https://$_relatedApp'],
+            }),
+          );
+      } else {
+        response.statusCode = HttpStatus.notFound;
+      }
+      response.close();
+    });
     final port = 29300 + DateTime.now().millisecond % 500;
     browser = await Process.start(
       app,
@@ -70,6 +118,10 @@ Future<void> main() async {
         '--remote-debugging-port=$port',
         '--user-data-dir=${work.path}/profile',
         '--load-extension=$path',
+        '--ignore-certificate-errors',
+        '--host-resolver-rules=${[
+          for (final name in [_relatedApp, _relatedRp, _unlistedRp]) 'MAP $name:443 127.0.0.1:${secure.port}',
+        ].join(',')}',
         '--disable-features=DisableLoadExtensionCommandLineSwitch,LocalNetworkAccessChecks',
         '--no-first-run',
         '--no-default-browser-check',
@@ -94,6 +146,11 @@ Future<void> main() async {
       hasApp: File(host).existsSync(),
       realSwitchOff: false,
       serverOrigin: 'http://127.0.0.1/*',
+      related: const RelatedSite(
+        'https://$_relatedApp/',
+        _relatedRp,
+        _unlistedRp,
+      ),
     );
     await cdp.close();
   } on Object catch (e) {
@@ -109,6 +166,7 @@ Future<void> main() async {
         return -1;
       },
     );
+    await secure?.close(force: true);
     await server.stop();
     await desktop.stop();
     if (hostManifest.existsSync()) hostManifest.deleteSync();

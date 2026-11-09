@@ -65,12 +65,18 @@ class _PasskeyWindowState extends State<PasskeyWindow> {
     }
     await c.refreshWindow();
     if (!mounted) return;
-    final PasskeyRequest request;
+    PasskeyRequest request;
     try {
       request = call.parse();
     } on Object {
       await PasskeyPlatform.fail('unknown');
       return;
+    }
+    if (!request.fromApp &&
+        !request.rpIdFitsOrigin &&
+        await originMayUsePasskeysOf(request.rpId, request.origin)) {
+      if (!mounted) return;
+      request = call.parse(relatedOrigin: true);
     }
     if (request.problem != null) {
       await PasskeyPlatform.fail('security');
@@ -177,7 +183,9 @@ class _PasskeyWindowState extends State<PasskeyWindow> {
   /// What the system vouches for; the site's own name proves nothing.
   List<Widget> _who(PasskeyRequest request) => [
     Text(
-      request.host,
+      request.relatedOrigin
+          ? '${request.host} (${request.rpId})'
+          : request.host,
       textAlign: TextAlign.center,
       style: Theme.of(context).textTheme.titleMedium,
     ),

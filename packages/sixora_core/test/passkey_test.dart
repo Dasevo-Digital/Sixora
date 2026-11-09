@@ -377,6 +377,41 @@ void main() {
       expect(allows({'not': 'a list'}), isFalse);
     });
 
+    test('a related origin needs the site\'s own list', () {
+      PasskeyRequest at({required bool related}) => PasskeyRequest.fromWebAuthn(
+        'https://chatgpt.com',
+        '{"rpId": "openai.com", "challenge": "Y2hhbGxlbmdl"}',
+        create: false,
+        relatedOrigin: related,
+      );
+      expect(at(related: false).rpIdFitsOrigin, isFalse);
+      expect(at(related: false).problem, 'SecurityError');
+      expect(at(related: true).problem, isNull);
+      expect(
+        relatedOriginsAllow({
+          'origins': ['https://chatgpt.com'],
+        }, 'https://chatgpt.com'),
+        isTrue,
+      );
+      expect(
+        relatedOriginsAllow({
+          'origins': ['https://chatgpt.com'],
+        }, 'https://evil.example'),
+        isFalse,
+      );
+      expect(relatedOriginsAllow('nonsense', 'https://chatgpt.com'), isFalse);
+      // Still no bare top-level domain, however the list reads.
+      expect(
+        PasskeyRequest.fromWebAuthn(
+          'https://chatgpt.com',
+          '{"rpId": "com", "challenge": "Y2hhbGxlbmdl"}',
+          create: false,
+          relatedOrigin: true,
+        ).problem,
+        'SecurityError',
+      );
+    });
+
     test('the site hash matches the one the Android service computes', () {
       expect(
         passkeySiteHash('salz', 'example.com'),

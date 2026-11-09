@@ -755,6 +755,7 @@ class PopupUi {
     final request = PasskeyRequest.fromJson(
       record['origin']! as String,
       (record['request']! as Map).cast(),
+      relatedOrigin: record['related'] == true,
     );
     final problem = request.problem;
     if (problem != null) {
@@ -783,7 +784,13 @@ class PopupUi {
   web.HTMLElement _passkeySite(PasskeyRequest request) =>
       // The browser's word for where this comes from; the page's own name
       // for itself proves nothing.
-      _el('p', cls: 'passkey-site', text: request.host);
+      _el(
+        'p',
+        cls: 'passkey-site',
+        text: request.relatedOrigin
+            ? '${request.host} (${request.rpId})'
+            : request.host,
+      );
 
   List<web.HTMLElement> _passkeyWayOut() => [
     _button(

@@ -181,6 +181,29 @@ async function siteHasPasskey(rpId) {
   return sites.includes(btoa(String.fromCharCode(...new Uint8Array(digest))));
 }
 
+// A site can share its passkeys with addresses it names itself, as openai.com
+// does for chatgpt.com. Only the site's own file says so.
+async function isRelatedOrigin(rpId, origin) {
+  if (!origin.startsWith("https://") || !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(rpId)) {
+    return false;
+  }
+  try {
+    const response = await fetch(`https://${rpId}/.well-known/webauthn`, {
+      credentials: "omit",
+      redirect: "error",
+      referrerPolicy: "no-referrer",
+      cache: "no-store",
+    });
+    if (!response.ok) return false;
+    const text = await response.text();
+    if (text.length > 65536) return false;
+    const { origins } = JSON.parse(text);
+    return Array.isArray(origins) && origins.includes(origin);
+  } catch (e) {
+    return false;
+  }
+}
+
 async function openPasskeyWindow(message, origin, tabId) {
   const request = message.request;
   const tabKey = PASSKEY_TAB + tabId;
@@ -188,11 +211,20 @@ async function openPasskeyWindow(message, origin, tabId) {
   const state = await ext.storage.session.get([tabKey, pauseKey]);
   // One window per tab, and no new one right after a "no": a page must not
   // be able to keep them coming.
-  if (state[tabKey] || (state[pauseKey] ?? 0) > Date.now()) return { fallback: true };
+  if (state[tabKey]) return { fallback: true, why: "a window is already open for this tab" };
+  if ((state[pauseKey] ?? 0) > Date.now()) {
+    return { fallback: true, why: "paused after the last refusal" };
+  }
   const id = crypto.randomUUID();
   const key = PASSKEY_REQUEST + id;
   await ext.storage.session.set({
-    [key]: JSON.stringify({ origin, tabId, pageId: message.pageId, request }),
+    [key]: JSON.stringify({
+      origin,
+      tabId,
+      pageId: message.pageId,
+      request,
+      related: message.related,
+    }),
   });
   try {
     const window = await ext.windows.create({
@@ -218,19 +250,28 @@ async function startPasskey(message, sender) {
   const origin = sender.origin ?? (sender.url ? new URL(sender.url).origin : null);
   const tabId = sender.tab?.id;
   if (sender.frameId !== 0 || tabId === undefined || !origin || origin === "null") {
-    return { fallback: true };
+    return {
+      fallback: true,
+      why: `not a top-level page (frame ${sender.frameId}, tab ${tabId}, origin ${origin})`,
+    };
   }
   const request = message.request ?? {};
   const host = new URL(origin).hostname;
   const rpId = String(request.rpId || host).toLowerCase();
   // The browser reports the mistake; and a page learns nothing, not even
-  // through a window, about the passkeys of other sites.
-  if (host !== rpId && !host.endsWith(`.${rpId}`)) return { fallback: true };
-  if (request.kind !== "create" && !(await siteHasPasskey(rpId))) return { fallback: true };
-  if (passkeyStarting.has(tabId)) return { fallback: true };
+  // through a window, about the passkeys of other sites. This comes before
+  // looking for passkeys, so the time it takes says nothing either.
+  const fits = host === rpId || host.endsWith(`.${rpId}`);
+  if (!fits && !(await isRelatedOrigin(rpId, origin))) {
+    return { fallback: true, why: `${rpId} does not fit ${origin}` };
+  }
+  if (request.kind !== "create" && !(await siteHasPasskey(rpId))) {
+    return { fallback: true, why: "no passkey stored for this site" };
+  }
+  if (passkeyStarting.has(tabId)) return { fallback: true, why: "already starting" };
   passkeyStarting.add(tabId);
   try {
-    return await openPasskeyWindow({ ...message, request }, origin, tabId);
+    return await openPasskeyWindow({ ...message, request, related: !fits }, origin, tabId);
   } finally {
     passkeyStarting.delete(tabId);
   }
@@ -297,7 +338,9 @@ ext.windows.onRemoved.addListener(async (windowId) => {
 ext.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== ext.runtime.id) return false;
   if (message?.sixora === "passkey") {
-    startPasskey(message, sender).then(sendResponse, () => sendResponse({ fallback: true }));
+    startPasskey(message, sender).then(sendResponse, (e) =>
+      sendResponse({ fallback: true, why: String(e) }),
+    );
     return true;
   }
   if (message?.sixora === "passkey-abort") {

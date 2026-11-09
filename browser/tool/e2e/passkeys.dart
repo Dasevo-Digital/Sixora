@@ -17,7 +17,8 @@ abstract interface class PasskeyDriver implements Driver {
 
 /// A website that uses passkeys and verifies what comes back with
 /// WebCrypto. Each result ends up as JSON in `#out`.
-const _page = r'''<!doctype html><title>rp</title><pre id="out"></pre><script>
+const passkeyTestPage =
+    r'''<!doctype html><title>rp</title><pre id="out"></pre><script>
 const b64 = (v) => btoa(String.fromCharCode(...new Uint8Array(v)))
   .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const from64 = (s) => Uint8Array.from(
@@ -51,7 +52,7 @@ function clientFine(c, type, challenge) {
   return d.type === type && d.origin === location.origin && d.challenge === b64(challenge);
 }
 
-async function created(c, challenge) {
+async function created(c, challenge, rpId) {
   const spki = c.response.getPublicKey();
   const key = await crypto.subtle.importKey(
     "spki", spki, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
@@ -65,7 +66,7 @@ async function created(c, challenge) {
       && c.response.getPublicKeyAlgorithm() === -7
       && c.response.getTransports().includes("internal")
       && clientFine(c, "webauthn.create", challenge)
-      && same(auth.slice(0, 32), await sha(bytes(location.hostname)))
+      && same(auth.slice(0, 32), await sha(bytes(rpId)))
       && typeof JSON.parse(JSON.stringify(c)).response.attestationObject === "string",
     flags: auth[32],
   };
@@ -92,9 +93,29 @@ async function signedIn(c, challenge) {
   };
 }
 
+// A password manager that hooks in after Sixora, then the user's click.
+window.managerCalls = 0;
+function addManager(capture) {
+  const captured = capture !== "sixora"
+    ? CredentialsContainer.prototype.create.bind(navigator.credentials)
+    : navigator.credentials.create.bind(navigator.credentials);
+  const other = async function other(e) {
+    window.managerCalls++;
+    await null;
+    return captured(e);
+  };
+  if (capture === "pinned") {
+    Object.defineProperty(navigator.credentials, "create", { value: other, writable: false, configurable: false });
+  } else {
+    navigator.credentials.create = other;
+  }
+  window.dispatchEvent(new Event("pointerdown"));
+}
+
 let controller = null;
 window.rp = (kind, text) => {
   if (kind === "abort") { controller.abort(); return; }
+  if (kind === "manager") { addManager(JSON.parse(text).capture); return; }
   document.getElementById("out").textContent = "";
   const spec = JSON.parse(text);
   const challenge = crypto.getRandomValues(new Uint8Array(32));
@@ -103,7 +124,7 @@ window.rp = (kind, text) => {
   const signal = controller.signal;
   const call = kind === "create"
     ? navigator.credentials.create({ signal, publicKey: {
-        rp: { name: "Test RP" },
+        rp: { name: "Test RP", ...(spec.rpId ? { id: spec.rpId } : {}) },
         user: { id: bytes("user-1"), name: "alice@rp.example", displayName: "Alice" },
         challenge,
         pubKeyCredParams: [{ type: "public-key", alg: -7 }],
@@ -118,7 +139,9 @@ window.rp = (kind, text) => {
         userVerification: spec.uv ?? "discouraged",
       } });
   call.then(
-    async (c) => out(await (kind === "create" ? created(c, challenge) : signedIn(c, challenge))),
+    async (c) => out(await (kind === "create"
+      ? created(c, challenge, spec.rpId ?? location.hostname)
+      : signedIn(c, challenge))),
     (e) => out({ error: e.name }),
   );
 };
@@ -126,6 +149,15 @@ window.rp = (kind, text) => {
 
 const _flagUserVerified = 0x04;
 const _flagsSynced = 0x01 | 0x08 | 0x10; // present, backup eligible, backed up
+
+/// A page on [url] that uses the passkeys of the site [rpId], which names
+/// it in its `/.well-known/webauthn`; [unlisted] does not.
+class RelatedSite {
+  const RelatedSite(this.url, this.rpId, this.unlisted);
+  final String url;
+  final String rpId;
+  final String unlisted;
+}
 
 /// [hasApp]: the desktop app answers verification (Touch ID), so no
 /// password is typed. [realSwitchOff]: the permission can really be taken
@@ -136,6 +168,7 @@ Future<int> runPasskeyScenario(
   required bool hasApp,
   required bool realSwitchOff,
   required String serverOrigin,
+  RelatedSite? related,
 }) async {
   var failures = 0;
   void check(String what, bool ok) {
@@ -147,7 +180,7 @@ Future<int> runPasskeyScenario(
   site.listen((request) {
     request.response
       ..headers.contentType = ContentType.html
-      ..write(_page)
+      ..write(passkeyTestPage)
       ..close();
   });
   final rpUrl = 'http://localhost:${site.port}/';
@@ -276,6 +309,69 @@ Future<int> runPasskeyScenario(
     'foreign rpId left to the browser $r',
     r['error'] == 'SecurityError' && await stayedWithoutWindow(),
   );
+
+  if (related != null) {
+    await d.navigate(related.url);
+    await ask('create', {'rpId': related.rpId});
+    await d.toPasskeyWindow();
+    await d.waitFor('.passkey-site', timeout: const Duration(seconds: 30));
+    final named = await d.script(
+      "return document.querySelector('.passkey-site').textContent;",
+    );
+    check(
+      'related origin named with its site ($named)',
+      named == '${Uri.parse(related.url).host} (${related.rpId})',
+    );
+    await d.click('main button.primary');
+    await d.toPage();
+    r = await result();
+    check('passkey made on a related origin $r', r['fine'] == true);
+
+    await ask('get', {'rpId': related.rpId});
+    await d.toPasskeyWindow();
+    await d.waitFor('.passkey-list .row', timeout: const Duration(seconds: 30));
+    await d.click('.passkey-list .row');
+    await d.toPage();
+    r = await result();
+    check('sign-in on a related origin $r', r['fine'] == true);
+
+    await ask('get', {'rpId': related.unlisted, 'abortAfter': 1500});
+    check('a site that does not name it', await stayedWithoutWindow());
+    await result();
+    await d.navigate(rpUrl);
+  }
+
+  // Another password manager that hooks in later, whether it captured the
+  // browser's function or Sixora's own, or pinned its function in place.
+  for (final capture in ['browser', 'sixora', 'pinned']) {
+    await d.navigate(rpUrl);
+    await ask('manager', {'capture': capture});
+    await ask('create', {});
+    await d.toPasskeyWindow();
+    await d.waitFor(
+      'main button.secondary',
+      timeout: const Duration(seconds: 30),
+    );
+    await d.click('main button.secondary');
+    await d.toPage();
+    Object? calls;
+    final until = DateTime.now().add(const Duration(seconds: 10));
+    while (DateTime.now().isBefore(until)) {
+      calls = await d.script(
+        'return (window.wrappedJSObject ?? window).managerCalls;',
+      );
+      if (calls == 1) break;
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    check('Sixora first, then the other manager ($capture)', calls == 1);
+    await ask('abort', {});
+    r = await result();
+    check(
+      'and on to the browser, no loop ($capture) $r',
+      !await d.passkeyWindowOpen,
+    );
+  }
+  await d.navigate(rpUrl);
 
   // Closing the window means no; and the page cannot reopen it at once.
   await ask('get', {});

@@ -10,8 +10,24 @@
   const origin = window.location.origin;
   if (!credentials || !window.PublicKeyCredential || origin === "null") return;
 
-  const nativeCreate = credentials.create.bind(credentials);
-  const nativeGet = credentials.get.bind(credentials);
+  const browserOwn = {
+    create: CredentialsContainer.prototype.create.bind(credentials),
+    get: CredentialsContainer.prototype.get.bind(credentials),
+  };
+  // Where a request goes that Sixora does not answer: the browser, or another
+  // password manager that hooked in (see stayOnTop).
+  const below = { ...browserOwn };
+  const handedDown = new WeakSet();
+
+  function handDown(name, options) {
+    const challenge = options?.publicKey?.challenge;
+    if (Object(challenge) === challenge) handedDown.add(challenge);
+    return below[name](options);
+  }
+  const nativeCreate = (options) => handDown("create", options);
+  const nativeGet = (options) => handDown("get", options);
+  // Taken now: pages may silence the console later.
+  const note = console.info.bind(console, "Sixora:");
   const pending = new Map();
   let counter = 0;
 
@@ -46,9 +62,9 @@
   }
 
   const view = (v) =>
-    v instanceof ArrayBuffer
-      ? new Uint8Array(v)
-      : new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+    ArrayBuffer.isView(v)
+      ? new Uint8Array(v.buffer, v.byteOffset, v.byteLength)
+      : new Uint8Array(v);
 
   const toBase64 = (v) =>
     btoa(String.fromCharCode(...view(v)))
@@ -138,17 +154,25 @@
       request = build();
     } catch (e) {
       // Malformed: the browser reports it properly.
+      note("left to the browser, unreadable options:", String(e));
       return native(options);
     }
     const reply = await ask(request, options.signal);
-    if (reply.fallback) return native(options);
+    if (reply.fallback) {
+      note("left to the browser:", reply.why ?? "chosen in the window");
+      return native(options);
+    }
     if (reply.error) throw new DOMException(reply.message ?? "", reply.error);
     return wrap(reply.result);
   }
 
-  credentials.create = function (options) {
+  const mine = {};
+
+  mine.create = function (options) {
     const key = options?.publicKey;
     if (!key) return nativeCreate(options);
+    // A manager underneath that captured this function hands it back.
+    if (handedDown.has(key.challenge)) return browserOwn.create(options);
     return run(
       () => ({
         kind: "create",
@@ -170,8 +194,9 @@
     );
   };
 
-  credentials.get = function (options) {
+  mine.get = function (options) {
     const key = options?.publicKey;
+    if (key && handedDown.has(key.challenge)) return browserOwn.get(options);
     // Autofill suggestions stay with the browser: Sixora has no way to add
     // entries to its list.
     if (!key || options.mediation === "conditional") return nativeGet(options);
@@ -188,6 +213,60 @@
       signedIn,
     );
   };
+
+  // Password managers that hook in later (1Password does, once it has set
+  // itself up) would cut Sixora out. So just before the user acts it moves back
+  // on top, and what it does not answer still reaches them.
+  const known = {};
+  let ownView = false;
+
+  function stayOnTop() {
+    for (const [name, ours] of Object.entries(mine)) {
+      const current = credentials[name];
+      if (current === ours || current === known[name]) continue;
+      known[name] = current;
+      below[name] = (options) => current.call(credentials, options);
+      try {
+        Object.defineProperty(credentials, name, {
+          value: ours,
+          writable: true,
+          configurable: true,
+          enumerable: true,
+        });
+      } catch (e) {
+        showOwnView();
+      }
+    }
+  }
+
+  // A function pinned so that it cannot be replaced: the page then gets its
+  // own navigator.credentials with Sixora's functions.
+  function showOwnView() {
+    if (ownView) return;
+    const plain = (value) => ({ value, writable: true, configurable: true, enumerable: true });
+    const view = Object.create(CredentialsContainer.prototype, {
+      create: plain(mine.create),
+      get: plain(mine.get),
+      store: plain((credential) => credentials.store(credential)),
+      preventSilentAccess: plain(() => credentials.preventSilentAccess()),
+    });
+    try {
+      Object.defineProperty(navigator, "credentials", {
+        get: () => view,
+        configurable: true,
+        enumerable: true,
+      });
+      ownView = true;
+    } catch (e) {
+      note("cannot get in front of another password manager");
+    }
+  }
+
+  stayOnTop();
+  for (const event of ["pointerdown", "keydown"]) {
+    window.addEventListener(event, stayOnTop, true);
+  }
+  window.addEventListener("load", stayOnTop);
 
   // Sixora answers with user verification, like a built-in authenticator.
   PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = async () => true;

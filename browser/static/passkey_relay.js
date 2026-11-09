@@ -25,9 +25,9 @@
     open.add(id);
     ext.runtime.sendMessage({ sixora: "passkey", pageId: id, request }).then(
       (reply) => {
-        if (!reply?.pending) answer(id, reply ?? { fallback: true });
+        if (!reply?.pending) answer(id, reply ?? { fallback: true, why: "no answer" });
       },
-      () => answer(id, { fallback: true }),
+      (e) => answer(id, { fallback: true, why: String(e) }),
     );
   });
 
