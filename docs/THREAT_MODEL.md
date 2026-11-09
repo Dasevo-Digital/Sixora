@@ -41,9 +41,13 @@ die Verfügbarkeit und Vollständigkeit verschlüsselter Tresordaten.
   Programm des Rechners, auch anderer Benutzerkonten, kann sie erreichen. Sie
   verrät dort weder Server noch Konto (nur ein Prüfwert wird verglichen),
   fragt nach einer abgelehnten Kopplung eine Minute lang nicht erneut und
-  gibt den Kontoschlüssel nur an bestätigte Schlüssel heraus. Ein Programm
-  desselben Benutzers kann den Schlüssel einer Erweiterung aus dem
-  Browser-Profil lesen und fällt unter „kompromittiertes Gerät“.
+  gibt den Kontoschlüssel nur an bestätigte Schlüssel heraus. Solange die App
+  entsperrt ist, bekommt eine verbundene Erweiterung ihn ohne weitere
+  Bestätigung. Ein Programm desselben Benutzers kann den Schlüssel einer
+  Erweiterung aus dem Browser-Profil lesen, kommt damit bei entsperrter App
+  an den Kontoschlüssel und fällt unter „kompromittiertes Gerät“. Passkeys
+  verlangen trotzdem bei jeder Nutzung eine Bestätigung, soweit die Website
+  sie nicht abwählt.
 - **Sicherungen:** Enthalten verschlüsselte Codes und brauchen ein eigenes
   Passwort. Verlust des Sicherungspassworts oder Wiederherstellungsschlüssels
   ist nicht rückgängig zu machen.

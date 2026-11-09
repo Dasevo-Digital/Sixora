@@ -61,6 +61,7 @@ class PopupUi {
   Future<void> start() async {
     if (inTab) web.document.body?.classList.add('tab');
     await x.load();
+    await _app.followApp();
     final passkey = RegExp(
       r'^#passkey=([\w-]+)$',
     ).firstMatch(web.window.location.hash)?[1];
@@ -476,7 +477,7 @@ class PopupUi {
           _iconButton('lock', t['lock'], () async {
             // Locked on purpose: no Touch ID prompt right away.
             _askedApp = true;
-            await x.lock();
+            await x.lock(byUser: true);
             _render();
           }),
           _iconButton('settings', t['settings'], () {

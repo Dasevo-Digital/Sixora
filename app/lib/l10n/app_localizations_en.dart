@@ -2038,12 +2038,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String browserUnlockHint(String method) {
-    return 'The Sixora extension in Chrome, Opera, Edge, Brave, Vivaldi and Firefox unlocks with $method through this app instead of the master password. Sixora has to be running.';
+    return 'The Sixora extension in Chrome, Opera, Edge, Brave, Vivaldi and Firefox unlocks with $method through this app instead of the master password. Sixora has to be running. A connected extension follows the app: while the app is unlocked the extension opens without asking, and when it is locked the extension locks too.';
   }
 
   @override
   String get browserUnlockHintDialog =>
-      'The Sixora extension in Chrome, Opera, Edge, Brave, Vivaldi and Firefox unlocks after a confirmation in this app instead of the master password. Sixora has to be running and unlocked.';
+      'The Sixora extension in Chrome, Opera, Edge, Brave, Vivaldi and Firefox unlocks after a confirmation in this app instead of the master password. Sixora has to be running and unlocked. A connected extension follows the app: while the app is unlocked the extension opens without asking, and when it is locked the extension locks too.';
 
   @override
   String browserUnlockOn(String browsers) {

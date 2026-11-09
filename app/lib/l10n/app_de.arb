@@ -1266,7 +1266,7 @@
   "setupCodeHint": "Steht im Protokoll des Servers (journalctl -u sixora oder docker logs sixora). Einen neuen erzeugt: sixora-admin setup-code",
   "errInvalidSetupCode": "Der Einrichtungscode stimmt nicht. Er steht im Protokoll des Servers; ein neuer Code ersetzt die älteren.",
   "browserUnlock": "Browser-Erweiterung entsperren",
-  "browserUnlockHint": "Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich mit {method} über diese App statt mit dem Master-Passwort. Sixora muss dafür laufen.",
+  "browserUnlockHint": "Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich mit {method} über diese App statt mit dem Master-Passwort. Sixora muss dafür laufen. Eine verbundene Erweiterung richtet sich nach der App: Ist sie entsperrt, öffnet sich die Erweiterung ohne Nachfrage, ist sie gesperrt, sperrt sie sich mit.",
   "@browserUnlockHint": {
     "placeholders": {
       "method": {
@@ -1274,7 +1274,7 @@
       }
     }
   },
-  "browserUnlockHintDialog": "Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich nach einer Bestätigung in dieser App statt mit dem Master-Passwort. Sixora muss dafür laufen und entsperrt sein.",
+  "browserUnlockHintDialog": "Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich nach einer Bestätigung in dieser App statt mit dem Master-Passwort. Sixora muss dafür laufen und entsperrt sein. Eine verbundene Erweiterung richtet sich nach der App: Ist sie entsperrt, öffnet sich die Erweiterung ohne Nachfrage, ist sie gesperrt, sperrt sie sich mit.",
   "browserUnlockOn": "Eingerichtet für {browsers}.",
   "@browserUnlockOn": {
     "placeholders": {

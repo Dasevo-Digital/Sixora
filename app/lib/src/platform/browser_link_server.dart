@@ -132,6 +132,9 @@ class AppLinkDelegate implements BrowserLinkDelegate {
   String? get method => c.biometricsAvailable ? c.biometricLabel : null;
 
   @override
+  Uint8List? get userKeyWhileUnlocked => c.browserSessionKey;
+
+  @override
   bool isPaired(String publicKey) => c.isLinkedBrowser(publicKey);
 
   @override

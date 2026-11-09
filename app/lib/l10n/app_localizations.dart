@@ -3457,13 +3457,13 @@ abstract class AppLocalizations {
   /// No description provided for @browserUnlockHint.
   ///
   /// In de, this message translates to:
-  /// **'Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich mit {method} über diese App statt mit dem Master-Passwort. Sixora muss dafür laufen.'**
+  /// **'Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich mit {method} über diese App statt mit dem Master-Passwort. Sixora muss dafür laufen. Eine verbundene Erweiterung richtet sich nach der App: Ist sie entsperrt, öffnet sich die Erweiterung ohne Nachfrage, ist sie gesperrt, sperrt sie sich mit.'**
   String browserUnlockHint(String method);
 
   /// No description provided for @browserUnlockHintDialog.
   ///
   /// In de, this message translates to:
-  /// **'Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich nach einer Bestätigung in dieser App statt mit dem Master-Passwort. Sixora muss dafür laufen und entsperrt sein.'**
+  /// **'Die Sixora-Erweiterung in Chrome, Opera, Edge, Brave, Vivaldi und Firefox entsperrt sich nach einer Bestätigung in dieser App statt mit dem Master-Passwort. Sixora muss dafür laufen und entsperrt sein. Eine verbundene Erweiterung richtet sich nach der App: Ist sie entsperrt, öffnet sich die Erweiterung ohne Nachfrage, ist sie gesperrt, sperrt sie sich mit.'**
   String get browserUnlockHintDialog;
 
   /// No description provided for @browserUnlockOn.

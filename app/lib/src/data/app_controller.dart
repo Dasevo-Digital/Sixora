@@ -550,6 +550,14 @@ class AppController extends ChangeNotifier {
   /// dialog) where there are none; while it is locked, quick unlock reads
   /// the key without opening the app. Returns a copy of the user key, or
   /// null.
+  /// For a connected browser extension: a copy of the user key while the
+  /// app is unlocked.
+  Uint8List? get browserSessionKey {
+    final keys = _keys;
+    if (phase != Phase.unlocked || keys == null) return null;
+    return Uint8List.fromList(keys.userKey);
+  }
+
   Future<Uint8List?> approveBrowserUnlock({
     required String reason,
     required Future<bool> Function() confirm,

@@ -21,6 +21,7 @@ class AppStatus {
     required this.method,
     required this.paired,
     required this.ready,
+    this.appUnlocked,
   });
 
   /// "Touch ID", "Windows Hello", or "" for a dialog in the app.
@@ -32,6 +33,10 @@ class AppStatus {
   /// Whether a request reaches the user now (the app is unlocked, or this
   /// extension is connected and the app has quick unlock).
   final bool ready;
+
+  /// Whether the app itself is unlocked; only told to a connected
+  /// extension, and null with an app that does not tell yet.
+  final bool? appUnlocked;
 }
 
 /// "Mit Touch ID entsperren": the extension asks the desktop app (see
@@ -96,13 +101,12 @@ class AppUnlock {
 
   /// The Sixora app on this computer, if it uses this account; null
   /// without one.
-  Future<AppStatus?> status() async {
+  Future<AppStatus?> status({
+    Duration timeout = const Duration(seconds: 4),
+  }) async {
     if (x.stored == null) return null;
     final key = await _key();
-    final hello = await ask(
-      _request('hello', key.publicKey),
-      timeout: const Duration(seconds: 4),
-    );
+    final hello = await ask(_request('hello', key.publicKey), timeout: timeout);
     if (hello['sixora'] != BrowserLink.protocol ||
         hello['sameAccount'] != true) {
       return null;
@@ -111,7 +115,41 @@ class AppUnlock {
       method: hello['method'] as String? ?? '',
       paired: hello['paired'] == true,
       ready: hello['ready'] == true,
+      appUnlocked: hello['unlocked'] as bool?,
     );
+  }
+
+  /// At every opening a connected extension follows the app: open without
+  /// asking while the app is unlocked, locked when it is locked. Without
+  /// the app, or locked by hand, the extension stays as it is.
+  Future<void> followApp() async {
+    const wait = Duration(seconds: 2);
+    try {
+      if (x.stored == null) return;
+      final app = await status(timeout: wait);
+      if (app == null || !app.paired) return;
+      if (app.appUnlocked == false) {
+        if (x.stage == Stage.unlocked) await x.lock();
+        return;
+      }
+      if (app.appUnlocked != true ||
+          x.stage != Stage.locked ||
+          await x.lockedByUser) {
+        return;
+      }
+      final key = await _key();
+      final reply = await ask(
+        _request('session', key.publicKey),
+        timeout: wait,
+      );
+      final sealed = reply['sealedUserKey'];
+      if (sealed is! String) return;
+      await x.unlockWithUserKey(
+        await VaultCrypto.unseal(sealed, key.privateKey, key.publicKey),
+      );
+    } on Object {
+      // The lock screen offers the other ways.
+    }
   }
 
   /// The code the app shows when it connects this extension.

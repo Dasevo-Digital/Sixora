@@ -160,12 +160,18 @@ class FakeDesktopApp implements BrowserLinkDelegate {
   @override
   ({Uri server, String userId})? get account =>
       (server: Uri.parse(_server.url), userId: _server.userId);
+
+  /// The app's own lock.
+  bool open = true;
   @override
-  bool get unlocked => true;
+  bool get unlocked => open;
   @override
   bool get unlockWhileLocked => false;
   @override
   String? get method => 'Touch ID';
+  @override
+  Uint8List? get userKeyWhileUnlocked =>
+      open ? Uint8List.fromList(_server.userKey) : null;
 
   final _paired = <String>{};
 
@@ -344,6 +350,23 @@ Future<int> runScenario(
       'unlocked by the desktop app with Touch ID',
       app.approvals == 1 && app.pairCodes.length == 1,
     );
+
+    // Opened again: it follows the app, without asking.
+    await d.script(
+      'const w = window.wrappedJSObject ?? window;'
+      'await (w.browser ?? w.chrome).storage.session.remove("unlocked");',
+    );
+    await d.navigate('$base/popup.html');
+    await d.waitFor('.row', timeout: const Duration(seconds: 20));
+    check('opens with the unlocked app, unasked', app.approvals == 1);
+    app.open = false;
+    await d.navigate('$base/popup.html');
+    await d.waitFor(
+      'input[type=password]',
+      timeout: const Duration(seconds: 20),
+    );
+    check('locks with the app', true);
+    app.open = true;
   }
 
   // The function that fills web pages.

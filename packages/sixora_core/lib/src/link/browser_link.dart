@@ -23,6 +23,10 @@ import '../crypto/vault_crypto.dart';
 /// key: another program can claim one, but cannot open the answer. `hello`
 /// tells nothing about the account; the extension asks whether it is the
 /// same.
+///
+/// A connected extension follows the app each time it opens: `session`
+/// hands it the sealed user key without asking while the app is unlocked,
+/// and it locks itself when `hello` says the app is locked.
 abstract final class BrowserLink {
   /// Name of the native messaging host (manifest file and registry key).
   static const hostName = 'de.status403.sixora';
@@ -131,6 +135,9 @@ abstract interface class BrowserLinkDelegate {
   /// Whether the user connected the extension with this key.
   bool isPaired(String publicKey);
 
+  /// A copy of the user key while the app is unlocked, else null.
+  Uint8List? get userKeyWhileUnlocked;
+
   /// A connected extension: the user confirms; the user key, or null.
   Future<Uint8List?> approve({required String browser});
 
@@ -174,9 +181,12 @@ class BrowserLinkHost {
               same &&
               (delegate.unlocked || (paired && delegate.unlockWhileLocked)),
           'method': delegate.method,
+          if (paired) 'unlocked': delegate.unlocked,
         };
       case 'unlock':
         return _unlock(request);
+      case 'session':
+        return _session(request);
       default:
         return {'error': 'unknown'};
     }
@@ -197,6 +207,21 @@ class BrowserLinkHost {
       return base64.decode(key).length == 32 ? key : null;
     } on FormatException {
       return null;
+    }
+  }
+
+  /// A connected extension goes along with the unlocked app, unasked.
+  Future<Map<String, Object?>> _session(Map<String, Object?> request) async {
+    final publicKey = _publicKey(request);
+    if (publicKey == null) return {'error': 'invalid'};
+    if (!_sameAccount(request)) return {'error': 'other_account'};
+    if (!delegate.isPaired(publicKey)) return {'error': 'not_paired'};
+    final key = delegate.userKeyWhileUnlocked;
+    if (key == null) return {'error': 'locked'};
+    try {
+      return {'sealedUserKey': await VaultCrypto.seal(key, publicKey)};
+    } finally {
+      key.fillRange(0, key.length, 0);
     }
   }
 

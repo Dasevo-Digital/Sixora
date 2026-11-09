@@ -36,12 +36,16 @@ class FakeApp implements BrowserLinkDelegate {
   @override
   ({Uri server, String userId})? get account =>
       (server: server, userId: userId);
+  bool open = true;
   @override
-  bool get unlocked => true;
+  bool get unlocked => open;
   @override
   bool get unlockWhileLocked => false;
   @override
   String? get method => 'Touch ID';
+  @override
+  Uint8List? get userKeyWhileUnlocked =>
+      open ? Uint8List.fromList(userKey) : null;
   @override
   bool isPaired(String publicKey) => paired.contains(publicKey);
   @override
@@ -311,6 +315,59 @@ void main() {
       host = BrowserLinkHost(fake, version: 'test');
       return e;
     }
+
+    group('following the app', () {
+      late SixoraExtension e;
+      late AppUnlock unlock;
+
+      setUp(() async {
+        e = await signedInAndLocked();
+        unlock = AppUnlock(e, ask, browser: 'Firefox');
+        await unlock.unlock(); // connects it
+        await e.lock();
+      });
+
+      test('opens unasked while the app is unlocked', () async {
+        await unlock.followApp();
+        expect(e.stage, Stage.unlocked);
+        expect(fake.approvals, 0);
+        expect(issuers(e), contains('GitHub'));
+      });
+
+      test('locks with the app', () async {
+        await unlock.followApp();
+        fake.open = false;
+        await unlock.followApp();
+        expect(e.stage, Stage.locked);
+        expect(e.codes, isEmpty);
+        expect(session.values['unlocked'], isNull);
+      });
+
+      test('stays locked if locked by hand, until unlocked again', () async {
+        await e.lock(byUser: true);
+        await unlock.followApp();
+        expect(e.stage, Stage.locked);
+        await e.unlock(password);
+        expect(await e.lockedByUser, isFalse);
+        await e.lock();
+        await unlock.followApp();
+        expect(e.stage, Stage.unlocked);
+      });
+
+      test('not connected or no app: left alone', () async {
+        fake.paired.clear();
+        await unlock.followApp();
+        expect(e.stage, Stage.locked);
+        final without = AppUnlock(
+          e,
+          (r, {required timeout, keep}) async => {'error': 'not_running'},
+          browser: 'Firefox',
+        );
+        await e.unlock(password);
+        await without.followApp();
+        expect(e.stage, Stage.unlocked);
+      });
+    });
 
     test('connected once, then Touch ID unlocks the extension', () async {
       final e = await signedInAndLocked();

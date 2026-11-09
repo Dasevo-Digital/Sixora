@@ -219,6 +219,7 @@ class SixoraExtension {
 
   Future<void> _open(UnlockedKeys keys) async {
     _keys = keys;
+    await session.write(_lockedByUser, null);
     await _remember();
     await _decrypt();
     stage = Stage.unlocked;
@@ -352,11 +353,18 @@ class SixoraExtension {
     }
   }
 
-  Future<void> lock() async {
+  /// [byUser]: on purpose, so it does not open by itself with the app.
+  Future<void> lock({bool byUser = false}) async {
     _wipe();
     await session.write('unlocked', null);
+    await session.write(_lockedByUser, byUser ? '1' : null);
     if (stored != null) stage = Stage.locked;
   }
+
+  static const _lockedByUser = 'lockedByUser';
+
+  Future<bool> get lockedByUser async =>
+      await session.read(_lockedByUser) != null;
 
   /// Ends the session on the server (when unlocked) and forgets the
   /// account here.

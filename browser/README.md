@@ -39,7 +39,10 @@ außerdem Passkeys und meldet damit an (siehe „Passkeys“). Konten anlegen un
   ersten Mal verbindet die App die Erweiterung (beide zeigen denselben
   Code); dafür hat die Erweiterung ein eigenes Schlüsselpaar in
   `storage.local`. Danach gibt die App den Benutzerschlüssel nur noch an
-  diesen Schlüssel versiegelt heraus, und Server und Konto gehen nur als
+  diesen Schlüssel versiegelt heraus. Bei jedem Öffnen richtet sich die
+  verbundene Erweiterung nach der App: Ist sie entsperrt, geht die
+  Erweiterung ohne Nachfrage auf, ist sie gesperrt, sperrt sie sich mit; von
+  Hand gesperrt bleibt sie zu. Server und Konto gehen nur als
   Prüfwert über die Verbindung. Der
   Browser startet dafür das Sixora-Programm (macOS) bzw. `sixora-bridge`
   (Windows, Linux), das die Bytes nur an die laufende App auf 127.0.0.1

@@ -13,17 +13,25 @@ class _App implements BrowserLinkDelegate {
   @override
   ({Uri server, String userId})? get account =>
       (server: Uri.parse('https://sixora.example.org/'), userId: 'u1');
+  bool open = true;
+  bool connected = true;
+  int approvals = 0;
   @override
-  bool get unlocked => true;
+  bool get unlocked => open;
   @override
   bool get unlockWhileLocked => false;
   @override
   String? get method => null;
   @override
-  bool isPaired(String publicKey) => true;
+  Uint8List? get userKeyWhileUnlocked => open ? Uint8List.fromList(key) : null;
   @override
-  Future<Uint8List?> approve({required String browser}) async =>
-      Uint8List.fromList(key);
+  bool isPaired(String publicKey) => connected;
+  @override
+  Future<Uint8List?> approve({required String browser}) async {
+    approvals++;
+    return Uint8List.fromList(key);
+  }
+
   @override
   Future<Uint8List?> pair({
     required String publicKey,
@@ -98,6 +106,59 @@ void main() {
       ext.publicKey,
     );
     expect(key, app.key);
+  });
+
+  group('a connected extension follows the app', () {
+    late _App app;
+    late BrowserLinkHost host;
+    late ({String publicKey, Uint8List privateKey}) keys;
+    Map<String, Object?> request(String type) => {
+      'type': type,
+      'publicKey': keys.publicKey,
+      'account': BrowserLink.accountTag(app.account!.server, 'u1'),
+    };
+
+    setUp(() async {
+      app = _App();
+      host = BrowserLinkHost(app, version: 'test');
+      keys = await VaultCrypto.newKeyPair();
+    });
+
+    test('unlocked app: the key without asking, sealed to it', () async {
+      final hello = await host.handle(request('hello'));
+      expect(hello['unlocked'], isTrue);
+      final reply = await host.handle(request('session'));
+      expect(
+        await VaultCrypto.unseal(
+          reply['sealedUserKey']! as String,
+          keys.privateKey,
+          keys.publicKey,
+        ),
+        app.key,
+      );
+      expect(app.approvals, 0);
+    });
+
+    test('locked app: no key, and the extension hears of it', () async {
+      app.open = false;
+      expect((await host.handle(request('hello')))['unlocked'], isFalse);
+      expect(await host.handle(request('session')), {'error': 'locked'});
+    });
+
+    test('not connected: nothing, not even the state', () async {
+      app.connected = false;
+      expect(
+        (await host.handle(request('hello'))).containsKey('unlocked'),
+        isFalse,
+      );
+      expect(await host.handle(request('session')), {'error': 'not_paired'});
+    });
+
+    test('another account gets nothing', () async {
+      expect(await host.handle({...request('session'), 'account': 'fremd'}), {
+        'error': 'other_account',
+      });
+    });
   });
 
   test('host manifests go only to installed browsers', () async {

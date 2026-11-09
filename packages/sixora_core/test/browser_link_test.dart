@@ -23,6 +23,8 @@ class _App implements BrowserLinkDelegate {
   int approvals = 0;
 
   @override
+  Uint8List? get userKeyWhileUnlocked => null;
+  @override
   bool isPaired(String publicKey) => paired.contains(publicKey);
 
   @override
