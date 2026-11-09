@@ -180,12 +180,14 @@ abstract final class WebAuthn {
     required String type,
     required String challenge,
     required String origin,
+    String? androidPackage,
   }) => utf8.encode(
     jsonEncode({
       'type': type,
       'challenge': challenge,
       'origin': origin,
       'crossOrigin': false,
+      'androidPackageName': ?androidPackage,
     }),
   );
 

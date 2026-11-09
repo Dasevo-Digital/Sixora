@@ -6,7 +6,6 @@ import 'dart:typed_data';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:sixora_browser/src/app_unlock.dart';
 import 'package:sixora_browser/src/extension.dart';
-import 'package:sixora_browser/src/passkeys.dart';
 import 'package:sixora_core/sixora_core.dart';
 import 'package:sixora_server/sixora_server.dart';
 import 'package:test/test.dart';

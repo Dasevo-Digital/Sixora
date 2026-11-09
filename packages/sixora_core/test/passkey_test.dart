@@ -223,4 +223,165 @@ void main() {
     final without = await SixoraBackup.encrypt([otp], 'pw', kdf: kdf);
     expect((await Importers.read(without, password: 'pw')).passkeys, isEmpty);
   });
+
+  group('requests from Android', () {
+    final hashOrigin =
+        '${PasskeyRequest.appOriginPrefix}${Base64Url.encode(List.filled(32, 7))}';
+    const options = '''{
+      "rp": {"id": "example.com", "name": "Example"},
+      "user": {"id": "dXNlcg", "name": "alice", "displayName": "Alice"},
+      "challenge": "Y2hhbGxlbmdl",
+      "pubKeyCredParams": [{"type": "public-key", "alg": -7}],
+      "excludeCredentials": [{"type": "public-key", "id": "b2xk"}],
+      "authenticatorSelection": {"userVerification": "required"}
+    }''';
+    const sign = '''{
+      "rpId": "example.com",
+      "challenge": "Y2hhbGxlbmdl",
+      "allowCredentials": [{"type": "public-key", "id": "YWJj"}],
+      "userVerification": "discouraged"
+    }''';
+
+    test('reads the options WebAuthn defines', () {
+      final r = PasskeyRequest.fromWebAuthn(
+        'https://www.example.com',
+        options,
+        create: true,
+      );
+      expect(r.rpId, 'example.com');
+      expect(r.rpName, 'Example');
+      expect(r.userHandle, 'dXNlcg');
+      expect(r.algorithms, [-7]);
+      expect(r.exclude, ['b2xk']);
+      expect(r.userVerification, 'required');
+      expect(r.problem, isNull);
+      final g = PasskeyRequest.fromWebAuthn(
+        'https://example.com',
+        sign,
+        create: false,
+      );
+      expect(g.allow, ['YWJj']);
+      expect(g.userVerification, 'discouraged');
+    });
+
+    test('a browser site must fit its address, an app has none', () {
+      expect(
+        PasskeyRequest.fromWebAuthn(
+          'https://evil.test',
+          sign,
+          create: false,
+        ).problem,
+        'SecurityError',
+      );
+      final app = PasskeyRequest.fromWebAuthn(
+        hashOrigin,
+        sign,
+        create: false,
+        androidPackage: 'com.example.app',
+      );
+      expect(app.fromApp, isTrue);
+      expect(app.problem, isNull);
+      expect(app.host, 'example.com');
+    });
+
+    test('an app gets its own client data, with its identity', () {
+      final p = passkey();
+      final r = PasskeyRequest.fromWebAuthn(
+        hashOrigin,
+        sign,
+        create: false,
+        androidPackage: 'com.example.app',
+      );
+      final json = passkeyAuthenticationJson(r.signedIn(p, userVerified: true));
+      expect(json['rawId'], json['id']);
+      final response = json['response']! as Map;
+      final data =
+          jsonDecode(
+                utf8.decode(
+                  Base64Url.decode(response['clientDataJSON'] as String),
+                ),
+              )
+              as Map;
+      expect(data['type'], 'webauthn.get');
+      expect(data['origin'], hashOrigin);
+      expect(data['androidPackageName'], 'com.example.app');
+    });
+
+    test('a browser that wrote the client data gets that hash signed', () {
+      final p = passkey();
+      final hash = List<int>.generate(32, (i) => i);
+      final r = PasskeyRequest.fromWebAuthn(
+        'https://example.com',
+        sign,
+        create: false,
+        clientDataHash: hash,
+      );
+      final answer = r.signedIn(p, userVerified: false);
+      final auth = Base64Url.decode(answer['authenticatorData']! as String);
+      final signature = Base64Url.decode(answer['signature']! as String);
+      expect(
+        _verify(WebAuthn.publicKeyOf(Base64Url.decode(p.privateKey)), [
+          ...auth,
+          ...hash,
+        ], signature),
+        isTrue,
+      );
+    });
+
+    test('a registration answer has what a site reads', () {
+      final r = PasskeyRequest.fromWebAuthn(
+        'https://example.com',
+        options,
+        create: true,
+      );
+      final json = passkeyRegistrationJson(
+        r.created(passkey(), userVerified: true),
+      );
+      final response = json['response']! as Map;
+      expect(response['attestationObject'], isA<String>());
+      expect(response['publicKeyAlgorithm'], -7);
+      expect(json['type'], 'public-key');
+    });
+
+    test('asset links name the permission, app and certificate', () {
+      const print = 'AA:BB:CC';
+      List<Object?> links({
+        String relation = 'delegate_permission/common.get_login_creds',
+        String package = 'com.example.app',
+        String certificate = print,
+        String namespace = 'android_app',
+      }) => [
+        {
+          'relation': [relation],
+          'target': {
+            'namespace': namespace,
+            'package_name': package,
+            'sha256_cert_fingerprints': [certificate],
+          },
+        },
+      ];
+      bool allows(Object? statements) => assetLinksAllow(
+        statements,
+        package: 'com.example.app',
+        fingerprint: print,
+      );
+      expect(allows(links()), isTrue);
+      expect(allows(links(certificate: 'aa:bb:cc')), isTrue);
+      expect(allows(links(certificate: 'AA:BB:CD')), isFalse);
+      expect(allows(links(package: 'com.other')), isFalse);
+      expect(allows(links(namespace: 'web')), isFalse);
+      expect(
+        allows(links(relation: 'delegate_permission/common.handle_all_urls')),
+        isFalse,
+      );
+      expect(allows({'not': 'a list'}), isFalse);
+    });
+
+    test('the site hash matches the one the Android service computes', () {
+      expect(
+        passkeySiteHash('salz', 'example.com'),
+        'EGO7tFHYWdc03T+H6Fh0uqZBiNSyvfRW+QBRUZfTPAc=',
+      );
+    });
+  });
 }

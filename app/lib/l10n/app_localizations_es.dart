@@ -2148,7 +2148,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get passkeysExplanation =>
-      'Como tus códigos, las llaves de acceso se guardan con cifrado de extremo a extremo en tu caja fuerte y llegan a todos tus dispositivos. Las guardas y las usas en la extensión de navegador de Sixora; actívalas en sus ajustes.';
+      'Como tus códigos, las llaves de acceso se guardan con cifrado de extremo a extremo en tu caja fuerte y llegan a todos tus dispositivos. Las guardas y las usas en la extensión de navegador de Sixora y en Android 14 o posterior.';
 
   @override
   String get passkeysEmpty => 'Aún no hay llaves de acceso';
@@ -2187,4 +2187,46 @@ class AppLocalizationsEs extends AppLocalizations {
   String passkeyCreatedOn(Object date) {
     return 'creada $date';
   }
+
+  @override
+  String get passkeySaveTitle => '¿Guardar la llave de acceso en Sixora?';
+
+  @override
+  String get passkeySave => 'Guardar';
+
+  @override
+  String get passkeySignIn => 'Iniciar sesión con llave de acceso';
+
+  @override
+  String passkeyInApp(String app) {
+    return 'en la app $app';
+  }
+
+  @override
+  String passkeyUnknownBrowser(String app) {
+    return 'Sixora no conoce el navegador $app, así que no se fía de lo que indica sobre el sitio web.';
+  }
+
+  @override
+  String passkeyAppNotLinked(String site, String app) {
+    return '$site no ha autorizado la app $app, así que Sixora no le da ninguna llave de acceso de este sitio web.';
+  }
+
+  @override
+  String get passkeyNeedsServer =>
+      'Las llaves de acceso nuevas necesitan una cuenta en un servidor Sixora.';
+
+  @override
+  String get passkeyOffline =>
+      'No se puede conectar con el servidor. La llave de acceso no se ha guardado.';
+
+  @override
+  String get passkeysAndroidEnable => 'Activar en Android';
+
+  @override
+  String get passkeysAndroidEnabled => 'Activado en Android';
+
+  @override
+  String get passkeysAndroidHint =>
+      'Para que las apps y los navegadores usen llaves de acceso de Sixora, debe estar elegido como proveedor en los ajustes de Android.';
 }

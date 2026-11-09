@@ -2,12 +2,48 @@ import 'package:flutter/material.dart';
 
 import '../data/app_controller.dart';
 import '../l10n.dart';
+import '../passkey/passkey_platform.dart';
 import '../widgets/common.dart';
 
 /// The passkeys in this account. They are made and used in the browser
 /// extension; here they can be looked at and deleted.
-class PasskeysScreen extends StatelessWidget {
+class PasskeysScreen extends StatefulWidget {
   const PasskeysScreen({super.key});
+
+  @override
+  State<PasskeysScreen> createState() => _PasskeysScreenState();
+}
+
+class _PasskeysScreenState extends State<PasskeysScreen>
+    with WidgetsBindingObserver {
+  ({bool supported, bool enabled}) _android = (
+    supported: false,
+    enabled: false,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _readStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Back from Android's settings: the choice may have changed.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _readStatus();
+  }
+
+  Future<void> _readStatus() async {
+    final status = await PasskeyPlatform.status();
+    if (mounted) setState(() => _android = status);
+  }
 
   Future<void> _delete(
     BuildContext context,
@@ -36,6 +72,19 @@ class PasskeysScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Text(t.passkeysExplanation),
           ),
+          if (_android.supported)
+            ListTile(
+              leading: Icon(
+                _android.enabled ? Icons.check_circle_outline : Icons.tune,
+              ),
+              title: Text(
+                _android.enabled
+                    ? t.passkeysAndroidEnabled
+                    : t.passkeysAndroidEnable,
+              ),
+              subtitle: Text(t.passkeysAndroidHint),
+              onTap: PasskeyPlatform.openSettings,
+            ),
           if (c.passkeys.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 48),

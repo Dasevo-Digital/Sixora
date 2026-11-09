@@ -8,6 +8,7 @@ export 'src/crypto/account_keys.dart';
 export 'src/crypto/vault_crypto.dart';
 export 'src/link/browser_link.dart';
 export 'src/passkey/passkey.dart';
+export 'src/passkey/request.dart';
 export 'src/otp/base32.dart';
 export 'src/otp/check.dart';
 export 'src/otp/entry.dart';

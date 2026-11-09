@@ -7,6 +7,8 @@ import 'src/autofill/autofill_app.dart';
 import 'src/data/app_controller.dart';
 import 'src/data/service_icons.dart';
 import 'src/l10n.dart';
+import 'src/passkey/passkey_platform.dart';
+import 'src/passkey/passkey_window.dart';
 import 'src/platform/desktop_shell.dart';
 import 'src/platform/link_inbox.dart';
 
@@ -33,6 +35,17 @@ Future<void> autofillMain() async {
   useLocale(resolveLocale(controller.settings.language));
   final request = await Autofill.request();
   runApp(AutofillApp(controller: controller, request: request));
+}
+
+/// Android passkey window (`PasskeyActivity`): its own engine, started
+/// when the user picks Sixora in the system's sign-in sheet.
+@pragma('vm:entry-point')
+Future<void> passkeyMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final controller = await AppController.create(passive: true);
+  useLocale(resolveLocale(controller.settings.language));
+  final call = await PasskeyPlatform.request();
+  runApp(PasskeyApp(controller: controller, call: call));
 }
 
 void _addLicenses() {

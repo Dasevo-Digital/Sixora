@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="autofill_insert">Insertar código de Sixora</string>
+    <string name="passkey_entry">Llave de acceso de Sixora</string>
 </resources>

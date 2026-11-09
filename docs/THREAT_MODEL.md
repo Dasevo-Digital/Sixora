@@ -31,6 +31,11 @@ die Verfügbarkeit und Vollständigkeit verschlüsselter Tresordaten.
   deren übergeordneter Domains und kann nicht erfahren, ob für andere Websites
   welche existieren. Jede Nutzung braucht eine Bestätigung in einem Fenster der
   Erweiterung, das die vom Browser genannte Adresse zeigt.
+- **Aufrufer von Passkeys unter Android:** Nicht vertrauenswürdig. Jede App kann
+  eine Website-Adresse behaupten. Sixora glaubt sie nur Browsern, deren Paketname
+  und Release-Zertifikat auf der mitgelieferten Liste stehen. Andere Apps müssen
+  von der Website per Digital Asset Links freigegeben sein. Jede Nutzung verlangt
+  Biometrie oder das Master-Passwort.
 - **Lokale Verbindung zur Desktop-App:** Die App lauscht auf 127.0.0.1; jedes
   Programm des Rechners, auch anderer Benutzerkonten, kann sie erreichen. Sie
   verrät dort weder Server noch Konto (nur ein Prüfwert wird verglichen),

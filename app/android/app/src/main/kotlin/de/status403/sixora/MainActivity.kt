@@ -1,15 +1,18 @@
 package de.status403.sixora
 
 import android.content.ClipData
+import android.content.ComponentName
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.credentials.CredentialManager
 import android.net.Uri
 import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.Settings
 import android.view.autofill.AutofillManager
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import android.os.PersistableBundle
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -100,6 +103,42 @@ class MainActivity : FlutterFragmentActivity() {
             .setMethodCallHandler { call, result -> folderCall(call.method, call, result) }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "sixora/autofill")
             .setMethodCallHandler { call, result -> autofillCall(call.method, result) }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "sixora/passkeys")
+            .setMethodCallHandler { call, result -> passkeyCall(call.method, call.arguments, result) }
+    }
+
+    /** Settings: whether Android may use Sixora for passkeys. */
+    private fun passkeyCall(method: String, argument: Any?, result: MethodChannel.Result) {
+        val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+        when (method) {
+            "setIndex" -> {
+                PasskeyIndex.write(this, argument as String?)
+                result.success(null)
+            }
+            "status" -> result.success(
+                mapOf("supported" to supported, "enabled" to (supported && passkeysEnabled())),
+            )
+            "openSettings" -> {
+                if (supported) {
+                    startActivity(
+                        Intent(Settings.ACTION_CREDENTIAL_PROVIDER)
+                            .setData(Uri.parse("package:$packageName")),
+                    )
+                }
+                result.success(null)
+            }
+            else -> result.notImplemented()
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    private fun passkeysEnabled(): Boolean = try {
+        getSystemService(CredentialManager::class.java)?.isEnabledCredentialProviderService(
+            ComponentName(this, SixoraCredentialService::class.java),
+        ) == true
+    } catch (e: RuntimeException) {
+        // The call throws from inside the system on some Android 14 setups.
+        false
     }
 
     /** Settings: whether Sixora is the autofill service, and choosing it. */

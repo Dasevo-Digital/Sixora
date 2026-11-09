@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:sixora/src/data/app_controller.dart';
 import 'package:sixora/src/data/local_server.dart';
+import 'package:sixora/src/data/local_store.dart';
 import 'package:sixora_core/sixora_core.dart';
 import 'package:sixora_server/sixora_server.dart';
 
@@ -246,6 +248,76 @@ void main() {
     await itemsLoaded(c, 2);
     expect(c.passkeys.single.passkey.privateKey, passkey.privateKey);
     expect(c.undecryptable, 0);
+  });
+
+  group('the Android passkey window', () {
+    PasskeyRequest request() => PasskeyRequest.fromWebAuthn(
+      'https://example.com',
+      jsonEncode({
+        'rp': {'id': 'example.com', 'name': 'Example'},
+        'user': {'id': 'dXNlcg', 'name': 'alice', 'displayName': 'Alice'},
+        'challenge': 'Y2hhbGxlbmdl',
+        'pubKeyCredParams': [
+          {'type': 'public-key', 'alg': -7},
+        ],
+      }),
+      create: true,
+      clientDataHash: List.filled(32, 1),
+    );
+
+    test('writes to the server and leaves the files to the app', () async {
+      const pw = 'server-master-password';
+      await c.register(
+        server: remoteUrl,
+        serverName: 'Test',
+        username: 'anna',
+        password: pw,
+        inviteCode: setupCode,
+      );
+      await c.enter();
+      await vaultsLoaded(c);
+      c.lock();
+      AppController window() => AppController.forTest(
+        dir,
+        cached: LocalStore(dir).loadAccount(),
+        passive: true,
+      );
+      int storedEntries() => LocalStore(dir).loadAccount()!.entries.length;
+      final before = storedEntries();
+
+      final w = window();
+      await w.unlockWithPassword(pw);
+      final answer = await w.createPasskeyFromWindow(
+        request(),
+        userVerified: true,
+      );
+      expect(w.passkeys.single.passkey.rpId, 'example.com');
+      expect(storedEntries(), before);
+
+      // The next window has only the old files, and asks the server.
+      final next = window();
+      await next.unlockWithPassword(pw);
+      expect(next.passkeys, isEmpty);
+      await next.refreshWindow();
+      expect(next.passkeys.single.passkey.credentialId, answer['id']);
+      expect(storedEntries(), before);
+
+      // The app gets it with its next sync.
+      await c.unlockWithPassword(pw);
+      for (var i = 0; c.passkeys.isEmpty && i < 200; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(c.passkeys.single.passkey.credentialId, answer['id']);
+      expect(c.undecryptable, 0);
+    });
+
+    test('cannot make passkeys without a server', () async {
+      await startLocal();
+      await expectLater(
+        c.createPasskeyFromWindow(request(), userVerified: true),
+        throwsA(isA<UserError>()),
+      );
+    });
   });
 
   test('moving into an existing account skips codes it has', () async {

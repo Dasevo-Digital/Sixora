@@ -29,6 +29,11 @@ Passkeys. Schaltet man Passkeys ein, läuft auf https-Seiten ein Skript der
 Erweiterung, das nur Passkey-Anfragen beantwortet und nichts über die besuchten
 Seiten speichert oder überträgt.
 
+Unter Android 14 und neuer speichert die App dieselben gesalzenen Hashes in ihrem
+privaten Bereich. Fragt eine App nach einem Passkey, ruft Sixora
+`https://<Website>/.well-known/assetlinks.json` ab, um die Freigabe der App zu
+prüfen; die Website sieht dabei die IP-Adresse des Geräts.
+
 ## Auf dem Server sichtbare Daten
 
 Der Server sieht keine Klartext-Codes, Tresornamen oder privaten Schlüssel. Er

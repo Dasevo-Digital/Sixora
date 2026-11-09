@@ -1343,7 +1343,7 @@
   "passkey": "Passkey",
   "passkeys": "Passkeys",
   "passkeysHint": "Anmeldungen für Websites, Ende-zu-Ende-verschlüsselt",
-  "passkeysExplanation": "Passkeys liegen wie deine Codes Ende-zu-Ende-verschlüsselt im Tresor und erreichen alle deine Geräte. Du sicherst und nutzt sie in der Sixora-Browser-Erweiterung; dort schaltest du sie in den Einstellungen ein.",
+  "passkeysExplanation": "Passkeys liegen wie deine Codes Ende-zu-Ende-verschlüsselt im Tresor und erreichen alle deine Geräte. Du sicherst und nutzt sie in der Sixora-Browser-Erweiterung und unter Android 14 und neuer.",
   "passkeysEmpty": "Noch keine Passkeys",
   "passkeyCount": "{count, plural, =1{1 Passkey} other{{count} Passkeys}}",
   "@passkeyCount": {
@@ -1377,5 +1377,40 @@
         "type": "Object"
       }
     }
-  }
+  },
+  "passkeySaveTitle": "Passkey in Sixora sichern?",
+  "passkeySave": "Sichern",
+  "passkeySignIn": "Mit Passkey anmelden",
+  "passkeyInApp": "in der App {app}",
+  "@passkeyInApp": {
+    "placeholders": {
+      "app": {
+        "type": "String"
+      }
+    }
+  },
+  "passkeyUnknownBrowser": "Sixora kennt den Browser {app} nicht und verlässt sich deshalb nicht auf seine Angabe, für welche Website er fragt.",
+  "@passkeyUnknownBrowser": {
+    "placeholders": {
+      "app": {
+        "type": "String"
+      }
+    }
+  },
+  "passkeyAppNotLinked": "{site} hat die App {app} nicht freigegeben. Sixora gibt ihr deshalb keinen Passkey dieser Website.",
+  "@passkeyAppNotLinked": {
+    "placeholders": {
+      "site": {
+        "type": "String"
+      },
+      "app": {
+        "type": "String"
+      }
+    }
+  },
+  "passkeyNeedsServer": "Neue Passkeys brauchen ein Konto auf einem Sixora-Server.",
+  "passkeyOffline": "Server nicht erreichbar. Der Passkey wurde nicht gesichert.",
+  "passkeysAndroidEnable": "In Android einschalten",
+  "passkeysAndroidEnabled": "In Android eingeschaltet",
+  "passkeysAndroidHint": "Damit Apps und Browser Passkeys aus Sixora nutzen können, muss Sixora in den Android-Einstellungen als Anbieter ausgewählt sein."
 }

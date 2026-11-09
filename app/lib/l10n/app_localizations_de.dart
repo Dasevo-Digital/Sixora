@@ -2137,7 +2137,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get passkeysExplanation =>
-      'Passkeys liegen wie deine Codes Ende-zu-Ende-verschlüsselt im Tresor und erreichen alle deine Geräte. Du sicherst und nutzt sie in der Sixora-Browser-Erweiterung; dort schaltest du sie in den Einstellungen ein.';
+      'Passkeys liegen wie deine Codes Ende-zu-Ende-verschlüsselt im Tresor und erreichen alle deine Geräte. Du sicherst und nutzt sie in der Sixora-Browser-Erweiterung und unter Android 14 und neuer.';
 
   @override
   String get passkeysEmpty => 'Noch keine Passkeys';
@@ -2176,4 +2176,46 @@ class AppLocalizationsDe extends AppLocalizations {
   String passkeyCreatedOn(Object date) {
     return 'erstellt $date';
   }
+
+  @override
+  String get passkeySaveTitle => 'Passkey in Sixora sichern?';
+
+  @override
+  String get passkeySave => 'Sichern';
+
+  @override
+  String get passkeySignIn => 'Mit Passkey anmelden';
+
+  @override
+  String passkeyInApp(String app) {
+    return 'in der App $app';
+  }
+
+  @override
+  String passkeyUnknownBrowser(String app) {
+    return 'Sixora kennt den Browser $app nicht und verlässt sich deshalb nicht auf seine Angabe, für welche Website er fragt.';
+  }
+
+  @override
+  String passkeyAppNotLinked(String site, String app) {
+    return '$site hat die App $app nicht freigegeben. Sixora gibt ihr deshalb keinen Passkey dieser Website.';
+  }
+
+  @override
+  String get passkeyNeedsServer =>
+      'Neue Passkeys brauchen ein Konto auf einem Sixora-Server.';
+
+  @override
+  String get passkeyOffline =>
+      'Server nicht erreichbar. Der Passkey wurde nicht gesichert.';
+
+  @override
+  String get passkeysAndroidEnable => 'In Android einschalten';
+
+  @override
+  String get passkeysAndroidEnabled => 'In Android eingeschaltet';
+
+  @override
+  String get passkeysAndroidHint =>
+      'Damit Apps und Browser Passkeys aus Sixora nutzen können, muss Sixora in den Android-Einstellungen als Anbieter ausgewählt sein.';
 }

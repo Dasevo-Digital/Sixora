@@ -8,7 +8,6 @@ import 'package:web/web.dart' as web;
 import '../app_unlock.dart';
 import '../extension.dart';
 import '../format.dart';
-import '../passkeys.dart';
 import '../stored_account.dart';
 import '../texts.dart';
 import 'bridge.dart';

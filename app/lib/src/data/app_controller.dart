@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -10,6 +11,7 @@ import 'package:sixora_core/sixora_core.dart';
 
 import '../environment.dart';
 import '../l10n.dart';
+import '../passkey/passkey_platform.dart';
 import '../platform/backup_folder.dart';
 import 'biometric_vault.dart';
 import 'error_texts.dart';
@@ -181,11 +183,18 @@ class AppController extends ChangeNotifier {
     Directory dir, {
     CachedAccount? cached,
     SixoraApi? api,
+    bool passive = false,
   }) {
     final store = LocalStore(dir);
     final secrets = SecretStore.inFolder(dir);
     LocalServer.folder = Directory(p.join(dir.path, 'local'));
-    return AppController._(store, secrets, store.loadSettings(), cached)
+    return AppController._(
+        store,
+        secrets,
+        store.loadSettings(),
+        cached,
+        passive: passive,
+      )
       ..phase = cached == null ? Phase.setup : Phase.locked
       .._api = api
       ..biometrics = BiometricVault.none(secrets);
@@ -750,6 +759,7 @@ class AppController extends ChangeNotifier {
     _movingPasskeys = null;
     _backupTimer?.cancel();
     cached = null;
+    unawaited(PasskeyPlatform.setIndex(null));
     this.notice = notice;
     phase = Phase.setup;
     // Closes the open pages at once: a sync still under way must not
@@ -813,11 +823,7 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> _applySync(SyncResult r) async {
-    final c = cached;
-    // An answer older than what is stored (a long poll that overlapped a
-    // manual sync) would bring back outdated entries.
-    if (c == null || r.cursor < c.cursor) return;
+  void _mergeEntries(CachedAccount c, SyncResult r) {
     final ids = {for (final v in r.vaults) v.id};
     c.vaults
       ..clear()
@@ -833,6 +839,35 @@ class AppController extends ChangeNotifier {
       }
     }
     c.cursor = r.cursor;
+  }
+
+  /// The passkey window, beside the app: the current state from the server,
+  /// in memory only, as the files belong to the app. Offline or slow, it
+  /// goes on with what is stored.
+  Future<void> refreshWindow() async {
+    final c = cached;
+    if (c == null || isLocal || phase != Phase.unlocked) return;
+    final api = _newApi(c.server);
+    try {
+      final r = await api.sync(c.cursor).timeout(const Duration(seconds: 6));
+      if (r.cursor < c.cursor) return;
+      _mergeEntries(c, r);
+      await _decryptAll();
+      await _publishPasskeyIndex();
+      notifyListeners();
+    } on Object {
+      // What is stored will do.
+    } finally {
+      api.close();
+    }
+  }
+
+  Future<void> _applySync(SyncResult r) async {
+    final c = cached;
+    // An answer older than what is stored (a long poll that overlapped a
+    // manual sync) would bring back outdated entries.
+    if (c == null || r.cursor < c.cursor) return;
+    _mergeEntries(c, r);
     c.lastSync = DateTime.now();
     final sessions = r.sessions;
     if (sessions != null) {
@@ -981,6 +1016,7 @@ class AppController extends ChangeNotifier {
     items = list;
     passkeys = found;
     undecryptable = broken;
+    if (!passive) unawaited(_publishPasskeyIndex());
   }
 
   static int _compare(Item a, Item b) {
@@ -1100,6 +1136,76 @@ class AppController extends ChangeNotifier {
   bool isDuplicate(OtpEntry e) => items.any((i) => i.entry.sameKeyAs(e));
 
   // --- Passkeys ----------------------------------------------------------
+
+  /// For the Android service, which decides while locked whether to offer
+  /// a passkey for a site.
+  Future<void> _publishPasskeyIndex() => PasskeyPlatform.setIndex(
+    passkeyIndex(
+      passkeys.map((p) => p.passkey.rpId),
+      base64.encode(VaultCrypto.randomBytes(16)),
+    ),
+  );
+
+  /// Makes a passkey in the Android window, which runs beside the app: it
+  /// goes to the server directly, and the app gets it with its next sync.
+  /// The local mode has its database in the app, so it is not reachable
+  /// from here.
+  Future<Map<String, Object?>> createPasskeyFromWindow(
+    PasskeyRequest request, {
+    required bool userVerified,
+  }) async {
+    if (isLocal) throw UserError(t.passkeyNeedsServer);
+    final writable = writableVaults
+      ..sort((a, b) => a.personal == b.personal ? 0 : (a.personal ? -1 : 1));
+    if (writable.isEmpty) throw UserError(t.vaultReadOnly);
+    final same = passkeys
+        .where(
+          (p) =>
+              p.passkey.rpId == request.rpId &&
+              p.passkey.userHandle == request.userHandle,
+        )
+        .firstOrNull;
+    final vault = same == null
+        ? writable.first
+        : _vaults[same.vaultId] ?? writable.first;
+    final passkey = WebAuthn.create(
+      rpId: request.rpId,
+      rpName: request.rpName,
+      userHandle: request.userHandle,
+      userName: request.userName,
+      displayName: request.displayName,
+    );
+    final id = same?.id ?? VaultCrypto.newId();
+    final data = await UnlockedKeys.encryptPasskey(
+      vault.key,
+      vault.id,
+      id,
+      passkey,
+    );
+    final api = _newApi(cached!.server);
+    try {
+      await api.putEntry(
+        id: id,
+        vaultId: vault.id,
+        data: data,
+        baseRevision: same?.revision ?? 0,
+        keyVersion: vault.dto.keyVersion,
+      );
+    } on ApiException catch (e) {
+      throw e.offline
+          ? UserError(t.passkeyOffline)
+          : UserError(apiErrorText(e));
+    } finally {
+      api.close();
+    }
+    passkeys = [
+      for (final p in passkeys)
+        if (p.id != id) p,
+      PasskeyItem(id, vault.id, (same?.revision ?? 0) + 1, passkey),
+    ];
+    await _publishPasskeyIndex();
+    return request.created(passkey, userVerified: userVerified);
+  }
 
   bool hasPasskey(PasskeyEntry p) =>
       passkeys.any((k) => k.passkey.credentialId == p.credentialId);

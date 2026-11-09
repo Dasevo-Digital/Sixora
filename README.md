@@ -128,6 +128,11 @@ die Prüfsummen aller Dateien.
   Passkeys, Ende-zu-Ende-verschlüsselt, und meldet damit an; ansehen und
   löschen lassen sie sich in den Apps. Siehe
   [browser/README.md](browser/README.md).
+- **Passkeys unter Android** (14 und neuer): Sixora lässt sich in den
+  Android-Einstellungen als Passkey-Anbieter wählen. Vor jeder Nutzung fragt
+  es nach Biometrie oder Master-Passwort. Einer Website-Angabe glaubt es nur
+  bekannten Browsern, Apps müssen von der Website freigegeben sein (Digital
+  Asset Links).
 - **Ohne Server:** „Ohne Server nutzen“ auf dem Startbildschirm hält die
   Codes nur auf diesem Gerät, mit derselben Verschlüsselung (der Code des
   Servers läuft dafür in der App, mit eigener Datenbank im App-Ordner). Eine

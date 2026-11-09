@@ -22,6 +22,28 @@ class AutofillApp extends StatelessWidget {
   final AutofillRequest request;
 
   @override
+  Widget build(BuildContext context) => SideWindowApp(
+    controller: controller,
+    onClose: Autofill.cancel,
+    unlocked: AutofillScreen(request: request),
+  );
+}
+
+/// The frame of the small windows beside the app (autofill, passkeys): own
+/// Flutter engine, theme and language of the app, its lock screen first.
+class SideWindowApp extends StatelessWidget {
+  const SideWindowApp({
+    super.key,
+    required this.controller,
+    required this.unlocked,
+    required this.onClose,
+  });
+
+  final AppController controller;
+  final Widget unlocked;
+  final VoidCallback onClose;
+
+  @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
     builder: (context, _) {
@@ -48,9 +70,9 @@ class AutofillApp extends StatelessWidget {
               Phase.loading => const Scaffold(
                 body: Center(child: CircularProgressIndicator()),
               ),
-              Phase.setup => const _NotSetUp(),
+              Phase.setup => _NotSetUp(onClose),
               Phase.locked => const LockScreen(allowSignOut: false),
-              Phase.unlocked => AutofillScreen(request: request),
+              Phase.unlocked => unlocked,
             },
           ),
         ),
@@ -60,7 +82,8 @@ class AutofillApp extends StatelessWidget {
 }
 
 class _NotSetUp extends StatelessWidget {
-  const _NotSetUp();
+  const _NotSetUp(this.onClose);
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -72,7 +95,7 @@ class _NotSetUp extends StatelessWidget {
           children: [
             Text(t.autofillNotSetUp, textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            FilledButton(onPressed: Autofill.cancel, child: Text(t.close)),
+            FilledButton(onPressed: onClose, child: Text(t.close)),
           ],
         ),
       ),

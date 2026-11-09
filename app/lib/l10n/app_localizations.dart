@@ -3583,7 +3583,7 @@ abstract class AppLocalizations {
   /// No description provided for @passkeysExplanation.
   ///
   /// In de, this message translates to:
-  /// **'Passkeys liegen wie deine Codes Ende-zu-Ende-verschlüsselt im Tresor und erreichen alle deine Geräte. Du sicherst und nutzt sie in der Sixora-Browser-Erweiterung; dort schaltest du sie in den Einstellungen ein.'**
+  /// **'Passkeys liegen wie deine Codes Ende-zu-Ende-verschlüsselt im Tresor und erreichen alle deine Geräte. Du sicherst und nutzt sie in der Sixora-Browser-Erweiterung und unter Android 14 und neuer.'**
   String get passkeysExplanation;
 
   /// No description provided for @passkeysEmpty.
@@ -3621,6 +3621,72 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'erstellt {date}'**
   String passkeyCreatedOn(Object date);
+
+  /// No description provided for @passkeySaveTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Passkey in Sixora sichern?'**
+  String get passkeySaveTitle;
+
+  /// No description provided for @passkeySave.
+  ///
+  /// In de, this message translates to:
+  /// **'Sichern'**
+  String get passkeySave;
+
+  /// No description provided for @passkeySignIn.
+  ///
+  /// In de, this message translates to:
+  /// **'Mit Passkey anmelden'**
+  String get passkeySignIn;
+
+  /// No description provided for @passkeyInApp.
+  ///
+  /// In de, this message translates to:
+  /// **'in der App {app}'**
+  String passkeyInApp(String app);
+
+  /// No description provided for @passkeyUnknownBrowser.
+  ///
+  /// In de, this message translates to:
+  /// **'Sixora kennt den Browser {app} nicht und verlässt sich deshalb nicht auf seine Angabe, für welche Website er fragt.'**
+  String passkeyUnknownBrowser(String app);
+
+  /// No description provided for @passkeyAppNotLinked.
+  ///
+  /// In de, this message translates to:
+  /// **'{site} hat die App {app} nicht freigegeben. Sixora gibt ihr deshalb keinen Passkey dieser Website.'**
+  String passkeyAppNotLinked(String site, String app);
+
+  /// No description provided for @passkeyNeedsServer.
+  ///
+  /// In de, this message translates to:
+  /// **'Neue Passkeys brauchen ein Konto auf einem Sixora-Server.'**
+  String get passkeyNeedsServer;
+
+  /// No description provided for @passkeyOffline.
+  ///
+  /// In de, this message translates to:
+  /// **'Server nicht erreichbar. Der Passkey wurde nicht gesichert.'**
+  String get passkeyOffline;
+
+  /// No description provided for @passkeysAndroidEnable.
+  ///
+  /// In de, this message translates to:
+  /// **'In Android einschalten'**
+  String get passkeysAndroidEnable;
+
+  /// No description provided for @passkeysAndroidEnabled.
+  ///
+  /// In de, this message translates to:
+  /// **'In Android eingeschaltet'**
+  String get passkeysAndroidEnabled;
+
+  /// No description provided for @passkeysAndroidHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Damit Apps und Browser Passkeys aus Sixora nutzen können, muss Sixora in den Android-Einstellungen als Anbieter ausgewählt sein.'**
+  String get passkeysAndroidHint;
 }
 
 class _AppLocalizationsDelegate
