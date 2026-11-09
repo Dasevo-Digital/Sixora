@@ -77,7 +77,12 @@ extension AppControllerBackup on AppController {
       if (key == null) return;
       final cursor = c.cursor;
       final entries = [for (final i in items) i.entry];
-      final text = await SixoraBackup.encryptWithKey(entries, key);
+      final keys = [for (final p in passkeys) p.passkey];
+      final text = await SixoraBackup.encryptWithKey(
+        entries,
+        key,
+        passkeys: keys,
+      );
       final now = DateTime.now();
       String two(int v) => v.toString().padLeft(2, '0');
       final name =
@@ -88,8 +93,10 @@ extension AppControllerBackup on AppController {
         await BackupFolder.read(folder, name),
         key,
       );
-      if (back.length != entries.length) {
-        throw UserError(t.backupWrittenMismatch(back.length, entries.length));
+      final written = back.entries.length + back.passkeys.length;
+      final expected = entries.length + keys.length;
+      if (written != expected) {
+        throw UserError(t.backupWrittenMismatch(written, expected));
       }
       final names = [
         for (final n in await BackupFolder.list(folder))
@@ -152,13 +159,19 @@ extension AppControllerBackup on AppController {
       if (names.isEmpty) {
         throw UserError(t.noBackupInFolder);
       }
-      final entries = await SixoraBackup.decryptWithKey(
+      final back = await SixoraBackup.decryptWithKey(
         await BackupFolder.read(folder, names.last),
         key,
       );
+      final entries = back.entries;
       final missing = [
         for (final i in items)
           if (!entries.any((e) => e.sameKeyAs(i.entry))) i.entry.displayName,
+        for (final p in passkeys)
+          if (!back.passkeys.any(
+            (k) => k.credentialId == p.passkey.credentialId,
+          ))
+            p.passkey.label,
       ];
       return BackupVerification(
         file: names.last,

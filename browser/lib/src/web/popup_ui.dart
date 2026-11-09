@@ -8,6 +8,7 @@ import 'package:web/web.dart' as web;
 import '../app_unlock.dart';
 import '../extension.dart';
 import '../format.dart';
+import '../passkeys.dart';
 import '../stored_account.dart';
 import '../texts.dart';
 import 'bridge.dart';
@@ -51,9 +52,23 @@ class PopupUi {
   /// Asked the app on its own once in this popup (Touch ID right away).
   bool _askedApp = false;
 
+  /// In the window of a passkey request.
+  String? _passkeyId;
+  PasskeyRequest? _passkey;
+
+  /// Master password or biometrics were given during this request.
+  bool _verified = false;
+
   Future<void> start() async {
     if (inTab) web.document.body?.classList.add('tab');
     await x.load();
+    final passkey = RegExp(
+      r'^#passkey=([\w-]+)$',
+    ).firstMatch(web.window.location.hash)?[1];
+    if (passkey != null) {
+      await _openPasskey(passkey);
+      return;
+    }
     // Touch ID took the focus and closed the last popup: its answer waits.
     if (x.stage == Stage.locked) _askedApp = await _app.resume();
     _site = siteOf((await bridge.activeTabUrl().toDart)?.toDart);
@@ -158,7 +173,11 @@ class PopupUi {
     Stage.setup => inTab ? _setupForm() : _setupIntro(),
     Stage.locked => _lockScreen(),
     Stage.unlocked =>
-      _setupDone ? _done() : (_settings ? _settingsScreen() : _main()),
+      _passkey != null
+          ? _passkeyScreen()
+          : _setupDone
+          ? _done()
+          : (_settings ? _settingsScreen() : _main()),
   };
 
   void _setupIntro() => _show([
@@ -304,6 +323,7 @@ class PopupUi {
         unawaited(() async {
           try {
             await x.unlock(password.value);
+            _verified = true;
             _render();
             unawaited(_sync());
           } on Object catch (err) {
@@ -330,6 +350,7 @@ class PopupUi {
         cls: 'center',
         children: [
           _el('h2', text: t['locked']),
+          if (_passkey != null) _passkeySite(_passkey!),
           _el(
             'p',
             cls: 'muted',
@@ -337,6 +358,7 @@ class PopupUi {
           ),
           appSlot,
           form,
+          if (_passkey != null) ..._passkeyWayOut(),
         ],
       ),
     ]);
@@ -394,6 +416,8 @@ class PopupUi {
     _waitForApp(app, app.paired ? null : await _app.code());
     try {
       await _app.unlock();
+      // A plain dialog in the app shows presence, not who is there.
+      _verified = app.method.isNotEmpty;
       _render();
       unawaited(_sync());
     } on Object catch (err) {
@@ -403,30 +427,31 @@ class PopupUi {
   }
 
   /// While the app asks: when connecting with the code it shows too.
-  void _waitForApp(AppStatus app, String? code) => _show([
-    _header(),
-    _el(
-      'main',
-      cls: 'center',
-      children: [
-        _el('h2', text: t[code == null ? 'confirmInApp' : 'pairInApp']),
-        if (code != null) _el('p', cls: 'bigcode', text: code),
+  void _waitForApp(AppStatus app, String? code, {void Function()? onCancel}) =>
+      _show([
+        _header(),
         _el(
-          'p',
-          cls: 'muted',
-          text: code != null
-              ? t['pairHint']
-              : app.method.isEmpty
-              ? t['confirmWithDialog']
-              : t.fill('confirmWithMethod', {'method': app.method}),
+          'main',
+          cls: 'center',
+          children: [
+            _el('h2', text: t[code == null ? 'confirmInApp' : 'pairInApp']),
+            if (code != null) _el('p', cls: 'bigcode', text: code),
+            _el(
+              'p',
+              cls: 'muted',
+              text: code != null
+                  ? t['pairHint']
+                  : app.method.isEmpty
+                  ? t['confirmWithDialog']
+                  : t.fill('confirmWithMethod', {'method': app.method}),
+            ),
+            _button(t['cancel'], () async {
+              await _app.cancel();
+              onCancel == null ? _lockScreen() : onCancel();
+            }, cls: 'secondary'),
+          ],
         ),
-        _button(t['cancel'], () async {
-          await _app.cancel();
-          _lockScreen();
-        }, cls: 'secondary'),
-      ],
-    ),
-  ]);
+      ]);
 
   void _main() {
     final search = _input(t['search'], type: 'search', value: _query);
@@ -717,8 +742,307 @@ class PopupUi {
     if (_list != null) _fillList();
   }
 
+  // --- Passkeys ---------------------------------------------------------------
+
+  Future<void> _openPasskey(String id) async {
+    web.document.body?.classList.add('passkey');
+    _passkeyId = id;
+    final text = (await bridge.passkeyRequest(id).toDart)?.toDart;
+    if (text == null) {
+      web.window.close();
+      return;
+    }
+    final record = (jsonDecode(text) as Map).cast<String, Object?>();
+    final request = PasskeyRequest.fromJson(
+      record['origin']! as String,
+      (record['request']! as Map).cast(),
+    );
+    final problem = request.problem;
+    if (problem != null) {
+      await _answerPasskey({'error': problem});
+      return;
+    }
+    if (x.stage == Stage.setup) {
+      await _answerPasskey({'fallback': true});
+      return;
+    }
+    _passkey = request;
+    _render();
+    if (x.stage == Stage.unlocked) unawaited(_refreshPasskeys());
+  }
+
+  /// A passkey made on another device may have arrived.
+  Future<void> _refreshPasskeys() async {
+    final before = x.passkeys.length;
+    await x.sync();
+    if (x.stage != Stage.unlocked || x.passkeys.length != before) _render();
+  }
+
+  Future<void> _answerPasskey(Map<String, Object?> reply) =>
+      bridge.passkeyFinish(_passkeyId!, jsonEncode(reply)).toDart;
+
+  web.HTMLElement _passkeySite(PasskeyRequest request) =>
+      // The browser's word for where this comes from; the page's own name
+      // for itself proves nothing.
+      _el('p', cls: 'passkey-site', text: request.host);
+
+  List<web.HTMLElement> _passkeyWayOut() => [
+    _button(
+      t['passkeyOtherWay'],
+      () => unawaited(_answerPasskey({'fallback': true})),
+      cls: 'secondary',
+    ),
+    _button(
+      t['cancel'],
+      () => unawaited(_answerPasskey({'error': 'NotAllowedError'})),
+      cls: 'secondary',
+    ),
+  ];
+
+  void _passkeyScreen() {
+    final request = _passkey!;
+    if (request.create) {
+      _savePasskeyScreen(request);
+      return;
+    }
+    final found = x.passkeysFor(request);
+    if (found.isEmpty) {
+      unawaited(_answerPasskey({'fallback': true}));
+      return;
+    }
+    _show([
+      _header(),
+      _el(
+        'main',
+        cls: 'center',
+        children: [
+          _el('h2', text: t['passkeySignIn']),
+          _passkeySite(request),
+          _el(
+            'div',
+            cls: 'passkey-list',
+            children: [for (final p in found) _passkeyRow(request, p.passkey)],
+          ),
+          ..._passkeyWayOut(),
+        ],
+      ),
+    ]);
+  }
+
+  web.HTMLElement _passkeyRow(PasskeyRequest request, PasskeyEntry passkey) {
+    final row = _el(
+      'div',
+      cls: 'row',
+      attrs: {'role': 'button', 'tabindex': '0'},
+      children: [
+        _el(
+          'div',
+          cls: 'names',
+          children: [
+            _el('div', cls: 'issuer', text: passkey.account),
+            _el('div', cls: 'account', text: passkey.rpId),
+          ],
+        ),
+      ],
+    );
+    void choose() => _verifyThen(request, () {
+      unawaited(x.touch());
+      unawaited(
+        _answerPasskey({
+          'result': request.signedIn(passkey, userVerified: _verified),
+        }),
+      );
+    });
+    _onClick(row, choose);
+    row.addEventListener(
+      'keydown',
+      ((web.KeyboardEvent e) {
+        if (e.key == 'Enter') choose();
+      }).toJS,
+    );
+    return row;
+  }
+
+  void _savePasskeyScreen(
+    PasskeyRequest request, {
+    String? error,
+    bool busy = false,
+  }) {
+    void save() => _verifyThen(request, () {
+      _savePasskeyScreen(request, busy: true);
+      unawaited(() async {
+        try {
+          final result = await x.createPasskey(
+            request,
+            userVerified: _verified,
+          );
+          await _answerPasskey({'result': result});
+        } on ExtensionError catch (e) {
+          if (e.code == 'passkey_exists') {
+            await _answerPasskey({'error': 'InvalidStateError'});
+          } else {
+            _savePasskeyScreen(request, error: t.error(e));
+          }
+        } on Object catch (e) {
+          _savePasskeyScreen(request, error: t.error(e));
+        }
+      }());
+    });
+    final name = request.userName.isNotEmpty
+        ? request.userName
+        : request.displayName;
+    _show([
+      _header(),
+      _el(
+        'main',
+        cls: 'center',
+        children: [
+          _el('h2', text: t['passkeySaveTitle']),
+          _passkeySite(request),
+          if (name.isNotEmpty) _el('p', cls: 'muted', text: name),
+          _el('p', cls: 'error', text: error, attrs: {'role': 'alert'}),
+          _button(t['passkeySave'], save)..toggleAttribute('disabled', busy),
+          ..._passkeyWayOut(),
+        ],
+      ),
+    ]);
+  }
+
+  /// Runs [then] once the user has shown who they are, if the site asks for
+  /// that. The flag the site sees says only what really happened.
+  void _verifyThen(PasskeyRequest request, void Function() then) {
+    if (request.wantsVerification && !_verified) {
+      _verifyScreen(then);
+    } else {
+      then();
+    }
+  }
+
+  void _verifyScreen(void Function() then, {String? error}) {
+    final password = _input(
+      t['masterPassword'],
+      type: 'password',
+      autocomplete: 'current-password',
+    );
+    final errorText = _el(
+      'p',
+      cls: 'error',
+      text: error,
+      attrs: {'role': 'alert'},
+    );
+    final submit = _el(
+      'button',
+      cls: 'primary',
+      text: t['passkeyConfirm'],
+      attrs: {'type': 'submit'},
+    );
+    final form = _el('form', children: [password, submit, errorText]);
+    form.addEventListener(
+      'submit',
+      ((web.Event e) {
+        e.preventDefault();
+        submit.setAttribute('disabled', '');
+        unawaited(() async {
+          try {
+            await x.unlock(password.value);
+            _verified = true;
+            then();
+          } on Object catch (err) {
+            if (x.stage == Stage.setup) {
+              _render();
+              return;
+            }
+            errorText.textContent = t.error(err);
+            password.value = '';
+            password.focus();
+            submit.removeAttribute('disabled');
+          }
+        }());
+      }).toJS,
+    );
+    final appSlot = _el('div', cls: 'app-unlock');
+    _show([
+      _header(),
+      _el(
+        'main',
+        cls: 'center',
+        children: [
+          _el('h2', text: t['passkeyVerify']),
+          _passkeySite(_passkey!),
+          appSlot,
+          form,
+          ..._passkeyWayOut(),
+        ],
+      ),
+    ]);
+    password.focus();
+    unawaited(_offerAppVerification(appSlot, then));
+  }
+
+  /// Touch ID or Windows Hello through the desktop app; its plain dialog
+  /// would not say who is there.
+  Future<void> _offerAppVerification(
+    web.HTMLElement slot,
+    void Function() then,
+  ) async {
+    final app = await _app.status();
+    if (app == null ||
+        !app.paired ||
+        !app.ready ||
+        app.method.isEmpty ||
+        !slot.isConnected) {
+      return;
+    }
+    Future<void> ask() async {
+      _askedApp = true;
+      _waitForApp(app, null, onCancel: () => _verifyScreen(then));
+      try {
+        await _app.unlock();
+        _verified = true;
+        then();
+      } on Object catch (err) {
+        _verifyScreen(then, error: t.error(err));
+      }
+    }
+
+    slot.append(
+      _button(t.fill('unlockWith', {'method': app.method}), () {
+        unawaited(ask());
+      }),
+    );
+    slot.append(_el('p', cls: 'or', text: t['orPassword']));
+    if (!_askedApp && !await _app.declined) unawaited(ask());
+  }
+
+  /// The switch in the settings; hidden where it cannot work (Safari).
+  Future<void> _fillPasskeySwitch(web.HTMLElement slot) async {
+    if (!bridge.passkeysSupported()) return;
+    final on = (await bridge.passkeysOn().toDart).toDart;
+    if (!slot.isConnected) return;
+    slot.textContent = '';
+    slot.append(_el('h3', text: t['passkeys']));
+    final failed = _el('p', cls: 'error', attrs: {'role': 'alert'});
+    slot.append(
+      _button(t[on ? 'passkeysDisable' : 'passkeysEnable'], () {
+        // No await before this: the browser wants it within the click.
+        final change = bridge.setPasskeys(!on).toDart;
+        unawaited(() async {
+          final done = (await change).toDart;
+          if (!done && !on) {
+            failed.textContent = t['passkeysDenied'];
+            return;
+          }
+          await _fillPasskeySwitch(slot);
+        }());
+      }, cls: 'secondary passkey-switch'),
+    );
+    slot.append(failed);
+    slot.append(_el('p', cls: 'muted', text: t['passkeysHint']));
+  }
+
   void _settingsScreen() {
     final s = x.stored!;
+    final passkeySlot = _el('div');
     final select =
         web.document.createElement('select') as web.HTMLSelectElement;
     for (final minutes in ExtensionSettings.choices) {
@@ -766,6 +1090,7 @@ class PopupUi {
           _el('h3', text: t['autoLock']),
           select,
           _el('p', cls: 'muted', text: t['readOnlyHint']),
+          passkeySlot,
           _button(t['signOut'], () async {
             await x.signOut();
             _settings = false;
@@ -780,6 +1105,7 @@ class PopupUi {
         ],
       ),
     ]);
+    unawaited(_fillPasskeySwitch(passkeySlot));
   }
 
   String _time(DateTime d) {

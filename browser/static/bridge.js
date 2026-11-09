@@ -102,6 +102,9 @@ function fillInPage(code, site) {
   return true;
 }
 
+const PASSKEY_ORIGINS = ["https://*/*", "http://localhost/*"];
+const PASSKEY_SCRIPTS = ["sixora-passkey-page", "sixora-passkey-relay"];
+
 globalThis.sixoraBridge = {
   async read(areaName, key) {
     const result = await area(areaName).get(key);
@@ -176,6 +179,49 @@ globalThis.sixoraBridge = {
       // Safari has no native messaging connection to the desktop app.
       return JSON.stringify({ error: "no_host" });
     }
+  },
+
+  // --- Passkeys -------------------------------------------------------------
+
+  // Must be called right in the click handler (user gesture), so nothing is
+  // awaited before the question. Switching on needs access to all websites:
+  // only then can Sixora answer their passkey requests.
+  async setPasskeys(on) {
+    if (on) {
+      ext.storage.local.set({ passkeysWanted: true });
+      if (!(await ext.permissions.request({ origins: PASSKEY_ORIGINS }))) {
+        await ext.storage.local.remove("passkeysWanted");
+        return false;
+      }
+    } else {
+      await ext.storage.local.remove("passkeysWanted");
+      await ext.permissions.remove({ origins: PASSKEY_ORIGINS });
+    }
+    return ext.runtime.sendMessage({ sixora: "passkey-scripts" });
+  },
+
+  async passkeysOn() {
+    const scripts = await ext.scripting.getRegisteredContentScripts({ ids: PASSKEY_SCRIPTS });
+    return scripts.length === PASSKEY_SCRIPTS.length;
+  },
+
+  // Safari has no way to run the script in the page before the page's own.
+  passkeysSupported() {
+    const ua = navigator.userAgent;
+    return !(ua.includes("Safari/") && !/Chrome\/|Chromium\/|OPR\/|Edg\//.test(ua));
+  },
+
+  async passkeyRequest(id) {
+    const key = `passkey:${id}`;
+    return (await ext.storage.session.get(key))[key] ?? null;
+  },
+
+  async passkeyFinish(id, replyJson) {
+    await ext.runtime.sendMessage({
+      sixora: "passkey-finish",
+      id,
+      reply: JSON.parse(replyJson),
+    });
   },
 
   openTab(path) {

@@ -459,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: t.undo,
                     onPressed: () => runBusy(context, () async {
                       final trash = await c.trash();
-                      final hit = trash.where((x) => x.item.id == item.id);
+                      final hit = trash.where((x) => x.id == item.id);
                       if (hit.isNotEmpty) await c.restore(hit.first);
                     }),
                   ),

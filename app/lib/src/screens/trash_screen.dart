@@ -42,13 +42,15 @@ class _TrashScreenState extends State<TrashScreen> {
                   ),
                   for (final trashed in items)
                     ListTile(
-                      leading: EntryAvatar(trashed.item.entry, size: 36),
-                      title: Text(trashed.item.entry.displayName),
+                      leading: trashed.entry == null
+                          ? const Icon(Icons.key_outlined)
+                          : EntryAvatar(trashed.entry!, size: 36),
+                      title: Text(trashed.name),
                       subtitle: Text(
                         [
-                          if (trashed.item.entry.account.isNotEmpty)
-                            trashed.item.entry.account,
-                          ?c.vault(trashed.item.vaultId)?.name,
+                          if (trashed.account.isNotEmpty) trashed.account,
+                          if (trashed.entry == null) t.passkey,
+                          ?c.vault(trashed.vaultId)?.name,
                           t.deletedOn(formatDate(trashed.deletedAt)),
                         ].join(' · '),
                       ),
@@ -63,10 +65,7 @@ class _TrashScreenState extends State<TrashScreen> {
                                 return true;
                               });
                               if (ok == true && context.mounted) {
-                                showMessage(
-                                  context,
-                                  t.restored(trashed.item.entry.displayName),
-                                );
+                                showMessage(context, t.restored(trashed.name));
                                 _reload();
                               }
                             },
@@ -78,9 +77,7 @@ class _TrashScreenState extends State<TrashScreen> {
                               final ok = await confirm(
                                 context,
                                 title: t.deleteForGoodQuestion,
-                                message: t.deleteForGoodMessage(
-                                  trashed.item.entry.displayName,
-                                ),
+                                message: t.deleteForGoodMessage(trashed.name),
                                 action: t.delete,
                                 destructive: true,
                               );

@@ -2,9 +2,9 @@
 
 ## Schützenswerte Werte
 
-Sixora schützt OTP-Geheimnisse, Master- und Wiederherstellungsschlüssel,
-Benutzer- und Tresorschlüssel, Sitzungen sowie die Verfügbarkeit und
-Vollständigkeit verschlüsselter Tresordaten.
+Sixora schützt OTP-Geheimnisse, private Schlüssel von Passkeys, Master- und
+Wiederherstellungsschlüssel, Benutzer- und Tresorschlüssel, Sitzungen sowie
+die Verfügbarkeit und Vollständigkeit verschlüsselter Tresordaten.
 
 ## Vertrauensgrenzen
 
@@ -25,6 +25,12 @@ Vollständigkeit verschlüsselter Tresordaten.
   Kontoschlüssel nur versiegelt für diesen öffentlichen Schlüssel. Sie darf die
   Zwischenablage lesen, um einen kopierten Code nach 30 Sekunden nur dann zu
   entfernen, wenn dort noch derselbe steht.
+- **Websites bei eingeschalteten Passkeys:** Nicht vertrauenswürdig. Das
+  Skript in der Seite hält keine Schlüssel. Die Herkunft einer Anfrage stammt
+  vom Browser; eine Seite erreicht nur Passkeys ihrer eigenen Domain oder
+  deren übergeordneter Domains und kann nicht erfahren, ob für andere Websites
+  welche existieren. Jede Nutzung braucht eine Bestätigung in einem Fenster der
+  Erweiterung, das die vom Browser genannte Adresse zeigt.
 - **Lokale Verbindung zur Desktop-App:** Die App lauscht auf 127.0.0.1; jedes
   Programm des Rechners, auch anderer Benutzerkonten, kann sie erreichen. Sie
   verrät dort weder Server noch Konto (nur ein Prüfwert wird verglichen),
@@ -53,9 +59,11 @@ Vollständigkeit verschlüsselter Tresordaten.
 
 ## Nicht vollständig lösbare Risiken
 
-- Ein zuvor berechtigtes Mitglied kann bereits gelesene OTP-Geheimnisse
-  behalten. Nach einem Ausschluss müssen die betroffenen Dienste neue
-  Geheimnisse ausstellen.
+- Ein zuvor berechtigtes Mitglied kann bereits gelesene OTP-Geheimnisse und
+  Passkeys behalten. Nach einem Ausschluss müssen die betroffenen Dienste neue
+  Geheimnisse ausstellen bzw. den Passkey widerrufen.
+- Synchronisierte Passkeys haben keinen Signaturzähler. Eine Website kann eine
+  Kopie des Schlüssels daran nicht erkennen.
 - Ein kompromittiertes entsperrtes Gerät, manipuliertes Betriebssystem oder
   eine bösartige Bildschirm-/Eingabehilfe liegt außerhalb der kryptografischen
   Schutzgrenze.

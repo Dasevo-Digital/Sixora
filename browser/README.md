@@ -2,8 +2,9 @@
 
 Erweiterung für Firefox, Safari und Chromium-Browser (Chrome, Edge, Opera,
 Brave, Vivaldi). Sie zeigt die Codes eines Sixora-Kontos, kopiert sie und
-setzt sie in das Code-Feld der aktuellen Seite ein. Konten anlegen und
-ändern geht in den Apps; die Erweiterung liest nur.
+setzt sie in das Code-Feld der aktuellen Seite ein. Auf Wunsch sichert sie
+außerdem Passkeys und meldet damit an (siehe „Passkeys“). Konten anlegen und
+ändern geht in den Apps; bei den Codes liest die Erweiterung nur.
 
 ## Aufbau
 
@@ -21,7 +22,8 @@ setzt sie in das Code-Feld der aktuellen Seite ein. Konten anlegen und
 - Berechtigungen: Speicher, der aktive Tab (erst wenn man die Erweiterung
   öffnet), Zwischenablage und Zeitgeber sowie der eigene Server. Den Zugriff
   auf den Server erfragt die Anmeldung, und zwar nur für diese eine Adresse;
-  Zugriff auf alle Websites braucht die Erweiterung nicht. Chromium nutzt
+  Zugriff auf alle Websites braucht die Erweiterung nur, wenn man in ihren
+  Einstellungen Passkeys einschaltet. Chromium nutzt
   zum zeitversetzten Leeren zusätzlich ein unsichtbares Erweiterungsdokument.
 - Kopiert Sixora einen Code, merkt sich die Erweiterung ihn 30 Sekunden im
   flüchtigen Sitzungsspeicher. Danach liest sie die Zwischenablage und leert
@@ -93,4 +95,33 @@ Opera liest.
 `e2e_firefox.dart` startet einen Firefox ohne Fenster mit eigenem
 Wegwerf-Profil. Dort meldet sich die Erweiterung an, zeigt die Codes,
 sperrt und entsperrt; außerdem prüft der Test das Einsetzen in
-verschiedene Code-Felder.
+verschiedene Code-Felder. Beide Tests spielen zusätzlich eine Website durch,
+die Passkeys anlegt und ihre Signaturen mit WebCrypto prüft.
+
+## Passkeys
+
+In den Einstellungen der Erweiterung einschaltbar (Chromium-Browser und
+Firefox; Safari bietet keinen Weg, das Skript vor denen der Seite auszuführen).
+Der Browser fragt dann nach Zugriff auf alle https-Seiten und `localhost`.
+
+- `passkey_page.js` läuft in der Seite und ersetzt die Passkey-Aufrufe von
+  `navigator.credentials`. Es kennt weder Schlüssel noch Konten.
+  `passkey_relay.js` reicht die Anfragen an `background.js` weiter.
+- Welche Website fragt, sagt der Browser (`sender`), nie die Seite. Eine
+  fremde `rpId` geht an den Browser zurück und verrät nichts.
+- Jede Anfrage öffnet ein eigenes Fenster, in dem man entscheidet. Pro Tab
+  gibt es nur eins; nach einer Ablehnung bleibt der Tab zehn Sekunden still.
+- „Anderen Weg nutzen“ gibt die Anfrage an den Browser zurück, ebenso jede
+  Anmeldung auf einer Website ohne gespeicherten Passkey: Dafür liegt im
+  Profil eine Liste gesalzener Hashes der Domains, keine Domain im Klartext.
+- Gespeichert werden Passkeys als normale Einträge im Tresor, ES256,
+  Ende-zu-Ende-verschlüsselt. Damit gelten Geräteabgleich, Teilen,
+  Papierkorb und Schlüsselrotation wie bei Codes. Sicherungen enthalten sie;
+  die unverschlüsselte Textausgabe nicht.
+- Das Flag „Nutzer verifiziert“ wird nur gesetzt, wenn in diesem Vorgang das
+  Master-Passwort, Touch ID oder Windows Hello abgefragt wurde. Der
+  Signaturzähler bleibt 0, wie bei allen synchronisierten Passkeys.
+
+Grenzen: Vorschläge im Anmeldefeld (Conditional UI) und Anfragen aus Frames
+bleiben beim Browser. Ein auf einem anderen Gerät angelegter Passkey ist da,
+sobald die Erweiterung einmal geöffnet wurde.

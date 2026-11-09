@@ -2135,4 +2135,56 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get allowScreenshotsHintDesktop =>
       'Si no, la ventana de Sixora aparece vacía en capturas, grabaciones y al compartir pantalla';
+
+  @override
+  String get passkey => 'Llave de acceso';
+
+  @override
+  String get passkeys => 'Llaves de acceso';
+
+  @override
+  String get passkeysHint =>
+      'Inicios de sesión para sitios web, con cifrado de extremo a extremo';
+
+  @override
+  String get passkeysExplanation =>
+      'Como tus códigos, las llaves de acceso se guardan con cifrado de extremo a extremo en tu caja fuerte y llegan a todos tus dispositivos. Las guardas y las usas en la extensión de navegador de Sixora; actívalas en sus ajustes.';
+
+  @override
+  String get passkeysEmpty => 'Aún no hay llaves de acceso';
+
+  @override
+  String passkeyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count llaves de acceso',
+      one: '1 llave de acceso',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String passkeysComeAlong(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Se incluyen $count llaves de acceso.',
+      one: 'Se incluye 1 llave de acceso.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get passkeyDeleteQuestion => '¿Eliminar la llave de acceso?';
+
+  @override
+  String passkeyDeleteMessage(String site) {
+    return 'La llave de acceso de $site irá a la papelera. Puedes restaurarla desde allí; sin ella necesitarás otra forma de iniciar sesión en este sitio web.';
+  }
+
+  @override
+  String passkeyCreatedOn(Object date) {
+    return 'creada $date';
+  }
 }

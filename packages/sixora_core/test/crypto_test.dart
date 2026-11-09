@@ -386,7 +386,10 @@ void main() {
       final file = await SixoraBackup.encryptWithKey(entries, key);
       final r = await Importers.read(file, password: 'pw');
       expect(r.entries.single.issuer, 'A');
-      expect((await SixoraBackup.decryptWithKey(file, key)).single.issuer, 'A');
+      expect(
+        (await SixoraBackup.decryptWithKey(file, key)).entries.single.issuer,
+        'A',
+      );
       final other = await BackupKey.derive('pw', kdf: _fastKdf);
       await expectLater(
         SixoraBackup.decryptWithKey(file, other),

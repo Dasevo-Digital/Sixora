@@ -2110,4 +2110,55 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get allowScreenshotsHintDesktop =>
       'Otherwise the Sixora window stays blank in screenshots, recordings and screen sharing';
+
+  @override
+  String get passkey => 'Passkey';
+
+  @override
+  String get passkeys => 'Passkeys';
+
+  @override
+  String get passkeysHint => 'Sign-ins for websites, end-to-end encrypted';
+
+  @override
+  String get passkeysExplanation =>
+      'Like your codes, passkeys are stored end-to-end encrypted in your vault and reach all your devices. You save and use them in the Sixora browser extension; turn them on in its settings.';
+
+  @override
+  String get passkeysEmpty => 'No passkeys yet';
+
+  @override
+  String passkeyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count passkeys',
+      one: '1 passkey',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String passkeysComeAlong(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count passkeys come along.',
+      one: '1 passkey comes along.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get passkeyDeleteQuestion => 'Delete passkey?';
+
+  @override
+  String passkeyDeleteMessage(String site) {
+    return 'The passkey for $site goes to the recycle bin. You can restore it from there; without it you need another way to sign in to this website.';
+  }
+
+  @override
+  String passkeyCreatedOn(Object date) {
+    return 'created $date';
+  }
 }

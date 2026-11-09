@@ -146,6 +146,25 @@ const _de = {
   'err_unauthorized': 'Nicht angemeldet',
   'err_server': 'Fehler auf dem Server',
   'err_unexpected': 'Unerwarteter Fehler: {error}',
+  'passkeys': 'Passkeys',
+  'passkeysEnable': 'Passkeys mit Sixora nutzen',
+  'passkeysDisable': 'Passkeys ausschalten',
+  'passkeysDenied':
+      'Ohne Zugriff auf Websites kann Sixora keine Passkeys anbieten.',
+  'passkeysHint':
+      'Sixora bietet an, neue Passkeys zu sichern, und meldet dich damit an. '
+      'Dafür fragt der Browser nach Zugriff auf alle Websites; Sixora reagiert '
+      'dort nur auf Passkey-Anfragen. Passkeys von anderen Geräten sind da, '
+      'sobald du die Erweiterung einmal geöffnet hast.',
+  'passkeySaveTitle': 'Passkey in Sixora sichern?',
+  'passkeySave': 'Sichern',
+  'passkeySignIn': 'Mit Passkey anmelden',
+  'passkeyOtherWay': 'Anderen Weg nutzen',
+  'passkeyVerify': 'Bestätige, dass du es bist',
+  'passkeyConfirm': 'Bestätigen',
+  'passkey_no_vault': 'Es gibt keinen Tresor, in den du schreiben darfst.',
+  'passkey_offline':
+      'Server nicht erreichbar. Der Passkey wurde nicht gesichert.',
 };
 
 const _en = {
@@ -252,6 +271,23 @@ const _en = {
   'err_unauthorized': 'Not signed in',
   'err_server': 'Error on the server',
   'err_unexpected': 'Unexpected error: {error}',
+  'passkeys': 'Passkeys',
+  'passkeysEnable': 'Use passkeys with Sixora',
+  'passkeysDisable': 'Turn passkeys off',
+  'passkeysDenied': 'Without access to websites Sixora cannot offer passkeys.',
+  'passkeysHint':
+      'Sixora offers to save new passkeys and signs you in with them. For '
+      'this the browser asks for access to all websites; Sixora only reacts '
+      'to passkey requests there. Passkeys from other devices appear once '
+      'you have opened the extension.',
+  'passkeySaveTitle': 'Save passkey in Sixora?',
+  'passkeySave': 'Save',
+  'passkeySignIn': 'Sign in with passkey',
+  'passkeyOtherWay': 'Use another way',
+  'passkeyVerify': 'Confirm that it is you',
+  'passkeyConfirm': 'Confirm',
+  'passkey_no_vault': 'There is no vault you may write to.',
+  'passkey_offline': 'Server not reachable. The passkey was not saved.',
 };
 
 const _es = {
@@ -360,4 +396,23 @@ const _es = {
   'err_unauthorized': 'Sin sesión iniciada',
   'err_server': 'Error en el servidor',
   'err_unexpected': 'Error inesperado: {error}',
+  'passkeys': 'Llaves de acceso',
+  'passkeysEnable': 'Usar llaves de acceso con Sixora',
+  'passkeysDisable': 'Desactivar llaves de acceso',
+  'passkeysDenied':
+      'Sin acceso a los sitios web, Sixora no puede ofrecer llaves de acceso.',
+  'passkeysHint':
+      'Sixora ofrece guardar las llaves de acceso nuevas e iniciar sesión con '
+      'ellas. Para ello, el navegador pide acceso a todos los sitios web; '
+      'Sixora solo reacciona allí a las solicitudes de llaves de acceso. Las '
+      'llaves de otros dispositivos aparecen cuando hayas abierto la extensión.',
+  'passkeySaveTitle': '¿Guardar la llave de acceso en Sixora?',
+  'passkeySave': 'Guardar',
+  'passkeySignIn': 'Iniciar sesión con llave de acceso',
+  'passkeyOtherWay': 'Usar otro método',
+  'passkeyVerify': 'Confirma que eres tú',
+  'passkeyConfirm': 'Confirmar',
+  'passkey_no_vault': 'No hay ninguna caja fuerte en la que puedas escribir.',
+  'passkey_offline':
+      'No se puede conectar con el servidor. La llave de acceso no se ha guardado.',
 };

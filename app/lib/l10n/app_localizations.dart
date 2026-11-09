@@ -3561,6 +3561,66 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Sonst bleibt das Sixora-Fenster in Bildschirmfotos, Aufnahmen und bei der Bildschirmfreigabe leer'**
   String get allowScreenshotsHintDesktop;
+
+  /// No description provided for @passkey.
+  ///
+  /// In de, this message translates to:
+  /// **'Passkey'**
+  String get passkey;
+
+  /// No description provided for @passkeys.
+  ///
+  /// In de, this message translates to:
+  /// **'Passkeys'**
+  String get passkeys;
+
+  /// No description provided for @passkeysHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Anmeldungen für Websites, Ende-zu-Ende-verschlüsselt'**
+  String get passkeysHint;
+
+  /// No description provided for @passkeysExplanation.
+  ///
+  /// In de, this message translates to:
+  /// **'Passkeys liegen wie deine Codes Ende-zu-Ende-verschlüsselt im Tresor und erreichen alle deine Geräte. Du sicherst und nutzt sie in der Sixora-Browser-Erweiterung; dort schaltest du sie in den Einstellungen ein.'**
+  String get passkeysExplanation;
+
+  /// No description provided for @passkeysEmpty.
+  ///
+  /// In de, this message translates to:
+  /// **'Noch keine Passkeys'**
+  String get passkeysEmpty;
+
+  /// No description provided for @passkeyCount.
+  ///
+  /// In de, this message translates to:
+  /// **'{count, plural, =1{1 Passkey} other{{count} Passkeys}}'**
+  String passkeyCount(int count);
+
+  /// No description provided for @passkeysComeAlong.
+  ///
+  /// In de, this message translates to:
+  /// **'{count, plural, =1{1 Passkey wird mit übernommen.} other{{count} Passkeys werden mit übernommen.}}'**
+  String passkeysComeAlong(int count);
+
+  /// No description provided for @passkeyDeleteQuestion.
+  ///
+  /// In de, this message translates to:
+  /// **'Passkey löschen?'**
+  String get passkeyDeleteQuestion;
+
+  /// No description provided for @passkeyDeleteMessage.
+  ///
+  /// In de, this message translates to:
+  /// **'Der Passkey für {site} kommt in den Papierkorb. Solange er dort liegt, kannst du ihn wiederherstellen; ohne ihn brauchst du bei dieser Website einen anderen Anmeldeweg.'**
+  String passkeyDeleteMessage(String site);
+
+  /// No description provided for @passkeyCreatedOn.
+  ///
+  /// In de, this message translates to:
+  /// **'erstellt {date}'**
+  String passkeyCreatedOn(Object date);
 }
 
 class _AppLocalizationsDelegate

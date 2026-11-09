@@ -28,6 +28,14 @@ extension AppControllerMove on AppController {
           personal: _vaults[i.vaultId]!.personal,
         ),
     ];
+    final carriedPasskeys = [
+      for (final p in passkeys)
+        (
+          passkey: p.passkey,
+          vault: _vaults[p.vaultId]!.name,
+          personal: _vaults[p.vaultId]!.personal,
+        ),
+    ];
     BackupKey? backup;
     try {
       backup = await _backupKey();
@@ -81,6 +89,10 @@ extension AppControllerMove on AppController {
         for (final c in carried)
           if (!items.any((i) => i.entry.sameKeyAs(c.entry))) c,
       ];
+      _movingPasskeys = [
+        for (final c in carriedPasskeys)
+          if (!hasPasskey(c.passkey)) c,
+      ];
       return (
         moved: await finishMove(progress: progress),
         recoveryKey: recoveryKey,
@@ -94,7 +106,8 @@ extension AppControllerMove on AppController {
   Future<int> finishMove({void Function(int done, int total)? progress}) async {
     final pending = _moving;
     if (pending == null) return 0;
-    final total = pending.length;
+    final pendingKeys = _movingPasskeys ?? [];
+    final total = pending.length + pendingKeys.length;
     var done = 0;
     while (pending.isNotEmpty) {
       final next = pending.first;
@@ -106,7 +119,18 @@ extension AppControllerMove on AppController {
       done++;
       progress?.call(done, total);
     }
+    while (pendingKeys.isNotEmpty) {
+      final next = pendingKeys.first;
+      await addPasskey(
+        next.passkey,
+        vaultId: await _moveTarget(next.vault, next.personal),
+      );
+      pendingKeys.removeAt(0);
+      done++;
+      progress?.call(done, total);
+    }
     _moving = null;
+    _movingPasskeys = null;
     LocalServer.delete();
     _notify();
     return done;

@@ -28,6 +28,15 @@ extension type Bridge._(JSObject _) implements JSObject {
     int timeoutMs,
     String? keep,
   );
+
+  /// Call right in the click handler: asks for access to all websites.
+  external JSPromise<JSBoolean> setPasskeys(bool on);
+  external JSPromise<JSBoolean> passkeysOn();
+  external bool passkeysSupported();
+
+  /// The request behind this passkey window, as JSON.
+  external JSPromise<JSString?> passkeyRequest(String id);
+  external JSPromise<JSAny?> passkeyFinish(String id, String replyJson);
   external JSPromise<JSAny?> openTab(String path);
   external String version();
   external String language();

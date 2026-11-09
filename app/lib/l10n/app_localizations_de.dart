@@ -2124,4 +2124,56 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get allowScreenshotsHintDesktop =>
       'Sonst bleibt das Sixora-Fenster in Bildschirmfotos, Aufnahmen und bei der Bildschirmfreigabe leer';
+
+  @override
+  String get passkey => 'Passkey';
+
+  @override
+  String get passkeys => 'Passkeys';
+
+  @override
+  String get passkeysHint =>
+      'Anmeldungen für Websites, Ende-zu-Ende-verschlüsselt';
+
+  @override
+  String get passkeysExplanation =>
+      'Passkeys liegen wie deine Codes Ende-zu-Ende-verschlüsselt im Tresor und erreichen alle deine Geräte. Du sicherst und nutzt sie in der Sixora-Browser-Erweiterung; dort schaltest du sie in den Einstellungen ein.';
+
+  @override
+  String get passkeysEmpty => 'Noch keine Passkeys';
+
+  @override
+  String passkeyCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Passkeys',
+      one: '1 Passkey',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String passkeysComeAlong(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Passkeys werden mit übernommen.',
+      one: '1 Passkey wird mit übernommen.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get passkeyDeleteQuestion => 'Passkey löschen?';
+
+  @override
+  String passkeyDeleteMessage(String site) {
+    return 'Der Passkey für $site kommt in den Papierkorb. Solange er dort liegt, kannst du ihn wiederherstellen; ohne ihn brauchst du bei dieser Website einen anderen Anmeldeweg.';
+  }
+
+  @override
+  String passkeyCreatedOn(Object date) {
+    return 'erstellt $date';
+  }
 }

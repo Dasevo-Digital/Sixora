@@ -188,7 +188,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(controller.items, isEmpty);
     final trash = await controller.trash();
-    expect(trash.single.item.entry.issuer, 'GitHub');
+    expect(trash.single.entry!.issuer, 'GitHub');
     await controller.restore(trash.single);
     expect(controller.items.single.entry.issuer, 'GitHub');
     expect(await controller.trash(), isEmpty);

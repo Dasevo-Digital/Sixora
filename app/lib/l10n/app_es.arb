@@ -576,5 +576,15 @@
   "linkedBrowsersNone": "Ninguno todavía. La extensión pregunta aquí la primera vez.",
   "linkedSince": "conectado el {date}",
   "disconnect": "Desconectar",
-  "allowScreenshotsHintDesktop": "Si no, la ventana de Sixora aparece vacía en capturas, grabaciones y al compartir pantalla"
+  "allowScreenshotsHintDesktop": "Si no, la ventana de Sixora aparece vacía en capturas, grabaciones y al compartir pantalla",
+  "passkey": "Llave de acceso",
+  "passkeys": "Llaves de acceso",
+  "passkeysHint": "Inicios de sesión para sitios web, con cifrado de extremo a extremo",
+  "passkeysExplanation": "Como tus códigos, las llaves de acceso se guardan con cifrado de extremo a extremo en tu caja fuerte y llegan a todos tus dispositivos. Las guardas y las usas en la extensión de navegador de Sixora; actívalas en sus ajustes.",
+  "passkeysEmpty": "Aún no hay llaves de acceso",
+  "passkeyCount": "{count, plural, =1{1 llave de acceso} other{{count} llaves de acceso}}",
+  "passkeysComeAlong": "{count, plural, =1{Se incluye 1 llave de acceso.} other{Se incluyen {count} llaves de acceso.}}",
+  "passkeyDeleteQuestion": "¿Eliminar la llave de acceso?",
+  "passkeyDeleteMessage": "La llave de acceso de {site} irá a la papelera. Puedes restaurarla desde allí; sin ella necesitarás otra forma de iniciar sesión en este sitio web.",
+  "passkeyCreatedOn": "creada {date}"
 }

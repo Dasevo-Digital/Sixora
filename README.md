@@ -123,7 +123,10 @@ die Prüfsummen aller Dateien.
   in das Code-Feld der Seite ein, passende Konten zuerst; bei anderen fragt
   sie vorher nach. Entsperren lässt sie sich mit dem Master-Passwort oder
   über die Desktop-App mit Touch ID bzw. Windows Hello. Sie nutzt
-  denselben Kern wie die Apps (als WebAssembly) und liest nur; siehe
+  denselben Kern wie die Apps (als WebAssembly) und liest bei den Codes
+  nur. Auf Wunsch sichert sie in Chromium-Browsern und Firefox auch
+  Passkeys, Ende-zu-Ende-verschlüsselt, und meldet damit an; ansehen und
+  löschen lassen sie sich in den Apps. Siehe
   [browser/README.md](browser/README.md).
 - **Ohne Server:** „Ohne Server nutzen“ auf dem Startbildschirm hält die
   Codes nur auf diesem Gerät, mit derselben Verschlüsselung (der Code des

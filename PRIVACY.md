@@ -22,6 +22,13 @@ Die Browser-Erweiterung speichert die für sie versiegelte Kontoschlüsselkopie
 im Profilspeicher des Browsers. Sie lässt sich nur über das Master-Passwort
 oder eine ausdrücklich verbundene und bestätigte Desktop-App öffnen.
 
+Passkeys liegen wie Codes als verschlüsselte Tresoreinträge auf dem Server; er
+kann sie nicht von Codes unterscheiden. Damit die Erweiterung nur bei passenden
+Websites reagiert, speichert sie im Profil gesalzene Hashes der Domains ihrer
+Passkeys. Schaltet man Passkeys ein, läuft auf https-Seiten ein Skript der
+Erweiterung, das nur Passkey-Anfragen beantwortet und nichts über die besuchten
+Seiten speichert oder überträgt.
+
 ## Auf dem Server sichtbare Daten
 
 Der Server sieht keine Klartext-Codes, Tresornamen oder privaten Schlüssel. Er

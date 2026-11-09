@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:sixora_browser/src/app_unlock.dart';
 import 'package:sixora_browser/src/extension.dart';
+import 'package:sixora_browser/src/passkeys.dart';
 import 'package:sixora_core/sixora_core.dart';
 import 'package:sixora_server/sixora_server.dart';
 import 'package:test/test.dart';
@@ -395,6 +396,124 @@ void main() {
       expect(await local.read(SixoraExtension.linkKeyEntry), isNotNull);
       await e.signOut();
       expect(await local.read(SixoraExtension.linkKeyEntry), isNull);
+    });
+  });
+
+  group('passkeys', () {
+    PasskeyRequest make({List<String> exclude = const []}) =>
+        PasskeyRequest.fromJson('https://shop.example.com', {
+          'kind': 'create',
+          'rpId': 'example.com',
+          'rpName': 'Example',
+          'challenge': 'Y2hhbGxlbmdl',
+          'user': {'id': 'dXNlcg', 'name': 'alice', 'displayName': 'Alice'},
+          'algorithms': [-7],
+          'exclude': exclude,
+        });
+
+    PasskeyRequest signIn({List<String> allow = const []}) =>
+        PasskeyRequest.fromJson('https://example.com', {
+          'kind': 'get',
+          'rpId': 'example.com',
+          'challenge': 'Y2hhbGxlbmdl',
+          'allow': allow,
+        });
+
+    Future<SixoraExtension> signedIn() async {
+      final e = extension();
+      await e.load();
+      await e.signIn(
+        SixoraExtension.parseAddress(url.toString()),
+        'alice',
+        password,
+      );
+      return e;
+    }
+
+    test('what a browser would refuse is refused here', () {
+      PasskeyRequest at(String origin, Map<String, Object?> j) =>
+          PasskeyRequest.fromJson(origin, {'challenge': 'YWJj', ...j});
+      expect(at('https://example.com', {'kind': 'get'}).problem, isNull);
+      expect(at('http://localhost:8080', {'kind': 'get'}).problem, isNull);
+      expect(
+        at('http://example.com', {'kind': 'get'}).problem,
+        'SecurityError',
+      );
+      expect(
+        at('https://example.com', {'kind': 'get', 'rpId': 'other.com'}).problem,
+        'SecurityError',
+      );
+      expect(
+        at('https://example.com', {'kind': 'get', 'rpId': 'com'}).problem,
+        'SecurityError',
+      );
+      expect(
+        PasskeyRequest.fromJson('https://example.com', {'kind': 'get'}).problem,
+        'TypeError',
+      );
+      expect(
+        at('https://example.com', {
+          'kind': 'create',
+          'user': {'id': 'YWJj'},
+          'algorithms': [-257],
+        }).problem,
+        'NotSupportedError',
+      );
+    });
+
+    test('a new passkey reaches the server and the next device', () async {
+      final e = await signedIn();
+      final answer = await e.createPasskey(make(), userVerified: true);
+      expect(e.unreadable, 0);
+      expect(issuers(e), ['GitHub']);
+      expect(e.passkeysFor(signIn()).single.passkey.userName, 'alice');
+      expect(answer['id'], e.passkeys.single.passkey.credentialId);
+
+      // The profile says neither the key nor, in the clear, the site.
+      final index = local.values[SixoraExtension.passkeyIndexEntry]!;
+      expect(index, isNot(contains('example.com')));
+      final salt = (jsonDecode(index) as Map)['salt'] as String;
+      expect(index, contains(passkeySiteHash(salt, 'example.com')));
+      expect(
+        local.values['account'],
+        isNot(contains(e.passkeys.single.passkey.privateKey)),
+      );
+
+      local = MapStore();
+      session = MapStore();
+      final other = await signedIn();
+      expect(other.passkeys.single.passkey.credentialId, answer['id']);
+    });
+
+    test('the same user replaces, an excluded one is refused', () async {
+      final e = await signedIn();
+      await e.createPasskey(make(), userVerified: false);
+      final first = e.passkeys.single.passkey.credentialId;
+      await expectLater(
+        e.createPasskey(make(exclude: [first]), userVerified: false),
+        throwsA(
+          isA<ExtensionError>().having((x) => x.code, 'code', 'passkey_exists'),
+        ),
+      );
+      await e.createPasskey(make(), userVerified: false);
+      expect(e.passkeys, hasLength(1));
+      expect(e.passkeys.single.passkey.credentialId, isNot(first));
+    });
+
+    test('an allow list narrows the choice', () async {
+      final e = await signedIn();
+      await e.createPasskey(make(), userVerified: false);
+      final id = e.passkeys.single.passkey.credentialId;
+      expect(e.passkeysFor(signIn(allow: [id])), hasLength(1));
+      expect(e.passkeysFor(signIn(allow: ['anderes'])), isEmpty);
+    });
+
+    test('signing out leaves nothing about passkeys behind', () async {
+      final e = await signedIn();
+      await e.createPasskey(make(), userVerified: false);
+      await e.signOut();
+      expect(e.passkeys, isEmpty);
+      expect(local.values[SixoraExtension.passkeyIndexEntry], isNull);
     });
   });
 }

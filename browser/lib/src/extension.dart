@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:sixora_core/sixora_core.dart';
 
+import 'passkeys.dart';
 import 'stored_account.dart';
 
 /// The browser's key-value storage (`storage.local`, `storage.session`);
@@ -64,6 +65,7 @@ class SixoraExtension {
   StoredAccount? stored;
   UnlockedKeys? _keys;
   List<Code> codes = const [];
+  List<StoredPasskey> passkeys = const [];
   int unreadable = 0;
   ExtensionSettings settings = ExtensionSettings();
 
@@ -239,7 +241,91 @@ class SixoraExtension {
   Future<void> _decrypt() async {
     final r = await decryptCodes(stored!, _keys!);
     codes = r.codes;
+    passkeys = r.passkeys;
     unreadable = r.unreadable;
+    await _writePasskeyIndex();
+  }
+
+  /// Salted hashes of the sites with a passkey (see [passkeyIndex]).
+  static const passkeyIndexEntry = 'passkeyIndex';
+
+  Future<void> _writePasskeyIndex() async {
+    final old = await _readJson(local, passkeyIndexEntry);
+    final salt =
+        old?['salt'] as String? ?? base64.encode(VaultCrypto.randomBytes(16));
+    await local.write(
+      passkeyIndexEntry,
+      passkeyIndex(passkeys.map((p) => p.passkey.rpId), salt),
+    );
+  }
+
+  /// Passkeys [request] may use: for its site, and if the site names some,
+  /// only those.
+  List<StoredPasskey> passkeysFor(PasskeyRequest request) => [
+    for (final p in passkeys)
+      if (p.passkey.rpId == request.rpId &&
+          (request.allow.isEmpty ||
+              request.allow.contains(p.passkey.credentialId)))
+        p,
+  ];
+
+  /// Makes a passkey for [request] and stores it in the personal vault
+  /// (else the first one this account may write to). A site's passkey for
+  /// the same user is replaced, as authenticators do. Answers for the page.
+  Future<Map<String, Object?>> createPasskey(
+    PasskeyRequest request, {
+    required bool userVerified,
+  }) async {
+    final s = stored!;
+    final keys = _keys!;
+    if (passkeys.any((p) => request.exclude.contains(p.passkey.credentialId))) {
+      throw const ExtensionError('passkey_exists');
+    }
+    final writable = s.vaults.values.where((v) => v.role.canWrite).toList()
+      ..sort((a, b) => a.personal == b.personal ? 0 : (a.personal ? -1 : 1));
+    if (writable.isEmpty) throw const ExtensionError('passkey_no_vault');
+    final same = passkeys
+        .where(
+          (p) =>
+              p.passkey.rpId == request.rpId &&
+              p.passkey.userHandle == request.userHandle,
+        )
+        .firstOrNull;
+    final vault = same == null
+        ? writable.first
+        : s.vaults[same.vaultId] ?? writable.first;
+    final passkey = WebAuthn.create(
+      rpId: request.rpId,
+      rpName: request.rpName,
+      userHandle: request.userHandle,
+      userName: request.userName,
+      displayName: request.displayName,
+      now: _clock(),
+    );
+    final id = same?.id ?? VaultCrypto.newId();
+    final data = await UnlockedKeys.encryptPasskey(
+      await keys.openVaultKey(vault),
+      vault.id,
+      id,
+      passkey,
+    );
+    final api = SixoraApi(s.server, token: await s.token(keys.userKey));
+    try {
+      await api.putEntry(
+        id: id,
+        vaultId: vault.id,
+        data: data,
+        baseRevision: same?.revision ?? 0,
+        keyVersion: vault.keyVersion,
+      );
+    } on ApiException catch (e) {
+      throw e.offline ? const ExtensionError('passkey_offline') : e;
+    } finally {
+      api.close();
+    }
+    final answer = request.created(passkey, userVerified: userVerified);
+    await sync();
+    return answer;
   }
 
   /// Fetches the changes since the last sync. Offline the list keeps the
@@ -300,6 +386,7 @@ class SixoraExtension {
     stored = null;
     syncError = null;
     await local.write('account', null);
+    await local.write(passkeyIndexEntry, null);
     // A new account gets a new key, to be connected again.
     await local.write(linkKeyEntry, null);
     await session.write('unlocked', null);
@@ -314,6 +401,7 @@ class SixoraExtension {
     }
     _keys = null;
     codes = const [];
+    passkeys = const [];
     unreadable = 0;
   }
 }

@@ -7,13 +7,22 @@ import '../otp/base32.dart';
 import '../otp/entry.dart';
 import '../otp/otp.dart';
 import '../otp/otpauth.dart';
+import '../passkey/passkey.dart';
 import 'google_migration.dart';
 
 /// Result of reading an import file or code.
 class ImportResult {
-  ImportResult(this.source, this.entries, {this.skipped = 0});
+  ImportResult(
+    this.source,
+    this.entries, {
+    this.skipped = 0,
+    this.passkeys = const [],
+  });
   final String source;
   final List<OtpEntry> entries;
+
+  /// Only Sixora backups have these.
+  final List<PasskeyEntry> passkeys;
 
   /// Items that were recognized but could not be used.
   final int skipped;
@@ -49,9 +58,11 @@ abstract final class Importers {
     if (json is Map) {
       if (json['format'] == SixoraBackup.format) {
         if (password == null) throw const NeedsPasswordException();
+        final backup = await SixoraBackup.decrypt(trimmed, password);
         return ImportResult(
           'Sixora',
-          await SixoraBackup.decrypt(trimmed, password),
+          backup.entries,
+          passkeys: backup.passkeys,
         );
       }
       if (json['db'] is Map && json['header'] is Map) return _aegis(json);
@@ -460,6 +471,13 @@ class BackupKey {
   }
 }
 
+/// What a backup file holds.
+class BackupContents {
+  const BackupContents(this.entries, this.passkeys);
+  final List<OtpEntry> entries;
+  final List<PasskeyEntry> passkeys;
+}
+
 abstract final class SixoraBackup {
   static const format = 'sixora-backup';
   static const _aad = 'sixora-backup-v1';
@@ -468,18 +486,26 @@ abstract final class SixoraBackup {
     List<OtpEntry> entries,
     String password, {
     KdfParams kdf = KdfParams.recommended,
-  }) async =>
-      encryptWithKey(entries, await BackupKey.derive(password, kdf: kdf));
+    List<PasskeyEntry> passkeys = const [],
+  }) async => encryptWithKey(
+    entries,
+    await BackupKey.derive(password, kdf: kdf),
+    passkeys: passkeys,
+  );
 
   /// Same file as [encrypt], with a key derived earlier: automatic backups
   /// need no password prompt and no Argon2 run each time.
   static Future<String> encryptWithKey(
     List<OtpEntry> entries,
-    BackupKey key,
-  ) async {
+    BackupKey key, {
+    List<PasskeyEntry> passkeys = const [],
+  }) async {
     final payload = jsonEncode({
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'entries': [for (final e in entries) e.toJson()],
+      // Older versions read the file all the same and skip these.
+      if (passkeys.isNotEmpty)
+        'passkeys': [for (final p in passkeys) p.toJson()],
     });
     return const JsonEncoder.withIndent('  ').convert({
       'format': format,
@@ -498,7 +524,7 @@ abstract final class SixoraBackup {
     return json;
   }
 
-  static Future<List<OtpEntry>> decrypt(String text, String password) async {
+  static Future<BackupContents> decrypt(String text, String password) async {
     final json = _header(text);
     final keys = await derivePasswordKeysAsync(
       password,
@@ -510,7 +536,7 @@ abstract final class SixoraBackup {
 
   /// Opens a file written with [key] (automatic backups check their own
   /// files this way, without asking for the password).
-  static Future<List<OtpEntry>> decryptWithKey(
+  static Future<BackupContents> decryptWithKey(
     String text,
     BackupKey key,
   ) async {
@@ -523,7 +549,7 @@ abstract final class SixoraBackup {
     return _open(json, key.key);
   }
 
-  static Future<List<OtpEntry>> _open(
+  static Future<BackupContents> _open(
     Map<String, Object?> json,
     List<int> key,
   ) async {
@@ -538,10 +564,16 @@ abstract final class SixoraBackup {
       throw const CryptoException('Passwort der Sicherung ist falsch');
     }
     final payload = (jsonDecode(clear) as Map).cast<String, Object?>();
-    return [
-      for (final e in payload['entries'] as List)
-        OtpEntry.fromJson((e as Map).cast()),
-    ];
+    return BackupContents(
+      [
+        for (final e in payload['entries'] as List)
+          OtpEntry.fromJson((e as Map).cast()),
+      ],
+      [
+        for (final p in payload['passkeys'] as List? ?? const [])
+          PasskeyEntry.fromJson((p as Map).cast()),
+      ],
+    );
   }
 
   /// Plain text export: one otpauth link per line. Unencrypted!

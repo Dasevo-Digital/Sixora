@@ -23,6 +23,7 @@ import 'admin_screen.dart';
 import 'auto_backup_screen.dart';
 import 'entry_qr_screen.dart';
 import 'import_screen.dart';
+import 'passkeys_screen.dart';
 import 'recovery_key_screen.dart';
 import 'trash_screen.dart';
 import 'vaults_screen.dart';
@@ -243,6 +244,16 @@ class SettingsScreen extends StatelessWidget {
                   title: Text(t.signedInDevices),
                   onTap: () => _open(context, const SessionsScreen()),
                 ),
+              ListTile(
+                leading: const Icon(Icons.key_outlined),
+                title: Text(t.passkeys),
+                subtitle: Text(
+                  c.passkeys.isEmpty
+                      ? t.passkeysHint
+                      : t.passkeyCount(c.passkeys.length),
+                ),
+                onTap: () => _open(context, const PasskeysScreen()),
+              ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: Text(t.trash),
@@ -609,7 +620,8 @@ class SettingsScreen extends StatelessWidget {
   Future<void> _export(BuildContext context) async {
     final c = AppScope.read(context);
     final entries = [for (final i in c.items) i.entry];
-    if (entries.isEmpty) {
+    final passkeys = [for (final p in c.passkeys) p.passkey];
+    if (entries.isEmpty && passkeys.isEmpty) {
       showMessage(context, t.nothingToExport);
       return;
     }
@@ -653,7 +665,7 @@ class SettingsScreen extends StatelessWidget {
         if (pw == null || !context.mounted) return;
         final text = await runBusy(
           context,
-          () => SixoraBackup.encrypt(entries, pw),
+          () => SixoraBackup.encrypt(entries, pw, passkeys: passkeys),
           message: t.encryptingBackup,
         );
         if (text == null || !context.mounted) return;

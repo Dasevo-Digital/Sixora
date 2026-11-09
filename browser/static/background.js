@@ -113,8 +113,208 @@ ext.alarms.onAlarm.addListener(async (alarm) => {
   }
 });
 
+// --- Passkeys ---------------------------------------------------------------
+
+const PASSKEY_ORIGINS = ["https://*/*", "http://localhost/*"];
+const PASSKEY_SCRIPTS = ["sixora-passkey-page", "sixora-passkey-relay"];
+
+// In storage.session: a request by its id, the id by its window, the open
+// ceremony by its tab, and until when a tab stays quiet after a "no".
+const PASSKEY_REQUEST = "passkey:";
+const PASSKEY_WINDOW = "passkeyWindow:";
+const PASSKEY_TAB = "passkeyTab:";
+const PASSKEY_PAUSE = "passkeyPause:";
+const PASSKEY_PAUSE_MS = 10000;
+
+const passkeyStarting = new Set();
+
+let passkeyScripts = Promise.resolve(false);
+
+// Brings the page scripts in line with the setting and the permission. Runs
+// here and not in the popup, which Firefox closes while it asks.
+function applyPasskeyScripts() {
+  const apply = async () => {
+    const { passkeysWanted } = await ext.storage.local.get("passkeysWanted");
+    const on =
+      Boolean(passkeysWanted) &&
+      (await ext.permissions.contains({ origins: PASSKEY_ORIGINS }));
+    const registered = await ext.scripting.getRegisteredContentScripts({
+      ids: PASSKEY_SCRIPTS,
+    });
+    if (on && registered.length === PASSKEY_SCRIPTS.length) return true;
+    if (registered.length > 0) {
+      await ext.scripting.unregisterContentScripts({
+        ids: registered.map((script) => script.id),
+      });
+    }
+    if (!on) return false;
+    const shared = {
+      matches: PASSKEY_ORIGINS,
+      runAt: "document_start",
+      allFrames: false,
+    };
+    await ext.scripting.registerContentScripts([
+      { ...shared, id: PASSKEY_SCRIPTS[0], js: ["passkey_page.js"], world: "MAIN" },
+      { ...shared, id: PASSKEY_SCRIPTS[1], js: ["passkey_relay.js"] },
+    ]);
+    return true;
+  };
+  passkeyScripts = passkeyScripts.then(apply, apply);
+  return passkeyScripts;
+}
+
+ext.runtime.onInstalled.addListener(applyPasskeyScripts);
+ext.runtime.onStartup.addListener(applyPasskeyScripts);
+ext.permissions?.onAdded?.addListener(applyPasskeyScripts);
+ext.permissions?.onRemoved?.addListener(applyPasskeyScripts);
+
+// Whether a passkey for this site is stored: otherwise no window opens and
+// the browser handles the request as if Sixora were not there.
+async function siteHasPasskey(rpId) {
+  const stored = await ext.storage.local.get("passkeyIndex");
+  if (!stored.passkeyIndex) return false;
+  const { salt, sites } = JSON.parse(stored.passkeyIndex);
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(`${salt}|${rpId}`),
+  );
+  return sites.includes(btoa(String.fromCharCode(...new Uint8Array(digest))));
+}
+
+async function openPasskeyWindow(message, origin, tabId) {
+  const request = message.request;
+  const tabKey = PASSKEY_TAB + tabId;
+  const pauseKey = PASSKEY_PAUSE + tabId;
+  const state = await ext.storage.session.get([tabKey, pauseKey]);
+  // One window per tab, and no new one right after a "no": a page must not
+  // be able to keep them coming.
+  if (state[tabKey] || (state[pauseKey] ?? 0) > Date.now()) return { fallback: true };
+  const id = crypto.randomUUID();
+  const key = PASSKEY_REQUEST + id;
+  await ext.storage.session.set({
+    [key]: JSON.stringify({ origin, tabId, pageId: message.pageId, request }),
+  });
+  try {
+    const window = await ext.windows.create({
+      url: ext.runtime.getURL(`popup.html#passkey=${id}`),
+      type: "popup",
+      width: 420,
+      height: 560,
+    });
+    await ext.storage.session.set({
+      [PASSKEY_WINDOW + window.id]: id,
+      [tabKey]: JSON.stringify({ id, windowId: window.id, pageId: message.pageId }),
+    });
+  } catch (e) {
+    await ext.storage.session.remove(key);
+    throw e;
+  }
+  return { pending: true };
+}
+
+async function startPasskey(message, sender) {
+  // Which site asks comes from the browser, never from the page. Frames
+  // keep the browser's own passkeys.
+  const origin = sender.origin ?? (sender.url ? new URL(sender.url).origin : null);
+  const tabId = sender.tab?.id;
+  if (sender.frameId !== 0 || tabId === undefined || !origin || origin === "null") {
+    return { fallback: true };
+  }
+  const request = message.request ?? {};
+  const host = new URL(origin).hostname;
+  const rpId = String(request.rpId || host).toLowerCase();
+  // The browser reports the mistake; and a page learns nothing, not even
+  // through a window, about the passkeys of other sites.
+  if (host !== rpId && !host.endsWith(`.${rpId}`)) return { fallback: true };
+  if (request.kind !== "create" && !(await siteHasPasskey(rpId))) return { fallback: true };
+  if (passkeyStarting.has(tabId)) return { fallback: true };
+  passkeyStarting.add(tabId);
+  try {
+    return await openPasskeyWindow({ ...message, request }, origin, tabId);
+  } finally {
+    passkeyStarting.delete(tabId);
+  }
+}
+
+// Ends a request and returns the record; null if it is already over.
+async function takePasskey(id) {
+  const key = PASSKEY_REQUEST + id;
+  const text = (await ext.storage.session.get(key))[key];
+  if (!text) return null;
+  const record = JSON.parse(text);
+  const tabKey = PASSKEY_TAB + record.tabId;
+  const open = (await ext.storage.session.get(tabKey))[tabKey];
+  await ext.storage.session.remove([key, tabKey]);
+  return { ...record, windowId: open ? JSON.parse(open).windowId : null };
+}
+
+function closePasskeyWindow(windowId) {
+  if (windowId !== null) ext.windows.remove(windowId).catch(() => {});
+}
+
+// Hands the answer to the page and closes the window.
+async function finishPasskey(id, reply) {
+  const record = await takePasskey(id);
+  if (!record) return false;
+  if (reply.error === "NotAllowedError") {
+    await ext.storage.session.set({
+      [PASSKEY_PAUSE + record.tabId]: Date.now() + PASSKEY_PAUSE_MS,
+    });
+  }
+  try {
+    await ext.tabs.sendMessage(
+      record.tabId,
+      { sixora: "passkey-result", pageId: record.pageId, reply },
+      { frameId: 0 },
+    );
+  } catch (e) {
+    // The tab was closed meanwhile.
+  }
+  closePasskeyWindow(record.windowId);
+  return true;
+}
+
+// The page itself gave up (AbortController).
+async function abortPasskey(message, sender) {
+  const tabKey = PASSKEY_TAB + sender.tab?.id;
+  const open = (await ext.storage.session.get(tabKey))[tabKey];
+  if (!open) return;
+  const { id, pageId } = JSON.parse(open);
+  if (pageId !== message.pageId || sender.frameId !== 0) return;
+  const record = await takePasskey(id);
+  if (record) closePasskeyWindow(record.windowId);
+}
+
+// Closing the window is a "no" for the page.
+ext.windows.onRemoved.addListener(async (windowId) => {
+  const key = PASSKEY_WINDOW + windowId;
+  const id = (await ext.storage.session.get(key))[key];
+  if (!id) return;
+  await ext.storage.session.remove(key);
+  await finishPasskey(id, { error: "NotAllowedError", message: "" });
+});
+
 ext.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== ext.runtime.id) return false;
+  if (message?.sixora === "passkey") {
+    startPasskey(message, sender).then(sendResponse, () => sendResponse({ fallback: true }));
+    return true;
+  }
+  if (message?.sixora === "passkey-abort") {
+    abortPasskey(message, sender).then(sendResponse, () => sendResponse(false));
+    return true;
+  }
+  if (message?.sixora === "passkey-finish") {
+    // Only from the extension's own pages, not from a content script.
+    if (!sender.url?.startsWith(ext.runtime.getURL(""))) return false;
+    finishPasskey(message.id, message.reply).then(sendResponse, () => sendResponse(false));
+    return true;
+  }
+  if (message?.sixora === "passkey-scripts") {
+    if (!sender.url?.startsWith(ext.runtime.getURL(""))) return false;
+    applyPasskeyScripts().then(sendResponse, () => sendResponse(false));
+    return true;
+  }
   if (message?.sixora === "clipboard-schedule") {
     scheduleClipboardClear(message.code).then(sendResponse, () => sendResponse(false));
     return true;

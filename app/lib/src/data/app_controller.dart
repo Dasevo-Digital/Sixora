@@ -47,6 +47,15 @@ class Item {
   final OtpEntry entry;
 }
 
+/// A decrypted passkey.
+class PasskeyItem {
+  PasskeyItem(this.id, this.vaultId, this.revision, this.passkey);
+  final String id;
+  final String vaultId;
+  final int revision;
+  final PasskeyEntry passkey;
+}
+
 /// What reading the newest backup back found.
 class BackupVerification {
   const BackupVerification({
@@ -65,11 +74,24 @@ class BackupVerification {
   final List<String> missing;
 }
 
-/// A deleted entry in the recycle bin.
+/// A deleted entry in the recycle bin: an account or a passkey.
 class TrashItem {
-  TrashItem(this.item, this.deletedAt);
-  final Item item;
+  TrashItem({
+    required this.id,
+    required this.vaultId,
+    required this.name,
+    required this.account,
+    required this.deletedAt,
+    this.entry,
+  });
+  final String id;
+  final String vaultId;
+  final String name;
+  final String account;
   final DateTime? deletedAt;
+
+  /// Null for a passkey.
+  final OtpEntry? entry;
 }
 
 /// Error for the user, in German.
@@ -125,6 +147,7 @@ class AppController extends ChangeNotifier {
   UnlockedKeys? _keys;
   final Map<String, VaultView> _vaults = {};
   List<Item> items = const [];
+  List<PasskeyItem> passkeys = const [];
   int undecryptable = 0;
 
   bool syncing = false;
@@ -684,10 +707,12 @@ class AppController extends ChangeNotifier {
     if (phase != Phase.unlocked) return;
     _stopWatching();
     _moving = null;
+    _movingPasskeys = null;
     _rotationFailed.clear();
     _backupTimer?.cancel();
     _wipeKeys();
     items = const [];
+    passkeys = const [];
     phase = Phase.locked;
     notifyListeners();
   }
@@ -720,7 +745,9 @@ class AppController extends ChangeNotifier {
     _api = null;
     _wipeKeys();
     items = const [];
+    passkeys = const [];
     _moving = null;
+    _movingPasskeys = null;
     _backupTimer?.cancel();
     cached = null;
     this.notice = notice;
@@ -921,6 +948,7 @@ class AppController extends ChangeNotifier {
       }
     }
     final list = <Item>[];
+    final found = <PasskeyItem>[];
     var broken = 0;
     for (final e in c.entries.values) {
       final vault = _vaults[e.vaultId];
@@ -929,20 +957,29 @@ class AppController extends ChangeNotifier {
         continue;
       }
       try {
-        list.add(
-          Item(
-            e.id,
-            e.vaultId,
-            e.revision,
-            await UnlockedKeys.decryptEntry(vault.key, e.vaultId, e.id, e.data),
-          ),
-        );
+        switch (await UnlockedKeys.decryptRecord(
+          vault.key,
+          e.vaultId,
+          e.id,
+          e.data,
+        )) {
+          case OtpRecord(:final entry):
+            list.add(Item(e.id, e.vaultId, e.revision, entry));
+          case PasskeyRecord(:final passkey):
+            found.add(PasskeyItem(e.id, e.vaultId, e.revision, passkey));
+        }
       } on Object {
         broken++;
       }
     }
     list.sort(_compare);
+    found.sort(
+      (a, b) => a.passkey.label.toLowerCase().compareTo(
+        b.passkey.label.toLowerCase(),
+      ),
+    );
     items = list;
+    passkeys = found;
     undecryptable = broken;
   }
 
@@ -1062,6 +1099,46 @@ class AppController extends ChangeNotifier {
 
   bool isDuplicate(OtpEntry e) => items.any((i) => i.entry.sameKeyAs(e));
 
+  // --- Passkeys ----------------------------------------------------------
+
+  bool hasPasskey(PasskeyEntry p) =>
+      passkeys.any((k) => k.passkey.credentialId == p.credentialId);
+
+  /// Stores a passkey that came from a backup or another server.
+  Future<void> addPasskey(
+    PasskeyEntry passkey, {
+    required String vaultId,
+  }) async {
+    final vault = _vaults[vaultId];
+    if (vault == null || !vault.canWrite) {
+      throw UserError(t.vaultReadOnly);
+    }
+    final id = VaultCrypto.newId();
+    final data = await UnlockedKeys.encryptPasskey(
+      vault.key,
+      vaultId,
+      id,
+      passkey,
+    );
+    final dto = await _write(
+      (api) => api.putEntry(
+        id: id,
+        vaultId: vaultId,
+        data: data,
+        baseRevision: 0,
+        keyVersion: vault.dto.keyVersion,
+      ),
+    );
+    await _storeEntry(dto);
+  }
+
+  Future<void> deletePasskey(PasskeyItem item) async {
+    final dto = await _write(
+      (api) => api.deleteEntry(item.id, baseRevision: item.revision),
+    );
+    await _storeEntry(dto);
+  }
+
   // --- Recycle bin -------------------------------------------------------
 
   /// Deleted entries of the last 30 days that this device can decrypt.
@@ -1072,22 +1149,29 @@ class AppController extends ChangeNotifier {
       final vault = _vaults[e.vaultId];
       if (vault == null) continue;
       try {
-        out.add(
-          TrashItem(
-            Item(
-              e.id,
-              e.vaultId,
-              e.revision,
-              await UnlockedKeys.decryptEntry(
-                vault.key,
-                e.vaultId,
-                e.id,
-                e.data,
-              ),
-            ),
-            e.deletedAt,
-          ),
+        final record = await UnlockedKeys.decryptRecord(
+          vault.key,
+          e.vaultId,
+          e.id,
+          e.data,
         );
+        out.add(switch (record) {
+          OtpRecord(:final entry) => TrashItem(
+            id: e.id,
+            vaultId: e.vaultId,
+            name: entry.displayName,
+            account: entry.account,
+            deletedAt: e.deletedAt,
+            entry: entry,
+          ),
+          PasskeyRecord(:final passkey) => TrashItem(
+            id: e.id,
+            vaultId: e.vaultId,
+            name: passkey.label,
+            account: passkey.account,
+            deletedAt: e.deletedAt,
+          ),
+        });
       } on Object {
         // Not readable: leave it out.
       }
@@ -1096,12 +1180,11 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> restore(TrashItem t) async {
-    final dto = await _write((api) => api.restoreEntry(t.item.id));
+    final dto = await _write((api) => api.restoreEntry(t.id));
     await _storeEntry(dto);
   }
 
-  Future<void> purge(TrashItem t) =>
-      _online((api) => api.purgeEntry(t.item.id));
+  Future<void> purge(TrashItem t) => _online((api) => api.purgeEntry(t.id));
 
   // --- Vaults ----------------------------------------------------------------
 
@@ -1334,6 +1417,7 @@ class AppController extends ChangeNotifier {
   /// Accounts of the local mode on their way to a server. Plaintext, so
   /// only in memory, and dropped when the app locks.
   List<({OtpEntry entry, String vault, bool personal})>? _moving;
+  List<({PasskeyEntry passkey, String vault, bool personal})>? _movingPasskeys;
 
   @override
   void dispose() {

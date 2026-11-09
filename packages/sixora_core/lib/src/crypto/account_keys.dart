@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import '../api/models.dart';
 import '../otp/entry.dart';
+import '../passkey/passkey.dart';
 import '../platform/background_io.dart'
     if (dart.library.js_interop) '../platform/background_web.dart';
 import 'vault_crypto.dart';
@@ -99,6 +100,45 @@ class UnlockedKeys {
         .cast(),
   );
 
+  /// A passkey goes into a vault entry as a JSON list, not an object: older
+  /// app versions then count it as unreadable instead of showing an account
+  /// without a key, and pass it on unchanged in a key rotation.
+  static const _passkeyTag = 'sixora-passkey';
+
+  static Future<String> encryptPasskey(
+    Uint8List vaultKey,
+    String vaultId,
+    String entryId,
+    PasskeyEntry passkey,
+  ) => VaultCrypto.encryptString(
+    vaultKey,
+    jsonEncode([_passkeyTag, 1, passkey.toJson()]),
+    aad: _entryAad(vaultId, entryId),
+  );
+
+  /// What a vault entry holds: an account or a passkey.
+  static Future<VaultRecord> decryptRecord(
+    Uint8List vaultKey,
+    String vaultId,
+    String entryId,
+    String data,
+  ) async {
+    final json = jsonDecode(
+      await VaultCrypto.decryptString(
+        vaultKey,
+        data,
+        aad: _entryAad(vaultId, entryId),
+      ),
+    );
+    return switch (json) {
+      Map() => OtpRecord(OtpEntry.fromJson(json.cast())),
+      [_passkeyTag, 1, final Map passkey] => PasskeyRecord(
+        PasskeyEntry.fromJson(passkey.cast()),
+      ),
+      _ => throw const FormatException('Unbekannter Eintrag'),
+    };
+  }
+
   static Future<String> encryptVaultName(
     Uint8List vaultKey,
     String vaultId,
@@ -110,6 +150,21 @@ class UnlockedKeys {
     String vaultId,
     String data,
   ) => VaultCrypto.decryptString(vaultKey, data, aad: _vaultNameAad(vaultId));
+}
+
+/// What a vault entry holds.
+sealed class VaultRecord {
+  const VaultRecord();
+}
+
+class OtpRecord extends VaultRecord {
+  const OtpRecord(this.entry);
+  final OtpEntry entry;
+}
+
+class PasskeyRecord extends VaultRecord {
+  const PasskeyRecord(this.passkey);
+  final PasskeyEntry passkey;
 }
 
 /// Public keys of other users this account has accepted, by user id. The

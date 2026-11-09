@@ -194,6 +194,60 @@ void main() {
     expect(issuers(), ['GitHub', 'GitLab']);
   });
 
+  test('passkeys live beside the codes and move along', () async {
+    await startLocal();
+    final passkey = WebAuthn.create(
+      rpId: 'github.com',
+      rpName: 'GitHub',
+      userHandle: 'dXNlcg',
+      userName: 'alice',
+      displayName: 'Alice',
+    );
+    await c.addPasskey(passkey, vaultId: c.items.first.vaultId);
+    expect(c.passkeys.single.passkey.credentialId, passkey.credentialId);
+    expect(c.undecryptable, 0);
+    expect(issuers(), ['GitHub', 'GitLab']);
+    expect(c.hasPasskey(passkey), isTrue);
+
+    // Recycle bin, as for accounts.
+    await c.deletePasskey(c.passkeys.single);
+    expect(c.passkeys, isEmpty);
+    final trashed = (await c.trash()).single;
+    expect(trashed.entry, isNull);
+    expect(trashed.name, 'GitHub');
+    await c.restore(trashed);
+    expect(c.passkeys.single.passkey.privateKey, passkey.privateKey);
+
+    // Locked: the private keys are out of memory.
+    c.lock();
+    expect(c.passkeys, isEmpty);
+    await c.unlockWithPassword(password);
+    expect(c.passkeys, hasLength(1));
+
+    // Leaving local mode must not lose it.
+    final r = await c.moveToServer(
+      server: remoteUrl,
+      serverName: 'Test',
+      username: 'anna',
+      password: 'server-master-password',
+      create: true,
+      inviteCode: setupCode,
+    );
+    expect(r.moved, 3);
+    expect(LocalServer.exists, isFalse);
+    c.lock();
+    await c.logout();
+    await c.login(
+      server: remoteUrl,
+      serverName: 'Test',
+      username: 'anna',
+      password: 'server-master-password',
+    );
+    await itemsLoaded(c, 2);
+    expect(c.passkeys.single.passkey.privateKey, passkey.privateKey);
+    expect(c.undecryptable, 0);
+  });
+
   test('moving into an existing account skips codes it has', () async {
     // Bob already keeps GitHub on the server.
     final otherDir = Directory.systemTemp.createTempSync('sixora-other');

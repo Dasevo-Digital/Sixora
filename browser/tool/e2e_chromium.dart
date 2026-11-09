@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:sixora_core/sixora_core.dart';
 
 import 'e2e/common.dart';
+import 'e2e/passkeys.dart';
 
 Future<void> main() async {
   final app =
@@ -38,7 +39,12 @@ Future<void> main() async {
     await Process.run('cp', ['-R', 'build/chromium', extension.path]);
     final manifest = File('${extension.path}/manifest.json');
     final json = (jsonDecode(manifest.readAsStringSync()) as Map)
-      ..['host_permissions'] = ['http://127.0.0.1/*'];
+      ..['host_permissions'] = [
+        'http://127.0.0.1/*',
+        // What switching passkeys on asks for.
+        'https://*/*',
+        'http://localhost/*',
+      ];
     manifest.writeAsStringSync(jsonEncode(json));
     final path = extension.resolveSymbolicLinksSync();
     // Opera reads host manifests from Chrome's folder only (not from its
@@ -82,6 +88,13 @@ Future<void> main() async {
       clipboardAlarmWait: const Duration(seconds: 31),
       checkClipboardPreservation: false,
     );
+    failures += await runPasskeyScenario(
+      cdp,
+      'chrome-extension://${BrowserLink.chromiumId}',
+      hasApp: File(host).existsSync(),
+      realSwitchOff: false,
+      serverOrigin: 'http://127.0.0.1/*',
+    );
     await cdp.close();
   } on Object catch (e) {
     stderr.writeln('FEHLER: $e');
@@ -119,7 +132,7 @@ Future<void> main() async {
 /// Chromium names an unpacked extension after its folder: SHA-256 of the
 /// path, the first 32 hex digits written with the letters a–p.
 /// A minimal DevTools protocol client for one tab.
-class Cdp implements Driver {
+class Cdp implements PasskeyDriver {
   Cdp._(this._socket) {
     _socket.listen((data) {
       final m = (jsonDecode(data as String) as Map).cast<String, Object?>();
@@ -191,6 +204,62 @@ class Cdp implements Driver {
 
   Future<void> close() =>
       _socket.close().timeout(const Duration(seconds: 5), onTimeout: () {});
+
+  String? _page;
+  String? _passkeyTarget;
+
+  /// Browser-wide, outside the session of a tab.
+  Future<Object?> _browser(String method, Map<String, Object?> params) {
+    final saved = _session;
+    _session = null;
+    final sent = _send(method, params);
+    _session = saved;
+    return sent;
+  }
+
+  Future<String?> get _passkeyWindow async {
+    final r = await _browser('Target.getTargets', const {}) as Map;
+    for (final t in r['targetInfos'] as List) {
+      if ((t as Map)['url'].toString().contains('popup.html#passkey=')) {
+        return t['targetId'] as String;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<bool> get passkeyWindowOpen async => await _passkeyWindow != null;
+
+  @override
+  Future<void> toPasskeyWindow() async {
+    final end = DateTime.now().add(const Duration(seconds: 15));
+    while (true) {
+      final id = await _passkeyWindow;
+      if (id != null) {
+        final attached =
+            await _browser('Target.attachToTarget', {
+                  'targetId': id,
+                  'flatten': true,
+                })
+                as Map;
+        _page = _session;
+        _passkeyTarget = id;
+        _session = attached['sessionId'] as String;
+        return;
+      }
+      if (DateTime.now().isAfter(end)) {
+        throw StateError('Kein Passkey-Fenster');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+  }
+
+  @override
+  Future<void> toPage() async => _session = _page;
+
+  @override
+  Future<void> closePasskeyWindow() =>
+      _browser('Target.closeTarget', {'targetId': _passkeyTarget});
 
   @override
   Future<void> navigate(String url) async {

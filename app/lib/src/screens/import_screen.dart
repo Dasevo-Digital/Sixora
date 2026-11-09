@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:sixora_core/sixora_core.dart';
 
+import '../data/app_controller.dart';
 import '../l10n.dart';
 import '../platform/import_limits.dart';
 import '../platform/qr_image.dart';
@@ -171,6 +172,9 @@ class _ImportScreenState extends State<ImportScreen> {
     }
   }
 
+  int _newPasskeys(AppController c, ImportResult result) =>
+      result.passkeys.where((p) => !c.hasPasskey(p)).length;
+
   Future<void> _import() async {
     final c = AppScope.read(context);
     final result = _result!;
@@ -191,6 +195,11 @@ class _ImportScreenState extends State<ImportScreen> {
         vaultId: _vaultId!,
         progress: (n) => setState(() => _done = n),
       );
+      for (final passkey in result.passkeys) {
+        if (!c.hasPasskey(passkey)) {
+          await c.addPasskey(passkey, vaultId: _vaultId!);
+        }
+      }
       if (!mounted) return;
       showMessage(context, t.accountsImported(entries.length));
       Navigator.pop(context);
@@ -241,7 +250,8 @@ class _ImportScreenState extends State<ImportScreen> {
                   child: Text(
                     '${t.accountsFound(result.entries.length, result.source)}'
                     '${result.skipped > 0 ? t.notReadable(result.skipped) : ''}. '
-                    '${t.existingDeselected}',
+                    '${t.existingDeselected}'
+                    '${_newPasskeys(c, result) > 0 ? ' ${t.passkeysComeAlong(_newPasskeys(c, result))}' : ''}',
                   ),
                 ),
                 if (_missing case final missing?)
@@ -340,7 +350,10 @@ class _ImportScreenState extends State<ImportScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: FilledButton(
-                              onPressed: _selected.isEmpty || _vaultId == null
+                              onPressed:
+                                  (_selected.isEmpty &&
+                                          _newPasskeys(c, result) == 0) ||
+                                      _vaultId == null
                                   ? null
                                   : _import,
                               child: Text(t.importAccounts(_selected.length)),

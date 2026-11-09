@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:sixora_core/sixora_core.dart';
 
+import 'passkeys.dart';
+
 /// What the extension keeps between two popups (`storage.local`): the
 /// account as the server sent it, the session token and the encrypted copy
 /// of the vaults. Nothing in here can be read without the master password,
@@ -106,12 +108,10 @@ class Code {
 
 /// Opens the vault keys and decrypts every entry. HOTP is left out: using
 /// its code moves the counter, which the extension does not write. Returns
-/// the accounts (favourites first, then by name) and how many could not be
-/// read.
-Future<({List<Code> codes, int unreadable})> decryptCodes(
-  StoredAccount stored,
-  UnlockedKeys keys,
-) async {
+/// the accounts (favourites first, then by name), the passkeys and how many
+/// entries could not be read.
+Future<({List<Code> codes, List<StoredPasskey> passkeys, int unreadable})>
+decryptCodes(StoredAccount stored, UnlockedKeys keys) async {
   final vaultKeys = <String, Uint8List>{};
   final names = <String, String>{};
   for (final v in stored.vaults.values) {
@@ -128,6 +128,7 @@ Future<({List<Code> codes, int unreadable})> decryptCodes(
     }
   }
   final codes = <Code>[];
+  final passkeys = <StoredPasskey>[];
   var unreadable = 0;
   for (final e in stored.entries.values) {
     final key = vaultKeys[e.vaultId];
@@ -136,14 +137,13 @@ Future<({List<Code> codes, int unreadable})> decryptCodes(
       continue;
     }
     try {
-      final entry = await UnlockedKeys.decryptEntry(
-        key,
-        e.vaultId,
-        e.id,
-        e.data,
-      );
-      if (entry.type != OtpType.hotp) {
-        codes.add(Code(e.id, names[e.vaultId]!, entry));
+      switch (await UnlockedKeys.decryptRecord(key, e.vaultId, e.id, e.data)) {
+        case OtpRecord(:final entry) when entry.type != OtpType.hotp:
+          codes.add(Code(e.id, names[e.vaultId]!, entry));
+        case PasskeyRecord(:final passkey):
+          passkeys.add(StoredPasskey(e.id, e.vaultId, e.revision, passkey));
+        case OtpRecord():
+          break;
       }
     } on Object {
       unreadable++;
@@ -156,5 +156,5 @@ Future<({List<Code> codes, int unreadable})> decryptCodes(
     );
     return byName != 0 ? byName : a.entry.account.compareTo(b.entry.account);
   });
-  return (codes: codes, unreadable: unreadable);
+  return (codes: codes, passkeys: passkeys, unreadable: unreadable);
 }

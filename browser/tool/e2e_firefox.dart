@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'e2e/common.dart';
+import 'e2e/passkeys.dart';
 
 const firefox = '/Applications/Firefox.app';
 const addonId = '{8f8c1986-faf4-48a3-a267-a6c28c12f5ec}';
@@ -66,6 +67,13 @@ Future<void> main() async {
     await Process.run('cp', ['-R', 'build/firefox', addon]);
     await m.cmd('Addon:Install', {'path': addon, 'temporary': true});
     failures = await runScenario(m, 'moz-extension://$addonHost', server.url);
+    failures += await runPasskeyScenario(
+      m,
+      'moz-extension://$addonHost',
+      hasApp: false,
+      realSwitchOff: true,
+      serverOrigin: 'http://127.0.0.1/*',
+    );
     await m.cmd('WebDriver:DeleteSession');
     await m.close();
   } on Object catch (e) {
@@ -87,7 +95,7 @@ Future<void> main() async {
 }
 
 /// A minimal client for Firefox's Marionette protocol (`length:json`).
-class Marionette implements Driver {
+class Marionette implements PasskeyDriver {
   Marionette._(this._socket) {
     // Firefox drops the connection when the test ends it.
     _socket.listen(_receive, onError: (Object _) {});
@@ -150,6 +158,50 @@ class Marionette implements Driver {
 
   Future<void> close() async {
     await _socket.close();
+  }
+
+  String? _page;
+  String? _passkey;
+
+  Future<List<String>> get _handles async {
+    final r = await cmd('WebDriver:GetWindowHandles');
+    return [for (final h in (r is Map ? r['value'] : r) as List) h as String];
+  }
+
+  @override
+  Future<bool> get passkeyWindowOpen async =>
+      (await _handles).any((h) => h != _page);
+
+  @override
+  Future<void> toPasskeyWindow() async {
+    final r = await cmd('WebDriver:GetWindowHandle');
+    _page = (r! as Map)['value'] as String;
+    final end = DateTime.now().add(const Duration(seconds: 15));
+    while (true) {
+      final other = (await _handles).where((h) => h != _page).firstOrNull;
+      if (other != null) {
+        _passkey = other;
+        await cmd('WebDriver:SwitchToWindow', {
+          'handle': other,
+          'focus': false,
+        });
+        return;
+      }
+      if (DateTime.now().isAfter(end)) {
+        throw StateError('Kein Passkey-Fenster');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+  }
+
+  @override
+  Future<void> toPage() =>
+      cmd('WebDriver:SwitchToWindow', {'handle': _page, 'focus': false});
+
+  @override
+  Future<void> closePasskeyWindow() async {
+    await cmd('WebDriver:SwitchToWindow', {'handle': _passkey, 'focus': false});
+    await cmd('WebDriver:CloseWindow');
   }
 
   @override
