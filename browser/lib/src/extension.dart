@@ -58,6 +58,9 @@ class SixoraExtension {
 
   /// The extension's key pair for the desktop app (see `AppUnlock`).
   static const linkKeyEntry = 'linkKey';
+
+  /// The desktop app's own key, once it has proved it (`AppUnlock`).
+  static const appKeyEntry = 'linkAppKey';
   final DeviceInfo device;
   final DateTime Function() _clock;
 
@@ -203,6 +206,25 @@ class SixoraExtension {
         api.close();
       }
       throw const ExtensionError('wrongPassword');
+    }
+  }
+
+  /// The user key sealed to [publicKey]; null while locked.
+  Future<String?> sealUserKey(String publicKey) async {
+    final keys = _keys;
+    return keys == null ? null : VaultCrypto.seal(keys.userKey, publicKey);
+  }
+
+  /// Whether [userKey] really is this account's.
+  Future<bool> opensAccount(Uint8List userKey) async {
+    final s = stored;
+    if (s == null) return false;
+    try {
+      final keys = await UnlockedKeys.fromUserKey(s.account, userKey);
+      keys.privateKey.fillRange(0, keys.privateKey.length, 0);
+      return true;
+    } on CryptoException {
+      return false;
     }
   }
 
@@ -397,6 +419,7 @@ class SixoraExtension {
     await local.write(passkeyIndexEntry, null);
     // A new account gets a new key, to be connected again.
     await local.write(linkKeyEntry, null);
+    await local.write(appKeyEntry, null);
     await session.write('unlocked', null);
     stage = Stage.setup;
   }

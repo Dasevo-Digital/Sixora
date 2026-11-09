@@ -160,6 +160,13 @@ const _de = {
   'passkeySave': 'Sichern',
   'passkeySignIn': 'Mit Passkey anmelden',
   'passkeyOtherWay': 'Anderen Weg nutzen',
+  'passkeyNoMatchTitle': 'Passkey passt nicht zu diesem Konto',
+  'passkeyNoMatch':
+      'Die Website fragt nach einem anderen Passkey. In Sixora liegt für sie '
+      'nur dieser:',
+  'passkeyNoMatchHint':
+      'Melde dich mit diesem Konto an. Ist es das richtige, kennt die Website '
+      'den Passkey nicht mehr, und du legst dort einen neuen an.',
   'passkeyVerify': 'Bestätige, dass du es bist',
   'passkeyConfirm': 'Bestätigen',
   'passkey_no_vault': 'Es gibt keinen Tresor, in den du schreiben darfst.',
@@ -284,6 +291,12 @@ const _en = {
   'passkeySave': 'Save',
   'passkeySignIn': 'Sign in with passkey',
   'passkeyOtherWay': 'Use another way',
+  'passkeyNoMatchTitle': 'This passkey does not fit the account',
+  'passkeyNoMatch':
+      'The site asks for a different passkey. Sixora only has this one for it:',
+  'passkeyNoMatchHint':
+      'Sign in with this account. If it is the right one, the site no longer '
+      'knows this passkey, and you can add a new one there.',
   'passkeyVerify': 'Confirm that it is you',
   'passkeyConfirm': 'Confirm',
   'passkey_no_vault': 'There is no vault you may write to.',
@@ -410,6 +423,12 @@ const _es = {
   'passkeySave': 'Guardar',
   'passkeySignIn': 'Iniciar sesión con llave de acceso',
   'passkeyOtherWay': 'Usar otro método',
+  'passkeyNoMatchTitle': 'La llave de acceso no corresponde a esta cuenta',
+  'passkeyNoMatch':
+      'El sitio pide otra llave de acceso. Sixora solo tiene esta para él:',
+  'passkeyNoMatchHint':
+      'Inicia sesión con esta cuenta. Si es la correcta, el sitio ya no conoce '
+      'esta llave de acceso y puedes añadir una nueva allí.',
   'passkeyVerify': 'Confirma que eres tú',
   'passkeyConfirm': 'Confirmar',
   'passkey_no_vault': 'No hay ninguna caja fuerte en la que puedas escribir.',

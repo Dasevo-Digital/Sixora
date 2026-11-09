@@ -4,5 +4,8 @@
   },
   "openPopup": {
     "message": "Abrir Sixora"
+  },
+  "passkeySuggestion": {
+    "message": "Usar llave de acceso de Sixora"
   }
 }

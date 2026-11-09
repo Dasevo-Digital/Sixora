@@ -54,7 +54,8 @@ class VaultsScreen extends StatelessWidget {
                   t.accountCount(
                     c.items.where((i) => i.vaultId == v.id).length,
                   ),
-                  if (c.passkeys.any((p) => p.vaultId == v.id))
+                  if (c.showsPasskeys &&
+                      c.passkeys.any((p) => p.vaultId == v.id))
                     t.passkeyCount(
                       c.passkeys.where((p) => p.vaultId == v.id).length,
                     ),

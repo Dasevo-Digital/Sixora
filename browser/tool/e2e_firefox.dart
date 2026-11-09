@@ -254,4 +254,7 @@ class Marionette implements PasskeyDriver {
   @override
   Future<void> click(String css) async =>
       cmd('WebDriver:ElementClick', {'id': await _find(css)});
+
+  @override
+  Future<void> trustedClick(String css) => click(css);
 }

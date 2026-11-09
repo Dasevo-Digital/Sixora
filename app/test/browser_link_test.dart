@@ -27,6 +27,10 @@ class _App implements BrowserLinkDelegate {
   @override
   bool isPaired(String publicKey) => connected;
   @override
+  Future<String?> get appKey async => null;
+  @override
+  Future<bool> openWith(String sealedUserKey) async => false;
+  @override
   Future<Uint8List?> approve({required String browser}) async {
     approvals++;
     return Uint8List.fromList(key);

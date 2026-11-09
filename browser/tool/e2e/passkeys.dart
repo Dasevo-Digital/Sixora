@@ -13,12 +13,17 @@ abstract interface class PasskeyDriver implements Driver {
   Future<void> toPage();
   Future<void> closePasskeyWindow();
   Future<bool> get passkeyWindowOpen;
+
+  /// A click by the input system, which the page cannot fake.
+  Future<void> trustedClick(String css);
 }
 
 /// A website that uses passkeys and verifies what comes back with
 /// WebCrypto. Each result ends up as JSON in `#out`.
 const passkeyTestPage =
-    r'''<!doctype html><title>rp</title><pre id="out"></pre><script>
+    r'''<!doctype html><title>rp</title>
+<p style="margin-top:80px"><input id="field" autocomplete="username webauthn"></p>
+<pre id="out"></pre><script>
 const b64 = (v) => btoa(String.fromCharCode(...new Uint8Array(v)))
   .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const from64 = (s) => Uint8Array.from(
@@ -112,18 +117,36 @@ function addManager(capture) {
   window.dispatchEvent(new Event("pointerdown"));
 }
 
+// The same for sign-ins, with Sixora's function captured: the worst case.
+window.managerAborted = 0;
+function addSignInManager() {
+  const captured = navigator.credentials.get.bind(navigator.credentials);
+  navigator.credentials.get = async function other(e) {
+    window.managerCalls++;
+    e.signal?.addEventListener("abort", () => window.managerAborted++);
+    await null;
+    return captured(e);
+  };
+  window.dispatchEvent(new Event("pointerdown"));
+}
+
 let controller = null;
+let lastChallenge = null;
 window.rp = (kind, text) => {
   if (kind === "abort") { controller.abort(); return; }
   if (kind === "manager") { addManager(JSON.parse(text).capture); return; }
+  if (kind === "signInManager") { addSignInManager(); return; }
   document.getElementById("out").textContent = "";
   const spec = JSON.parse(text);
-  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const challenge = spec.sameChallenge
+    ? lastChallenge : crypto.getRandomValues(new Uint8Array(32));
+  lastChallenge = challenge;
   controller = new AbortController();
   if (spec.abortAfter) setTimeout(() => controller.abort(), spec.abortAfter);
   const signal = controller.signal;
+  const mediation = spec.conditional ? { mediation: "conditional" } : {};
   const call = kind === "create"
-    ? navigator.credentials.create({ signal, publicKey: {
+    ? navigator.credentials.create({ signal, ...mediation, publicKey: {
         rp: { name: "Test RP", ...(spec.rpId ? { id: spec.rpId } : {}) },
         user: { id: bytes("user-1"), name: "alice@rp.example", displayName: "Alice" },
         challenge,
@@ -132,10 +155,13 @@ window.rp = (kind, text) => {
           ? [{ type: "public-key", id: from64(localStorage.getItem("id")) }] : [],
         authenticatorSelection: { userVerification: spec.uv ?? "discouraged" },
       } })
-    : navigator.credentials.get({ signal, publicKey: {
+    : navigator.credentials.get({ signal, ...mediation, publicKey: {
         challenge,
         ...(spec.rpId ? { rpId: spec.rpId } : {}),
-        allowCredentials: [],
+        allowCredentials: spec.allow === "mine"
+          ? [{ type: "public-key", id: from64(localStorage.getItem("id")).buffer }]
+          : spec.allow === "other"
+          ? [{ type: "public-key", id: bytes("not in this vault") }] : [],
         userVerification: spec.uv ?? "discouraged",
       } });
   call.then(
@@ -202,6 +228,26 @@ Future<int> runPasskeyScenario(
     await Future<void>.delayed(const Duration(milliseconds: 1200));
     return !await d.passkeyWindowOpen;
   }
+
+  const suggestion = '[data-sixora-passkey]';
+
+  Future<void> focusField() =>
+      d.script("document.getElementById('field').focus();");
+
+  Future<bool> suggested() async =>
+      await d.script('return !!document.querySelector(arguments[0]);', [
+        suggestion,
+      ]) ==
+      true;
+
+  Future<bool> stayedWithoutSuggestion() async {
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    return !await suggested();
+  }
+
+  Future<String> outputNow() async =>
+      await d.script("return document.getElementById('out').textContent;")
+          as String;
 
   // Switched on in the settings.
   await d.navigate('$base/popup.html');
@@ -289,6 +335,34 @@ Future<int> runPasskeyScenario(
     r['fine'] == true && (r['flags']! as int) & _flagUserVerified != 0,
   );
 
+  // The site names the passkeys of the account signing in.
+  await ask('get', {'allow': 'mine'});
+  await d.toPasskeyWindow();
+  await d.waitFor('.passkey-list .row', timeout: const Duration(seconds: 30));
+  await d.click('.passkey-list .row');
+  await d.toPage();
+  r = await result();
+  check('allow list naming this passkey $r', r['fine'] == true);
+
+  // None of them is here: after asking the server, the window says which
+  // account Sixora does have, instead of vanishing.
+  await ask('get', {'allow': 'other'});
+  await d.toPasskeyWindow();
+  await d.waitFor('main button.secondary', timeout: const Duration(seconds: 30));
+  final told = await d.script("return document.querySelector('main').textContent;");
+  check(
+    'names the account it has ($told)',
+    (told as String).contains('alice@rp.example'),
+  );
+  await d.click('main button.secondary');
+  await d.toPage();
+  await ask('abort', {});
+  r = await result();
+  check(
+    'and hands the request on $r',
+    !await d.passkeyWindowOpen,
+  );
+
   // The page withdraws its request.
   await ask('get', {});
   await d.toPasskeyWindow();
@@ -338,8 +412,124 @@ Future<int> runPasskeyScenario(
     await ask('get', {'rpId': related.unlisted, 'abortAfter': 1500});
     check('a site that does not name it', await stayedWithoutWindow());
     await result();
+
+    // In the field: the shared passkey, nothing of a site that does not
+    // name this address, nothing where no passkey is stored.
+    await focusField();
+    await ask('get', {'conditional': true, 'rpId': related.rpId});
+    await d.waitFor(suggestion);
+    check('suggestion on a related origin', await suggested());
+    await ask('abort', {});
+    await result();
+    await ask('get', {
+      'conditional': true,
+      'rpId': related.unlisted,
+      'abortAfter': 1500,
+    });
+    check(
+      'no suggestion for a site that does not name it',
+      await stayedWithoutSuggestion(),
+    );
+    await result();
+    await d.navigate('https://${related.unlisted}/');
+    await focusField();
+    await ask('get', {'conditional': true, 'abortAfter': 1500});
+    check(
+      'no suggestion where no passkey is stored',
+      await stayedWithoutSuggestion(),
+    );
+    await result();
     await d.navigate(rpUrl);
   }
+
+  // Signing in from the suggestion in the field.
+  await d.navigate(rpUrl);
+  await ask('get', {'conditional': true});
+  check('nothing shown before the field has the focus', !await suggested());
+  await focusField();
+  await d.waitFor(suggestion);
+  check('suggestion at the field, no window yet', !await d.passkeyWindowOpen);
+  await d.trustedClick(suggestion);
+  await d.toPasskeyWindow();
+  await d.waitFor('.passkey-list .row', timeout: const Duration(seconds: 30));
+  await d.click('.passkey-list .row');
+  await d.toPage();
+  r = await result();
+  check('sign-in from the suggestion $r', r['fine'] == true);
+  check('suggestion gone afterwards', !await suggested());
+
+  // Closing the window withdraws nothing: the page's request stays open
+  // and the suggestion comes back; it also works right after that "no".
+  await ask('get', {'conditional': true});
+  await d.waitFor(suggestion);
+  await d.trustedClick(suggestion);
+  await d.toPasskeyWindow();
+  await d.waitFor('.passkey-list .row', timeout: const Duration(seconds: 30));
+  await d.closePasskeyWindow();
+  await d.toPage();
+  await d.waitFor(suggestion);
+  check('a no leaves the request open', await outputNow() == '');
+  await d.trustedClick(suggestion);
+  await d.toPasskeyWindow();
+  await d.waitFor('.passkey-list .row', timeout: const Duration(seconds: 30));
+  await d.click('.passkey-list .row');
+  await d.toPage();
+  r = await result();
+  check('suggestion works right after a no $r', r['fine'] == true);
+
+  // The page withdraws; a real sign-in may reuse the challenge.
+  await Future<void>.delayed(const Duration(milliseconds: 300));
+  await ask('get', {'conditional': true});
+  await d.waitFor(suggestion);
+  await ask('abort', {});
+  r = await result();
+  check('page withdraws the suggestion $r', r['error'] == 'AbortError');
+  check('suggestion gone with it', !await suggested());
+  // A "no" above paused modal requests of this tab.
+  await Future<void>.delayed(const Duration(seconds: 10));
+  await ask('get', {'sameChallenge': true});
+  await d.toPasskeyWindow();
+  await d.waitFor('.passkey-list .row', timeout: const Duration(seconds: 30));
+  check('same challenge reaches Sixora as a real sign-in', true);
+  await d.click('.passkey-list .row');
+  await d.toPage();
+  r = await result();
+  check('and signs in $r', r['fine'] == true);
+
+  // Beside another manager: it gets the request too and is withdrawn.
+  await d.navigate(rpUrl);
+  await ask('signInManager', {});
+  await ask('get', {'conditional': true});
+  await focusField();
+  await d.waitFor(suggestion);
+  final seen = await d.script(
+    'return (window.wrappedJSObject ?? window).managerCalls;',
+  );
+  check('the other manager sees the request ($seen)', seen == 1);
+  await d.trustedClick(suggestion);
+  await d.toPasskeyWindow();
+  await d.waitFor('.passkey-list .row', timeout: const Duration(seconds: 30));
+  await d.click('.passkey-list .row');
+  await d.toPage();
+  r = await result();
+  check('Sixora answers beside it $r', r['fine'] == true);
+  final withdrawn = await d.script(
+    'return (window.wrappedJSObject ?? window).managerAborted;',
+  );
+  check('the other manager is withdrawn ($withdrawn)', withdrawn == 1);
+
+  // No suggestion for another site's passkeys, no silent creation.
+  await d.navigate(rpUrl);
+  await focusField();
+  await ask('get', {'conditional': true, 'rpId': 'example.com'});
+  r = await result();
+  check(
+    'foreign rpId: no suggestion, the browser reports it $r',
+    r['error'] == 'SecurityError' && !await suggested(),
+  );
+  await ask('create', {'conditional': true, 'abortAfter': 1000});
+  check('nothing made silently', await stayedWithoutWindow());
+  await result();
 
   // Another password manager that hooks in later, whether it captured the
   // browser's function or Sixora's own, or pinned its function in place.

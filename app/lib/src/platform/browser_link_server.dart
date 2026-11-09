@@ -138,6 +138,20 @@ class AppLinkDelegate implements BrowserLinkDelegate {
   bool isPaired(String publicKey) => c.isLinkedBrowser(publicKey);
 
   @override
+  Future<String?> get appKey async {
+    try {
+      return await c.browserLinkPublicKey;
+    } on Object {
+      // No keychain right now: the extension just cannot open the app.
+      return null;
+    }
+  }
+
+  @override
+  Future<bool> openWith(String sealedUserKey) =>
+      c.unlockWithSealedUserKey(sealedUserKey);
+
+  @override
   Future<Uint8List?> approve({required String browser}) =>
       c.approveBrowserUnlock(
         reason: reason(browser),

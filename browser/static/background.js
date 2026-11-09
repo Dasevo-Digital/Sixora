@@ -210,9 +210,9 @@ async function openPasskeyWindow(message, origin, tabId) {
   const pauseKey = PASSKEY_PAUSE + tabId;
   const state = await ext.storage.session.get([tabKey, pauseKey]);
   // One window per tab, and no new one right after a "no": a page must not
-  // be able to keep them coming.
+  // be able to keep them coming. A click on the suggestion is the user's own.
   if (state[tabKey]) return { fallback: true, why: "a window is already open for this tab" };
-  if ((state[pauseKey] ?? 0) > Date.now()) {
+  if (!message.picked && (state[pauseKey] ?? 0) > Date.now()) {
     return { fallback: true, why: "paused after the last refusal" };
   }
   const id = crypto.randomUUID();
@@ -244,14 +244,14 @@ async function openPasskeyWindow(message, origin, tabId) {
   return { pending: true };
 }
 
-async function startPasskey(message, sender) {
+// Who asks and for which site; `why` if this page may not use its passkeys.
+async function passkeySite(message, sender) {
   // Which site asks comes from the browser, never from the page. Frames
   // keep the browser's own passkeys.
   const origin = sender.origin ?? (sender.url ? new URL(sender.url).origin : null);
   const tabId = sender.tab?.id;
   if (sender.frameId !== 0 || tabId === undefined || !origin || origin === "null") {
     return {
-      fallback: true,
       why: `not a top-level page (frame ${sender.frameId}, tab ${tabId}, origin ${origin})`,
     };
   }
@@ -263,8 +263,25 @@ async function startPasskey(message, sender) {
   // looking for passkeys, so the time it takes says nothing either.
   const fits = host === rpId || host.endsWith(`.${rpId}`);
   if (!fits && !(await isRelatedOrigin(rpId, origin))) {
-    return { fallback: true, why: `${rpId} does not fit ${origin}` };
+    return { why: `${rpId} does not fit ${origin}` };
   }
+  return { origin, tabId, request, rpId, fits };
+}
+
+// Whether the field of this page gets the suggestion. Nothing opens yet.
+async function offerPasskey(message, sender) {
+  const site = await passkeySite(message, sender);
+  if (site.why) return { offer: false, why: site.why };
+  if (!(await siteHasPasskey(site.rpId))) {
+    return { offer: false, why: "no passkey stored for this site" };
+  }
+  return { offer: true };
+}
+
+async function startPasskey(message, sender) {
+  const site = await passkeySite(message, sender);
+  if (site.why) return { fallback: true, why: site.why };
+  const { origin, tabId, request, rpId, fits } = site;
   if (request.kind !== "create" && !(await siteHasPasskey(rpId))) {
     return { fallback: true, why: "no passkey stored for this site" };
   }
@@ -340,6 +357,12 @@ ext.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.sixora === "passkey") {
     startPasskey(message, sender).then(sendResponse, (e) =>
       sendResponse({ fallback: true, why: String(e) }),
+    );
+    return true;
+  }
+  if (message?.sixora === "passkey-offer") {
+    offerPasskey(message, sender).then(sendResponse, (e) =>
+      sendResponse({ offer: false, why: String(e) }),
     );
     return true;
   }

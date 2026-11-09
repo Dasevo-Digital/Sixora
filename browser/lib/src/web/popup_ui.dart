@@ -53,6 +53,8 @@ class PopupUi {
 
   /// In the window of a passkey request.
   String? _passkeyId;
+  Future<void>? _passkeySync;
+  var _passkeysSynced = false;
   PasskeyRequest? _passkey;
 
   /// Master password or biometrics were given during this request.
@@ -326,6 +328,7 @@ class PopupUi {
             _verified = true;
             _render();
             unawaited(_sync());
+            unawaited(_app.openApp());
           } on Object catch (err) {
             if (x.stage == Stage.setup) {
               _render();
@@ -764,7 +767,7 @@ class PopupUi {
       return;
     }
     if (x.stage == Stage.setup) {
-      await _answerPasskey({'fallback': true});
+      await _answerPasskey({'fallback': true, 'why': 'extension not set up'});
       return;
     }
     _passkey = request;
@@ -772,12 +775,22 @@ class PopupUi {
     if (x.stage == Stage.unlocked) unawaited(_refreshPasskeys());
   }
 
-  /// A passkey made on another device may have arrived.
-  Future<void> _refreshPasskeys() async {
+  /// A passkey made on another device may have arrived. Until this is done,
+  /// finding none proves nothing.
+  Future<void> _refreshPasskeys() => _passkeySync ??= () async {
+    final request = _passkey!;
     final before = x.passkeys.length;
-    await x.sync();
-    if (x.stage != Stage.unlocked || x.passkeys.length != before) _render();
-  }
+    final missing = !request.create && x.passkeysFor(request).isEmpty;
+    try {
+      await x.sync();
+    } catch (_) {
+      // Offline: what is stored has to do.
+    }
+    _passkeysSynced = true;
+    if (missing || x.stage != Stage.unlocked || x.passkeys.length != before) {
+      _render();
+    }
+  }();
 
   Future<void> _answerPasskey(Map<String, Object?> reply) =>
       bridge.passkeyFinish(_passkeyId!, jsonEncode(reply)).toDart;
@@ -814,7 +827,45 @@ class PopupUi {
     }
     final found = x.passkeysFor(request);
     if (found.isEmpty) {
-      unawaited(_answerPasskey({'fallback': true}));
+      if (!_passkeysSynced) {
+        _show([
+          _header(),
+          _el('main', cls: 'center', children: [_passkeySite(request)]),
+        ]);
+        unawaited(_refreshPasskeys());
+        return;
+      }
+      final stored = [
+        for (final p in x.passkeys)
+          if (p.passkey.rpId == request.rpId) p.passkey,
+      ];
+      if (stored.isEmpty) {
+        unawaited(
+          _answerPasskey({
+            'fallback': true,
+            'why': 'no passkey for ${request.rpId} in this vault',
+          }),
+        );
+        return;
+      }
+      // Sixora has one, but not the one the site wants: say so, rather
+      // than vanish and leave the user guessing.
+      _show([
+        _header(),
+        _el(
+          'main',
+          cls: 'center',
+          children: [
+            _el('h2', text: t['passkeyNoMatchTitle']),
+            _passkeySite(request),
+            _el('p', text: t['passkeyNoMatch']),
+            for (final passkey in stored)
+              _el('p', cls: 'passkey-site', text: passkey.account),
+            _el('p', text: t['passkeyNoMatchHint']),
+            ..._passkeyWayOut(),
+          ],
+        ),
+      ]);
       return;
     }
     _show([

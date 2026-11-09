@@ -27,6 +27,13 @@ import '../crypto/vault_crypto.dart';
 /// A connected extension follows the app each time it opens: `session`
 /// hands it the sealed user key without asking while the app is unlocked,
 /// and it locks itself when `hello` says the app is locked.
+///
+/// The other way round, an extension unlocked with the master password
+/// opens the locked app: `openApp` carries the user key sealed to the app's
+/// own key. The extension learns that key only together with
+/// [appKeyProof], which takes the user key to make, so a program posing as
+/// the app cannot plant its own. The app in turn accepts only a key that
+/// opens the account: whoever has one gains nothing by opening the app.
 abstract final class BrowserLink {
   /// Name of the native messaging host (manifest file and registry key).
   static const hostName = 'de.status403.sixora';
@@ -78,6 +85,14 @@ abstract final class BrowserLink {
           ),
         )
         .bytes,
+  );
+
+  /// Ties the app's own key to the account (see above).
+  static String appKeyProof(List<int> userKey, String appKey) => base64.encode(
+    c.Hmac(
+      c.sha256,
+      userKey,
+    ).convert(utf8.encode('sixora-browser-link-app-key|$appKey')).bytes,
   );
 
   /// After the user declined to connect an extension, new requests to
@@ -138,6 +153,13 @@ abstract interface class BrowserLinkDelegate {
   /// A copy of the user key while the app is unlocked, else null.
   Uint8List? get userKeyWhileUnlocked;
 
+  /// The app's own public key, for [openWith]; null if it has none.
+  Future<String?> get appKey;
+
+  /// Opens the locked app with the user key sealed to [appKey]. Whether it
+  /// is open now; a key that does not open the account changes nothing.
+  Future<bool> openWith(String sealedUserKey);
+
   /// A connected extension: the user confirms; the user key, or null.
   Future<Uint8List?> approve({required String browser});
 
@@ -187,6 +209,8 @@ class BrowserLinkHost {
         return _unlock(request);
       case 'session':
         return _session(request);
+      case 'openApp':
+        return _openApp(request);
       default:
         return {'error': 'unknown'};
     }
@@ -219,10 +243,35 @@ class BrowserLinkHost {
     final key = delegate.userKeyWhileUnlocked;
     if (key == null) return {'error': 'locked'};
     try {
-      return {'sealedUserKey': await VaultCrypto.seal(key, publicKey)};
+      return await _keyFor(publicKey, key);
     } finally {
       key.fillRange(0, key.length, 0);
     }
+  }
+
+  Future<Map<String, Object?>> _keyFor(String publicKey, List<int> key) async {
+    final appKey = await delegate.appKey;
+    return {
+      'sealedUserKey': await VaultCrypto.seal(key, publicKey),
+      if (appKey != null) ...{
+        'appKey': appKey,
+        'appKeyProof': BrowserLink.appKeyProof(key, appKey),
+      },
+    };
+  }
+
+  /// A connected extension was unlocked and takes the app along.
+  Future<Map<String, Object?>> _openApp(Map<String, Object?> request) async {
+    final publicKey = _publicKey(request);
+    if (publicKey == null) return {'error': 'invalid'};
+    if (!_sameAccount(request)) return {'error': 'other_account'};
+    if (!delegate.isPaired(publicKey)) return {'error': 'not_paired'};
+    if (delegate.unlocked) return {'opened': true};
+    final sealed = request['sealedUserKey'];
+    if (sealed is! String) return {'error': 'invalid'};
+    return await delegate.openWith(sealed)
+        ? {'opened': true}
+        : {'error': 'denied'};
   }
 
   Future<Map<String, Object?>> _unlock(Map<String, Object?> request) async {
@@ -260,10 +309,7 @@ class BrowserLinkHost {
         return {'error': 'denied'};
       }
       try {
-        return {
-          'sealedUserKey': await VaultCrypto.seal(key, publicKey),
-          'paired': true,
-        };
+        return {...await _keyFor(publicKey, key), 'paired': true};
       } finally {
         key.fillRange(0, key.length, 0);
       }

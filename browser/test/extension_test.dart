@@ -48,6 +48,24 @@ class FakeApp implements BrowserLinkDelegate {
       open ? Uint8List.fromList(userKey) : null;
   @override
   bool isPaired(String publicKey) => paired.contains(publicKey);
+
+  ({String publicKey, Uint8List privateKey})? own;
+  int openings = 0;
+  @override
+  Future<String?> get appKey async => own?.publicKey;
+  @override
+  Future<bool> openWith(String sealedUserKey) async {
+    final key = await VaultCrypto.unseal(
+      sealedUserKey,
+      own!.privateKey,
+      own!.publicKey,
+    );
+    if (base64.encode(key) != base64.encode(userKey)) return false;
+    openings++;
+    open = true;
+    return true;
+  }
+
   @override
   Future<Uint8List?> approve({required String browser}) async {
     approvals++;
@@ -311,7 +329,8 @@ void main() {
       await e.load();
       await e.signIn(url, 'alice', password);
       await e.lock();
-      fake = FakeApp(url, e.stored!.account.id, keys.userKey);
+      fake = FakeApp(url, e.stored!.account.id, keys.userKey)
+        ..own = await VaultCrypto.newKeyPair();
       host = BrowserLinkHost(fake, version: 'test');
       return e;
     }
@@ -341,6 +360,75 @@ void main() {
         expect(e.stage, Stage.locked);
         expect(e.codes, isEmpty);
         expect(session.values['unlocked'], isNull);
+      });
+
+      test('the master password opens the locked app too', () async {
+        fake.open = false;
+        await e.unlock(password);
+        await unlock.openApp();
+        expect(fake.open, isTrue);
+        expect(fake.openings, 1);
+      });
+
+      test('an open app is left alone', () async {
+        await e.unlock(password);
+        await unlock.openApp();
+        expect(fake.openings, 0);
+      });
+
+      test('no proven app key: the user key stays here', () async {
+        await e.local.write(SixoraExtension.appKeyEntry, null);
+        fake.open = false;
+        await e.unlock(password);
+        await unlock.openApp();
+        expect(fake.open, isFalse);
+      });
+
+      test('a program posing as the app cannot plant its key', () async {
+        await e.local.write(SixoraExtension.appKeyEntry, null);
+        final posing = await VaultCrypto.newKeyPair();
+        // Passes the real key on, with its own in place of the app's.
+        final forged = AppUnlock(e, (r, {required timeout, keep}) async {
+          final reply = await ask(r, timeout: timeout, keep: keep);
+          return {
+            ...reply,
+            if (reply.containsKey('appKey')) 'appKey': posing.publicKey,
+          };
+        }, browser: 'Firefox');
+        await forged.followApp();
+        expect(await e.local.read(SixoraExtension.appKeyEntry), isNull);
+      });
+
+      test('a made-up user key does not prove anything', () async {
+        await e.local.write(SixoraExtension.appKeyEntry, null);
+        final posing = await VaultCrypto.newKeyPair();
+        final madeUp = Uint8List(32);
+        final forged = AppUnlock(e, (r, {required timeout, keep}) async {
+          final reply = await ask(r, timeout: timeout, keep: keep);
+          if (r['type'] != 'session') return reply;
+          return {
+            'sealedUserKey': await VaultCrypto.seal(
+              madeUp,
+              r['publicKey']! as String,
+            ),
+            'appKey': posing.publicKey,
+            'appKeyProof': BrowserLink.appKeyProof(madeUp, posing.publicKey),
+          };
+        }, browser: 'Firefox');
+        await e.unlock(password);
+        await forged.followApp();
+        expect(await e.local.read(SixoraExtension.appKeyEntry), isNull);
+      });
+
+      test('learns the app key while open, once', () async {
+        await e.local.write(SixoraExtension.appKeyEntry, null);
+        await e.unlock(password);
+        await unlock.followApp();
+        expect(
+          await e.local.read(SixoraExtension.appKeyEntry),
+          fake.own!.publicKey,
+        );
+        expect(e.stage, Stage.unlocked);
       });
 
       test('stays locked if locked by hand, until unlocked again', () async {

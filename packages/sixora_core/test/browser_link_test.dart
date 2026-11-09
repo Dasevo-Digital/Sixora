@@ -27,6 +27,18 @@ class _App implements BrowserLinkDelegate {
   @override
   bool isPaired(String publicKey) => paired.contains(publicKey);
 
+  String? ownKey;
+  bool opens = true;
+  final sealedKeys = <String>[];
+  @override
+  Future<String?> get appKey async => ownKey;
+  @override
+  Future<bool> openWith(String sealedUserKey) async {
+    sealedKeys.add(sealedUserKey);
+    if (opens) unlocked = true;
+    return opens;
+  }
+
   @override
   Future<Uint8List?> approve({required String browser}) async {
     approvals++;
@@ -95,6 +107,63 @@ void main() {
       app = _App();
       host = BrowserLinkHost(app, version: '0.1.30', clock: () => now);
       ext = await VaultCrypto.newKeyPair();
+    });
+
+    test('hands out its own key only with proof of the user key', () async {
+      app.ownKey = (await VaultCrypto.newKeyPair()).publicKey;
+      final reply = await host.handle(request('unlock'));
+      expect(reply['appKey'], app.ownKey);
+      expect(
+        reply['appKeyProof'],
+        BrowserLink.appKeyProof(app.userKey, app.ownKey!),
+      );
+      expect(
+        reply['appKeyProof'],
+        isNot(BrowserLink.appKeyProof(List.filled(32, 7), app.ownKey!)),
+      );
+    });
+
+    group('opening the app from the extension', () {
+      Map<String, Object?> open({String userId = 'u1'}) => {
+        ...request('openApp', userId: userId),
+        'sealedUserKey': 'versiegelt',
+      };
+
+      setUp(() {
+        app.paired.add(ext.publicKey);
+        app.unlocked = false;
+      });
+
+      test('opens for a connected extension', () async {
+        expect(await host.handle(open()), {'opened': true});
+        expect(app.sealedKeys, ['versiegelt']);
+      });
+
+      test('says so if the key does not open the account', () async {
+        app.opens = false;
+        expect((await host.handle(open()))['error'], 'denied');
+        expect(app.unlocked, isFalse);
+      });
+
+      test('leaves an open app alone', () async {
+        app.unlocked = true;
+        expect(await host.handle(open()), {'opened': true});
+        expect(app.sealedKeys, isEmpty);
+      });
+
+      test('refuses anyone else', () async {
+        expect(
+          (await host.handle(open(userId: 'u2')))['error'],
+          'other_account',
+        );
+        expect(
+          (await host.handle(request('openApp')))['error'],
+          'invalid',
+        );
+        app.paired.clear();
+        expect((await host.handle(open()))['error'], 'not_paired');
+        expect(app.sealedKeys, isEmpty);
+      });
     });
 
     test('tells only whether the account is the same', () async {

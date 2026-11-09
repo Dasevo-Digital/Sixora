@@ -132,9 +132,10 @@ class AppUnlock {
         if (x.stage == Stage.unlocked) await x.lock();
         return;
       }
-      if (app.appUnlocked != true ||
-          x.stage != Stage.locked ||
-          await x.lockedByUser) {
+      if (app.appUnlocked != true) return;
+      final opens = x.stage == Stage.locked && !await x.lockedByUser;
+      // Also asks once while open: the app's key is in the same answer.
+      if (!opens && await x.local.read(SixoraExtension.appKeyEntry) != null) {
         return;
       }
       final key = await _key();
@@ -144,11 +145,51 @@ class AppUnlock {
       );
       final sealed = reply['sealedUserKey'];
       if (sealed is! String) return;
-      await x.unlockWithUserKey(
-        await VaultCrypto.unseal(sealed, key.privateKey, key.publicKey),
+      final userKey = await VaultCrypto.unseal(
+        sealed,
+        key.privateKey,
+        key.publicKey,
       );
+      if (opens) await x.unlockWithUserKey(userKey);
+      await _rememberAppKey(reply, userKey);
+      if (!opens) userKey.fillRange(0, userKey.length, 0);
     } on Object {
       // The lock screen offers the other ways.
+    }
+  }
+
+  /// Keeps the app's key if the answer proves it, which takes the real user
+  /// key: a program posing as the app has neither.
+  Future<void> _rememberAppKey(
+    Map<String, Object?> reply,
+    Uint8List userKey,
+  ) async {
+    final appKey = reply['appKey'];
+    if (appKey is! String ||
+        reply['appKeyProof'] != BrowserLink.appKeyProof(userKey, appKey) ||
+        !await x.opensAccount(userKey)) {
+      return;
+    }
+    await x.local.write(SixoraExtension.appKeyEntry, appKey);
+  }
+
+  /// After the master password: a locked app on this computer opens too.
+  /// Without a proven key of the app the user key stays here.
+  Future<void> openApp() async {
+    try {
+      final appKey = await x.local.read(SixoraExtension.appKeyEntry);
+      if (appKey == null) return;
+      final app = await status(timeout: const Duration(seconds: 2));
+      if (app == null || !app.paired || app.appUnlocked != false) return;
+      final sealed = await x.sealUserKey(appKey);
+      if (sealed == null) return;
+      final key = await _key();
+      await ask({
+        ..._request('openApp', key.publicKey),
+        'sealedUserKey': sealed,
+      }, timeout: const Duration(seconds: 5));
+    } on Object {
+      // The app stays as it is.
     }
   }
 
@@ -210,9 +251,13 @@ class AppUnlock {
     }
     final key = await _key();
     try {
-      await x.unlockWithUserKey(
-        await VaultCrypto.unseal(sealed, key.privateKey, key.publicKey),
+      final userKey = await VaultCrypto.unseal(
+        sealed,
+        key.privateKey,
+        key.publicKey,
       );
+      await x.unlockWithUserKey(userKey);
+      await _rememberAppKey(reply, userKey);
     } on CryptoException {
       throw const ExtensionError('app_failed');
     }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf_io.dart' as io;
@@ -194,6 +195,42 @@ void main() {
     );
     await itemsLoaded(c, 2);
     expect(issuers(), ['GitHub', 'GitLab']);
+  });
+
+  test('an iPhone keeps passkeys without listing them', () async {
+    await startLocal();
+    final passkey = WebAuthn.create(
+      rpId: 'github.com',
+      rpName: 'GitHub',
+      userHandle: 'dXNlcg',
+      userName: 'alice',
+      displayName: 'Alice',
+    );
+    final vaultId = c.items.first.vaultId;
+    await c.addPasskey(passkey, vaultId: vaultId);
+    await c.addPasskey(
+      WebAuthn.create(
+        rpId: 'gitlab.com',
+        rpName: 'GitLab',
+        userHandle: 'dXNlcg',
+        userName: 'alice',
+        displayName: 'Alice',
+      ),
+      vaultId: vaultId,
+    );
+    await c.deletePasskey(
+      c.passkeys.firstWhere((p) => p.passkey.rpId == 'gitlab.com'),
+    );
+    expect(c.showsPasskeys, isTrue);
+    expect(await c.trash(), hasLength(1));
+
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    expect(c.showsPasskeys, isFalse);
+    expect(await c.trash(), isEmpty);
+    // Still there for backups and moves, and no "cannot be decrypted".
+    expect(c.passkeys.single.passkey.privateKey, passkey.privateKey);
+    expect(c.undecryptable, 0);
   });
 
   test('passkeys live beside the codes and move along', () async {

@@ -184,6 +184,7 @@ class AppController extends ChangeNotifier {
     CachedAccount? cached,
     SixoraApi? api,
     bool passive = false,
+    BiometricVault? biometrics,
   }) {
     final store = LocalStore(dir);
     final secrets = SecretStore.inFolder(dir);
@@ -197,7 +198,7 @@ class AppController extends ChangeNotifier {
       )
       ..phase = cached == null ? Phase.setup : Phase.locked
       .._api = api
-      ..biometrics = BiometricVault.none(secrets);
+      ..biometrics = biometrics ?? BiometricVault.none(secrets);
   }
 
   static Future<AppController> create({bool passive = false}) async {
@@ -545,11 +546,6 @@ class AppController extends ChangeNotifier {
     await saveSettings();
   }
 
-  /// A connected browser extension asks to be unlocked. While Sixora is
-  /// unlocked the user confirms with biometrics, or with [confirm] (a
-  /// dialog) where there are none; while it is locked, quick unlock reads
-  /// the key without opening the app. Returns a copy of the user key, or
-  /// null.
   /// For a connected browser extension: a copy of the user key while the
   /// app is unlocked.
   Uint8List? get browserSessionKey {
@@ -558,6 +554,77 @@ class AppController extends ChangeNotifier {
     return Uint8List.fromList(keys.userKey);
   }
 
+  static const _browserLinkKey = 'browserLinkKey';
+
+  /// The app's key pair for extensions that take it along when they are
+  /// unlocked. Kept like the session token, so a locked app can use it.
+  Future<({String publicKey, Uint8List privateKey})> _browserLinkKeys() async {
+    final text = secrets[_browserLinkKey];
+    if (text != null) {
+      try {
+        final j = (jsonDecode(text) as Map).cast<String, Object?>();
+        return (
+          publicKey: j['publicKey']! as String,
+          privateKey: base64.decode(j['privateKey']! as String),
+        );
+      } on Object {
+        // Damaged: a new one, which extensions learn at the next unlock.
+      }
+    }
+    final keys = await VaultCrypto.newKeyPair();
+    await secrets.set(
+      _browserLinkKey,
+      jsonEncode({
+        'publicKey': keys.publicKey,
+        'privateKey': base64.encode(keys.privateKey),
+      }),
+    );
+    return keys;
+  }
+
+  Future<String> get browserLinkPublicKey async =>
+      (await _browserLinkKeys()).publicKey;
+
+  /// A connected extension was unlocked with the master password and takes
+  /// the app along. Only a key that opens the account does anything: whoever
+  /// has one can read the vault anyway. Whether the app is open now.
+  Future<bool> unlockWithSealedUserKey(String sealedUserKey) async {
+    if (phase == Phase.unlocked) return true;
+    final account = cached?.account;
+    if (phase != Phase.locked || account == null) return false;
+    final UnlockedKeys opened;
+    try {
+      final own = await _browserLinkKeys();
+      final userKey = await VaultCrypto.unseal(
+        sealedUserKey,
+        own.privateKey,
+        own.publicKey,
+      );
+      opened = await UnlockedKeys.fromUserKey(account, userKey);
+    } on CryptoException {
+      return false;
+    }
+    return _openWith(opened);
+  }
+
+  /// Takes over [opened] unless something else opened or changed the app
+  /// meanwhile. Whether the app is open now.
+  Future<bool> _openWith(UnlockedKeys opened) async {
+    if (phase != Phase.locked) {
+      opened.userKey.fillRange(0, opened.userKey.length, 0);
+      opened.privateKey.fillRange(0, opened.privateKey.length, 0);
+      return phase == Phase.unlocked;
+    }
+    _keys = opened;
+    await _afterUnlock();
+    return true;
+  }
+
+  /// A connected browser extension asks to be unlocked. While Sixora is
+  /// unlocked the user confirms with biometrics, or with [confirm] (a
+  /// dialog) where there are none; while it is locked, quick unlock opens
+  /// the app along with the extension. Returns a copy of the user key, or
+  /// null.
   Future<Uint8List?> approveBrowserUnlock({
     required String reason,
     required Future<bool> Function() confirm,
@@ -577,14 +644,16 @@ class AppController extends ChangeNotifier {
     if (phase == Phase.locked && quickUnlockReady) {
       final (result, userKey) = await biometrics.unlock(reason: reason);
       if (result != BiometricResult.unlocked || userKey == null) return null;
+      final UnlockedKeys opened;
       try {
         // Only a key that opens the account goes out.
-        final keys = await UnlockedKeys.fromUserKey(cached!.account, userKey);
-        keys.privateKey.fillRange(0, keys.privateKey.length, 0);
+        opened = await UnlockedKeys.fromUserKey(cached!.account, userKey);
       } on CryptoException {
         return null;
       }
-      return userKey;
+      final copy = Uint8List.fromList(userKey);
+      await _openWith(opened);
+      return copy;
     }
     return null;
   }
@@ -1218,6 +1287,11 @@ class AppController extends ChangeNotifier {
   bool hasPasskey(PasskeyEntry p) =>
       passkeys.any((k) => k.passkey.credentialId == p.credentialId);
 
+  /// Whether this device lists passkeys. An iPhone has no way to use them
+  /// yet, so there they stay out of sight. They are still loaded: backups
+  /// and a move to another server must not lose them.
+  bool get showsPasskeys => defaultTargetPlatform != TargetPlatform.iOS;
+
   /// Stores a passkey that came from a backup or another server.
   Future<void> addPasskey(
     PasskeyEntry passkey, {
@@ -1290,7 +1364,12 @@ class AppController extends ChangeNotifier {
         // Not readable: leave it out.
       }
     }
-    return out;
+    return showsPasskeys
+        ? out
+        : [
+            for (final i in out)
+              if (i.entry != null) i,
+          ];
   }
 
   Future<void> restore(TrashItem t) async {

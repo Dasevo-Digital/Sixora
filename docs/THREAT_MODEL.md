@@ -30,8 +30,10 @@ die Verfügbarkeit und Vollständigkeit verschlüsselter Tresordaten.
   vom Browser; eine Seite erreicht nur Passkeys ihrer eigenen Domain, deren
   übergeordneter Domains oder einer Website, die sie in ihrer
   `/.well-known/webauthn` ausdrücklich freigibt. Sie kann nicht erfahren, ob für
-  andere Websites welche existieren. Jede Nutzung braucht eine Bestätigung in einem Fenster der
-  Erweiterung, das die vom Browser genannte Adresse zeigt.
+  andere Websites welche existieren. Am Vorschlag im Anmeldefeld kann sie
+  erkennen, dass für sie selbst einer gespeichert ist. Jede Nutzung braucht eine
+  Bestätigung in einem Fenster der Erweiterung, das die vom Browser genannte
+  Adresse zeigt.
 - **Aufrufer von Passkeys unter Android:** Nicht vertrauenswürdig. Jede App kann
   eine Website-Adresse behaupten. Sixora glaubt sie nur Browsern, deren Paketname
   und Release-Zertifikat auf der mitgelieferten Liste stehen. Andere Apps müssen
@@ -47,7 +49,12 @@ die Verfügbarkeit und Vollständigkeit verschlüsselter Tresordaten.
   Erweiterung aus dem Browser-Profil lesen, kommt damit bei entsperrter App
   an den Kontoschlüssel und fällt unter „kompromittiertes Gerät“. Passkeys
   verlangen trotzdem bei jeder Nutzung eine Bestätigung, soweit die Website
-  sie nicht abwählt.
+  sie nicht abwählt. Umgekehrt öffnet eine mit dem Master-Passwort entsperrte
+  Erweiterung die gesperrte App: Sie schickt den Kontoschlüssel versiegelt an
+  einen Schlüssel der App, den sie nur mit einem Nachweis annimmt, der den
+  Kontoschlüssel voraussetzt. Ein Programm, das sich als App ausgibt, erhält
+  ihn so nicht. Die App nimmt nur einen Schlüssel an, der das Konto öffnet.
+  Wer den hat, kann den Tresor ohnehin lesen.
 - **Sicherungen:** Enthalten verschlüsselte Codes und brauchen ein eigenes
   Passwort. Verlust des Sicherungspassworts oder Wiederherstellungsschlüssels
   ist nicht rückgängig zu machen.

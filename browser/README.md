@@ -131,6 +131,13 @@ Neben anderen Passwort-Managern fragt Sixora zuerst: Es setzt sich kurz vor
 jedem Klick wieder an die erste Stelle, und „Anderen Weg nutzen“ reicht die
 Anfrage an den nächsten weiter.
 
-Grenzen: Vorschläge im Anmeldefeld (Conditional UI) und Anfragen aus Frames
-bleiben beim Browser. Ein auf einem anderen Gerät angelegter Passkey ist da,
-sobald die Erweiterung einmal geöffnet wurde.
+Hält eine Seite eine Anmeldung für Vorschläge im Anmeldefeld offen
+(Conditional UI), zeigt `passkey_relay.js` über dem fokussierten Feld „Passkey
+aus Sixora verwenden“, wenn für die Website einer gespeichert ist. Der Browser
+oder ein anderer Manager bekommt dieselbe Anfrage; es zählt, was man anklickt,
+das andere wird zurückgezogen. Der Knopf öffnet dasselbe Fenster wie sonst.
+
+Grenzen: Anfragen aus Frames und das stille Anlegen nach einer
+Passwort-Anmeldung (Conditional Create) bleiben beim Browser. Ein auf einem
+anderen Gerät angelegter Passkey ist da, sobald die Erweiterung einmal geöffnet
+wurde.

@@ -17,11 +17,13 @@
   // Where a request goes that Sixora does not answer: the browser, or another
   // password manager that hooked in (see stayOnTop).
   const below = { ...browserOwn };
-  const handedDown = new WeakSet();
+  // Challenge → the mediation it went down with. A page may reuse one for a
+  // real sign-in after the suggestion in the field.
+  const handedDown = new WeakMap();
 
   function handDown(name, options) {
     const challenge = options?.publicKey?.challenge;
-    if (Object(challenge) === challenge) handedDown.add(challenge);
+    if (Object(challenge) === challenge) handedDown.set(challenge, options.mediation);
     return below[name](options);
   }
   const nativeCreate = (options) => handDown("create", options);
@@ -170,7 +172,9 @@
 
   mine.create = function (options) {
     const key = options?.publicKey;
-    if (!key) return nativeCreate(options);
+    // Conditional: a passkey made silently after a password sign-in. Sixora
+    // never makes one without asking.
+    if (!key || options.mediation === "conditional") return nativeCreate(options);
     // A manager underneath that captured this function hands it back.
     if (handedDown.has(key.challenge)) return browserOwn.create(options);
     return run(
@@ -194,29 +198,84 @@
     );
   };
 
+  const signInRequest = (key) => ({
+    kind: "get",
+    rpId: key.rpId ?? "",
+    challenge: toBase64(key.challenge),
+    allow: (key.allowCredentials ?? []).map((c) => toBase64(c.id)),
+    userVerification: key.userVerification ?? "preferred",
+  });
+
+  // A sign-in the page keeps open while the user types. The browser or
+  // another manager may offer passkeys in the field, Sixora offers its own
+  // next to it (passkey_relay.js). Whichever the user picks answers, and the
+  // other is withdrawn.
+  function suggest(key, options) {
+    const outer = options.signal;
+    if (outer?.aborted) return nativeGet(options);
+    let request;
+    try {
+      request = { ...signInRequest(key), conditional: true };
+    } catch (e) {
+      return nativeGet(options);
+    }
+    const others = new AbortController();
+    const here = new AbortController();
+    outer?.addEventListener(
+      "abort",
+      () => {
+        others.abort(outer.reason);
+        here.abort(outer.reason);
+      },
+      { once: true },
+    );
+    return new Promise((resolve, reject) => {
+      let failure = null;
+      let alone = false;
+      nativeGet({ ...options, signal: others.signal }).then(
+        (found) => {
+          here.abort();
+          resolve(found);
+        },
+        // While Sixora's suggestion stands, the request is still open.
+        (e) => {
+          if (alone || outer?.aborted) reject(e);
+          else failure = e;
+        },
+      );
+      ask(request, here.signal).then(
+        (reply) => {
+          if (reply.result) {
+            others.abort();
+            resolve(signedIn(reply.result));
+            return;
+          }
+          note("no suggestion in the field:", reply.why ?? "");
+          alone = true;
+          if (failure) reject(failure);
+        },
+        (e) => {
+          if (outer?.aborted) reject(e);
+        },
+      );
+    });
+  }
+
   mine.get = function (options) {
     const key = options?.publicKey;
-    if (key && handedDown.has(key.challenge)) return browserOwn.get(options);
-    // Autofill suggestions stay with the browser: Sixora has no way to add
-    // entries to its list.
-    if (!key || options.mediation === "conditional") return nativeGet(options);
-    return run(
-      () => ({
-        kind: "get",
-        rpId: key.rpId ?? "",
-        challenge: toBase64(key.challenge),
-        allow: (key.allowCredentials ?? []).map((c) => toBase64(c.id)),
-        userVerification: key.userVerification ?? "preferred",
-      }),
-      options,
-      nativeGet,
-      signedIn,
-    );
+    if (key && handedDown.has(key.challenge) && handedDown.get(key.challenge) === options.mediation) {
+      return browserOwn.get(options);
+    }
+    if (!key) return nativeGet(options);
+    note("sign-in request:", options.mediation ?? "direct", key.rpId ?? "own domain");
+    if (options.mediation === "conditional") return suggest(key, options);
+    return run(() => signInRequest(key), options, nativeGet, signedIn);
   };
 
   // Password managers that hook in later (1Password does, once it has set
-  // itself up) would cut Sixora out. So just before the user acts it moves back
-  // on top, and what it does not answer still reaches them.
+  // itself up) would cut Sixora out. So just before the user acts, and often
+  // while the page starts up (it may ask for suggestions without any click),
+  // it moves back on top. What it does not answer still reaches them.
   const known = {};
   let ownView = false;
 
@@ -267,7 +326,11 @@
     window.addEventListener(event, stayOnTop, true);
   }
   window.addEventListener("load", stayOnTop);
+  const startup = setInterval(stayOnTop, 200);
+  setTimeout(() => clearInterval(startup), 15000);
 
-  // Sixora answers with user verification, like a built-in authenticator.
+  // Sixora answers with user verification, like a built-in authenticator,
+  // and offers suggestions in the field whatever the browser can do.
   PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = async () => true;
+  PublicKeyCredential.isConditionalMediationAvailable = async () => true;
 })();

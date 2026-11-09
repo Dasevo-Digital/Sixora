@@ -362,4 +362,24 @@ class Cdp implements PasskeyDriver {
   @override
   Future<void> click(String css) =>
       script('document.querySelector(arguments[0]).click();', [css]);
+
+  @override
+  Future<void> trustedClick(String css) async {
+    final center =
+        await script(
+              'const r = document.querySelector(arguments[0])'
+              '.getBoundingClientRect();'
+              'return [r.x + r.width / 2, r.y + r.height / 2];',
+              [css],
+            )
+            as List;
+    for (final type in ['mouseMoved', 'mousePressed', 'mouseReleased']) {
+      await _send('Input.dispatchMouseEvent', {
+        'type': type,
+        'x': center[0],
+        'y': center[1],
+        if (type != 'mouseMoved') ...{'button': 'left', 'clickCount': 1},
+      });
+    }
+  }
 }

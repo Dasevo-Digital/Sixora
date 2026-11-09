@@ -244,16 +244,17 @@ class SettingsScreen extends StatelessWidget {
                   title: Text(t.signedInDevices),
                   onTap: () => _open(context, const SessionsScreen()),
                 ),
-              ListTile(
-                leading: const Icon(Icons.key_outlined),
-                title: Text(t.passkeys),
-                subtitle: Text(
-                  c.passkeys.isEmpty
-                      ? t.passkeysHint
-                      : t.passkeyCount(c.passkeys.length),
+              if (c.showsPasskeys)
+                ListTile(
+                  leading: const Icon(Icons.key_outlined),
+                  title: Text(t.passkeys),
+                  subtitle: Text(
+                    c.passkeys.isEmpty
+                        ? t.passkeysHint
+                        : t.passkeyCount(c.passkeys.length),
+                  ),
+                  onTap: () => _open(context, const PasskeysScreen()),
                 ),
-                onTap: () => _open(context, const PasskeysScreen()),
-              ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: Text(t.trash),

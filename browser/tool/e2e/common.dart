@@ -115,16 +115,40 @@ class TestServer {
 /// ID at once. The browser reaches it through the real native messaging
 /// host (the Sixora binary), started with SIXORA_LINK_PORT=[port].
 class FakeDesktopApp implements BrowserLinkDelegate {
-  FakeDesktopApp._(this._server, this._socket);
+  FakeDesktopApp._(this._server, this._socket, this._own);
 
   final TestServer _server;
   final ServerSocket _socket;
+  final ({String publicKey, Uint8List privateKey}) _own;
 
   int get port => _socket.port;
 
+  /// How often an extension opened this app.
+  int openings = 0;
+
+  @override
+  Future<String?> get appKey async => _own.publicKey;
+
+  @override
+  Future<bool> openWith(String sealedUserKey) async {
+    final key = await VaultCrypto.unseal(
+      sealedUserKey,
+      _own.privateKey,
+      _own.publicKey,
+    );
+    if (base64.encode(key) != base64.encode(_server.userKey)) return false;
+    openings++;
+    open = true;
+    return true;
+  }
+
   static Future<FakeDesktopApp> start(TestServer server) async {
     final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    final app = FakeDesktopApp._(server, socket);
+    final app = FakeDesktopApp._(
+      server,
+      socket,
+      await VaultCrypto.newKeyPair(),
+    );
     final host = BrowserLinkHost(app, version: 'e2e');
     socket.listen((client) {
       app._clients.add(client);
@@ -366,6 +390,19 @@ Future<int> runScenario(
       timeout: const Duration(seconds: 20),
     );
     check('locks with the app', true);
+
+    // The master password in the extension takes the locked app along.
+    await d.type('input[type=password]', password);
+    await d.click('button[type=submit]');
+    await d.waitFor('.row', timeout: const Duration(seconds: 30));
+    final opened = DateTime.now().add(const Duration(seconds: 10));
+    while (!app.open && DateTime.now().isBefore(opened)) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    check(
+      'master password opens the app too (${app.openings})',
+      app.open && app.openings == 1,
+    );
     app.open = true;
   }
 
