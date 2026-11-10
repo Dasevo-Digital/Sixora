@@ -20,8 +20,7 @@ abstract interface class PasskeyDriver implements Driver {
 
 /// A website that uses passkeys and verifies what comes back with
 /// WebCrypto. Each result ends up as JSON in `#out`.
-const passkeyTestPage =
-    r'''<!doctype html><title>rp</title>
+const passkeyTestPage = r'''<!doctype html><title>rp</title>
 <p style="margin-top:80px"><input id="field" autocomplete="username webauthn"></p>
 <pre id="out"></pre><script>
 const b64 = (v) => btoa(String.fromCharCode(...new Uint8Array(v)))
@@ -348,8 +347,13 @@ Future<int> runPasskeyScenario(
   // account Sixora does have, instead of vanishing.
   await ask('get', {'allow': 'other'});
   await d.toPasskeyWindow();
-  await d.waitFor('main button.secondary', timeout: const Duration(seconds: 30));
-  final told = await d.script("return document.querySelector('main').textContent;");
+  await d.waitFor(
+    'main button.secondary',
+    timeout: const Duration(seconds: 30),
+  );
+  final told = await d.script(
+    "return document.querySelector('main').textContent;",
+  );
   check(
     'names the account it has ($told)',
     (told as String).contains('alice@rp.example'),
@@ -358,10 +362,7 @@ Future<int> runPasskeyScenario(
   await d.toPage();
   await ask('abort', {});
   r = await result();
-  check(
-    'and hands the request on $r',
-    !await d.passkeyWindowOpen,
-  );
+  check('and hands the request on $r', !await d.passkeyWindowOpen);
 
   // The page withdraws its request.
   await ask('get', {});

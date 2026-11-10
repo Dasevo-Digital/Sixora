@@ -25,8 +25,7 @@ class _Fingerprint implements BiometricVault {
       : (BiometricResult.unlocked, Uint8List.fromList(key!));
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {

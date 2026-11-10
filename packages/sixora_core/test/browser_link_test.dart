@@ -156,10 +156,7 @@ void main() {
           (await host.handle(open(userId: 'u2')))['error'],
           'other_account',
         );
-        expect(
-          (await host.handle(request('openApp')))['error'],
-          'invalid',
-        );
+        expect((await host.handle(request('openApp')))['error'], 'invalid');
         app.paired.clear();
         expect((await host.handle(open()))['error'], 'not_paired');
         expect(app.sealedKeys, isEmpty);
